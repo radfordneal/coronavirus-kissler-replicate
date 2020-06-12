@@ -6,7 +6,6 @@ This directory contains the raw data files, as follows:
                      at https://github.com/c2-d2/CoV-seasonality.  The version
                      here has tweaks to the column names to avoid special 
                      characters.
-                  
 
   nrevssCDC_ILI.csv  Data file on percentage of ILI tests positive for the
                      four common-cold coronaviruses, obtained from 
