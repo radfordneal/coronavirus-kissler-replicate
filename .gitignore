@@ -1,0 +1,9 @@
+.DS_Store
+.Rapp.history
+.RHistory
+.RData
+*.out
+*.RData
+proxy/*.pdf
+R-est/*.pdf
+R-model/*.pdf

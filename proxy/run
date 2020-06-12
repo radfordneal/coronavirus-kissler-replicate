@@ -1,0 +1,11 @@
+#!/bin/bash
+
+export LANG=en_CA.UTF-8
+
+if [ x$R == x ]; then R=R; fi
+
+$R --save --no-restore <ILIproxy.R >&ILIproxy.out
+#cp .RData ILIproxy.RData
+
+$R --save --no-restore <CoVproxy.R >&CoVproxy.out
+#cp .RData CoVproxy.RData

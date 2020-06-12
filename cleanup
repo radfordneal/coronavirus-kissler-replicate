@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# Clean up result files.
+
+for dir in proxy R-est R-model; do 
+  rm -f $dir/*.out $dir/*.pdf $dir/*.csv
+done

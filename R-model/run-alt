@@ -1,0 +1,24 @@
+#!/bin/bash
+
+export LANG=en_CA.UTF-8
+
+if [ x$R == x ]; then R=R; fi
+
+for R_estim in proxyCss-fmm-filter proxyCm-fmm-filter proxyDn-fmm-filter
+do
+  for R_est_type in Rt Ru; do
+    $R --save --no-restore --args $R_estim $R_est_type \
+       <R-model.R >&R-model-$R_estim-$R_est_type.out
+    # cp .RData R-model-$R_estim-$R_est_type.RData
+    $R --save --no-restore --args $R_estim $R_est_type s2 i2 e2 \
+       <R-model.R >&R-model-$R_estim-$R_est_type-s2-i2-e3.out
+    # cp .RData R-model-$R_estim-$R_est_type-s2-i2-e3.RData
+    $R --save --no-restore --args $R_estim $R_est_type s2 i2 e3 \
+       <R-model.R >&R-model-$R_estim-$R_est_type-s2-i2-e3.out
+    # cp .RData R-model-$R_estim-$R_est_type-s2-i2-e3.RData
+    $R --save --no-restore --args $R_estim $R_est_type s2 i3 e3 \
+       <R-model.R >&R-model-$R_estim-$R_est_type-s2-i3-e3.out
+    # cp .RData R-model-$R_estim-$R_est_type-s2-i3-e3.RData
+  done
+done
+

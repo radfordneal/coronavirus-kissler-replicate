@@ -1,0 +1,21 @@
+This directory contains the raw data files, as follows:
+
+  ILINet.csv         Contains the data on numbers of visits for all reasons
+                     and for influenza-like-illnesses.  Data comes from the 
+                     FluView site, as collected by Kissler, et al, and found
+                     at https://github.com/c2-d2/CoV-seasonality.  The version
+                     here has tweaks to the column names to avoid special 
+                     characters.
+                  
+
+  nrevssCDC_ILI.csv  Data file on percentage of ILI tests positive for the
+                     four common-cold coronaviruses, obtained from 
+                     https://github.com/skissler/nCoV_introduction
+
+  Corona4PP_Nat.csv  A data file with only recent data on coronaviruses,
+                     from https://github.com/c2-d2/CoV-seasonality.  Not
+                     used here.
+
+The directory NREVSS contains some data and other information downloaded
+from the sites in the URLs file.  It is not currently used directly (but
+duplicates some information in the other files).
