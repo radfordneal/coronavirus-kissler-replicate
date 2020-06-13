@@ -126,7 +126,7 @@ title("Log ILI visits per provider")
 # with significant weeks marked. Log scales have same size divisions
 # for both log plots.
 
-par(mfrow=c(4,1))
+par(mfrow=c(2,1))
 
 plot (start, ILI$nonili_visits, pch=20); week_lines()
 title("Non-ILI physician visits")
@@ -167,7 +167,7 @@ plot (start, log(ILI$age_65_up), pch=20,ylab="age 65 up, log");week_lines()
 # PLOT WEIGHTED AND UWEIGHTED ILI PERCENTAGE, AND RATIO.  Also repeat the
 # plots of numbers of providers, for reference.
 
-par(mfrow=c(4,1))
+par(mfrow=c(2,1))
 
 plot (start, ILI$weighted_pct_ili, pch=20); week_lines()
 title("Weighted percent ILI")
