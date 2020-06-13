@@ -5,7 +5,12 @@ This directory contains the raw data files, as follows:
                      FluView site, as collected by Kissler, et al, and found
                      at https://github.com/c2-d2/CoV-seasonality.  The version
                      here has tweaks to the column names to avoid special 
-                     characters.
+                     characters. 
+ 
+                     Note that the data seems to be subject to change
+                     later - the data in this file from week 40 of 2019 
+                     on is slightly different in a more recent download.
+                     (This is after the period used by Kissler, et al.)
 
   nrevssCDC_ILI.csv  Data file on percentage of ILI tests positive for the
                      four common-cold coronaviruses, obtained from 
