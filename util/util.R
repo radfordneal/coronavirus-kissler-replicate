@@ -144,6 +144,19 @@ week_lines <- function ()
 }
 
 
+# PLOT TWO PARALLEL SERIES WITH LINE FROM POINT OF FIRST TO POINT OF SECOND.
+
+plot_two_with_lines <- function (x,y1,y2,...)
+{
+  plot (c(x,x), c(y1,y2), type="n", ...)
+  points (x, y1, pch=19, col="lightpink")
+  for (i in seq_along(x))
+  { lines (c(x[i],x[i]), c(y1[i],y2[i]), col="black")
+  }
+}
+
+
+
 # INDICATORS FOR USE IN MODELING.
 
 New_Year_indicator <- rep(0,length(start))

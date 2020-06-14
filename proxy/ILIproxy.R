@@ -131,10 +131,12 @@ par(mfrow=c(2,1))
 plot (start, ILI$nonili_visits, pch=20); week_lines()
 title("Non-ILI physician visits")
 plot (start, log(ILI$nonili_visits), ylim=c(13,16), pch=20); week_lines()
+title("Log non-ILI physician visits")
 
 plot (start, ILI$ili_visits, pch=20); week_lines()
 title("ILI physician visits")
 plot (start, log(ILI$ili_visits), ylim=c(8.5,11.5), pch=20); week_lines()
+title("Log ILI physician visits")
 
 par(mfrow=c(2,1))
 
@@ -508,68 +510,43 @@ plot_vs_doy (start, log(ILI$weighted_pct_ili), pch=20,
              xlim=c(34,140), ylim=c(-0.4,0.9))
 abline(h=seq(-0.5,1.0,by=0.25),col="gray")
 
-par(mfrow=c(2,1))
-
-plot (log(ILI$weighted_pct_ili), log(ILI$unweighted_pct_ili), 
-      pch=20, asp=1, col=yrcols[year-2013])
-abline(0,1)
-title("Unweighted percent versus weighted percent (logs)")
-
 plot (log(ILI$weighted_pct_ili), log(ILI$unweighted_pct_ili), 
       pch=20, asp=1, col=1+(week>=40|week<=20))
 abline(0,1)
 title(
  "Unweighted % versus weighted % (logs, flu season red)")
 
+par(mfrow=c(2,2))
+
+plot (log(ILI$weighted_pct_ili), log(ILI$unweighted_pct_ili), 
+      pch=20, asp=1, col=yrcols[year-2013])
+abline(0,1)
+title("ProxyU versus ProxyW (logs)")
+
 plot (log(ILI$unweighted_pct_ili), log(proxyA), pch=20, asp=1, 
       col=yrcols[year-2013])
 abline(0,1)
-title("ProxyA versus unweighted percent (logs)")
+title("ProxyA versus ProxyU (logs)")
 
 plot (log(ILI$weighted_pct_ili), log(proxyA), pch=20, asp=1,
       col=yrcols[year-2013])
 abline(0,1)
-title("ProxyA versus weighted percent (logs)")
-
-plot (log(ILI$unweighted_pct_ili), log(proxyB), pch=20, asp=1,
-      col=yrcols[year-2013])
-abline(0,1)
-title("ProxyB versus unweighted percent (logs)")
-
-plot (log(ILI$weighted_pct_ili), log(proxyB), pch=20, asp=1,
-      col=yrcols[year-2013])
-abline(0,1)
-title("ProxyB versus weighted percent (logs)")
-
-plot (log(ILI$unweighted_pct_ili), log(proxyC), pch=20, asp=1,
-      col=yrcols[year-2013])
-abline(0,1)
-title("ProxyC versus unweighted percent (logs)")
-
-plot (log(ILI$weighted_pct_ili), log(proxyC), pch=20, asp=1,
-      col=yrcols[year-2013])
-abline(0,1)
-title("ProxyC versus weighted percent (logs)")
-
-plot (log(ILI$unweighted_pct_ili), log(proxyD), pch=20, asp=1,
-      col=yrcols[year-2013])
-abline(0,1)
-title("ProxyD versus unweighted percent (logs)")
-
-plot (log(ILI$weighted_pct_ili), log(proxyD), pch=20, asp=1,
-      col=yrcols[year-2013])
-abline(0,1)
-title("ProxyD versus weighted percent (logs)")
+title("ProxyA versus ProxyW (logs)")
 
 plot (log(proxyA), log(proxyB), pch=20, asp=1,
       col=yrcols[year-2013])
 abline(0,1)
 title("ProxyB versus ProxyA (logs)")
 
-plot (log(proxyC), log(proxyA), pch=20, asp=1,
+plot (log(proxyA), log(proxyC), pch=20, asp=1,
       col=yrcols[year-2013])
 abline(0,1)
-title("ProxyA versus ProxyC (logs)")
+title("ProxyC versus ProxyA (logs)")
+
+plot (log(proxyA), log(proxyD), pch=20, asp=1,
+      col=yrcols[year-2013])
+abline(0,1)
+title("ProxyD versus ProxyA (logs)")
 
 plot (log(proxyC), log(proxyB), pch=20, asp=1,
       col=yrcols[year-2013])
@@ -581,6 +558,54 @@ plot (log(proxyC), log(proxyD), pch=20, asp=1,
 abline(0,1)
 title("ProxyD versus ProxyC (logs)")
 
+par(mfrow=c(4,1))
+plot_two_with_lines (start, 
+  log(ILI$weighted_pct_ili), log(ILI$unweighted_pct_ili), 
+  pch=19, ylab="Line goes to log(ProxyU)")
+week_lines()
+title("ProxyU versus ProxyW (logs)")
+
+plot_two_with_lines (start, 
+  log(ILI$unweighted_pct_ili), log(proxyA), 
+  pch=19, ylab="Line goes to log(ProxyA)")
+week_lines()
+title("ProxyA versus ProxyU (logs)")
+
+plot_two_with_lines (start, 
+  log(ILI$weighted_pct_ili), log(proxyA), 
+  pch=19, ylab="Line goes to log(ProxyA)")
+week_lines()
+title("ProxyA versus ProxyW (logs)")
+
+plot_two_with_lines (start, 
+  log(proxyA), log(proxyB), 
+  pch=19, ylab="Line goes to log(ProxyB)")
+week_lines()
+title("ProxyB versus ProxyA (logs)")
+
+plot_two_with_lines (start, 
+  log(proxyA), log(proxyC), 
+  pch=19, ylab="Line goes to log(ProxyC)")
+week_lines()
+title("ProxyC versus ProxyA (logs)")
+
+plot_two_with_lines (start, 
+  log(proxyA), log(proxyD), 
+  pch=19, ylab="Line goes to log(ProxyD)")
+week_lines()
+title("ProxyD versus ProxyA (logs)")
+
+plot_two_with_lines (start, 
+  log(proxyC), log(proxyB), 
+  pch=19, ylab="Line goes to log(ProxyB)")
+week_lines()
+title("ProxyB versus ProxyC (logs)")
+
+plot_two_with_lines (start, 
+  log(proxyC), log(proxyD), 
+  pch=19, ylab="Line goes to log(ProxyD)")
+week_lines()
+title("ProxyD versus ProxyC (logs)")
 
 # PLOT ANOMALOUS POINTS IN PROXIES.
 
