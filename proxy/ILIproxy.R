@@ -132,13 +132,13 @@ plot (start, ILI$nonili_visits, pch=20); week_lines()
 title("Non-ILI physician visits")
 plot (start, log(ILI$nonili_visits), ylim=c(13,16), pch=20); week_lines()
 title("Log non-ILI physician visits")
-abline(h=c(13,13.5,14.0))
+# abline(h=c(13,13.5,14.0))
 
 plot (start, ILI$ili_visits, pch=20); week_lines()
 title("ILI physician visits")
 plot (start, log(ILI$ili_visits), ylim=c(8.5,11.5), pch=20); week_lines()
 title("Log ILI physician visits")
-abline(h=c(8.5,9.0,9.5))
+# abline(h=c(8.5,9.0,9.5))
 
 par(mfrow=c(2,1))
 
@@ -173,13 +173,15 @@ plot (start, log(ILI$age_65_up), pch=20,ylab="age 65 up, log");week_lines()
 
 par(mfrow=c(2,1))
 
-plot (start, ILI$weighted_pct_ili, pch=20); week_lines()
-title("Weighted percent ILI")
-plot (start, log(ILI$weighted_pct_ili), pch=20); week_lines()
+proxyW <- ILI$weighted_pct_ili
+plot (start, proxyW, pch=20); week_lines()
+title("Weighted percent ILI (ProxyW)")
+plot (start, log(proxyW), pch=20); week_lines()
 
-plot (start, ILI$unweighted_pct_ili, pch=20); week_lines()
-title("Unweighted percent ILI")
-plot (start, log(ILI$unweighted_pct_ili), pch=20); week_lines()
+proxyU <- ILI$unweighted_pct_ili
+plot (start, proxyU, pch=20); week_lines()
+title("Unweighted percent ILI (ProxyU)")
+plot (start, log(proxyU), pch=20); week_lines()
 
 plot (start, ILI$weighted_pct_ili/ILI$unweighted_pct_ili, pch=20)
 week_lines(); abline(h=1)
@@ -196,7 +198,7 @@ title("Log number of providers")
 
 # MODEL THE NUMER OF NON-ILI VISITS.
 
-nonili_visits_spline_df <- 9
+nonili_visits_spline_df <- 6
 nonili_visits_spline <- bs(start,df=nonili_visits_spline_df)
 
 par(mfrow=c(2,1))
@@ -213,6 +215,7 @@ lines (start, predict(visits_mod1), col="blue", lwd=2)
 title("Non-ILI model, spline+providers")
 
 plot (start, residuals(visits_mod1), pch=20, ylab="Residuals"); week_lines()
+title(paste("Residuals, std. dev. =",round(summary(visits_mod1)$sigma,4)))
 abline(h=0)
 
 # spline + providers + holidays
@@ -234,6 +237,7 @@ lines (start, predict(visits_mod2), col="blue", lwd=2)
 title("Non-ILI model, spline+providers+holidays")
 
 plot (start, residuals(visits_mod2), pch=20, ylab="Residuals"); week_lines()
+title(paste("Residuals, std. dev. =",round(summary(visits_mod2)$sigma,4)))
 abline(h=0)
 
 # spline + providers + holidays + seasonality
@@ -278,8 +282,8 @@ lines (start, log(smooth_nonili_visits3), col="orange", lwd=2)
 title("Non-ILI model, spline+providers+holidays+season")
 
 plot (start, residuals(visits_mod3), pch=20, ylab="Residuals"); week_lines()
+title(paste("Residuals, std. dev. =",round(summary(visits_mod3)$sigma,4)))
 abline(h=0)
-title("Residuals")
 
 plot_vs_doy (start, residuals(visits_mod3), pch=20)
 abline(h=0)
@@ -362,8 +366,8 @@ lines (start, predict(ili_visits_mod3), col="blue", lwd=2)
 title("ILI model, spline+providers+holidays+season")
 
 plot (start, residuals(ili_visits_mod3), pch=20, ylab="Residuals")
+title(paste("Residuals, std. dev. =",round(summary(ili_visits_mod3)$sigma,4)))
 week_lines(); abline(h=0)
-title("Residuals")
 
 plot_vs_doy (start, residuals(ili_visits_mod3), pch=20)
 abline(h=0)
@@ -399,8 +403,8 @@ lines (start, predict(ili_visits_mod4), col="blue", lwd=2)
 title("ILI model, spline+providers+holidays+season+noniliresid")
 
 plot (start, residuals(ili_visits_mod4), pch=20, ylab="Residuals")
+title(paste("Residuals, std. dev. =",round(summary(ili_visits_mod4)$sigma,4)))
 week_lines(); abline(h=0)
-title("Residuals")
 
 plot_vs_doy (start, residuals(ili_visits_mod4), pch=20)
 abline(h=0)
@@ -427,6 +431,33 @@ title("ProxyA: 100 x ratio of ILI visits to non-ILI visits")
 
 plot (start, log(proxyA), pch=20, ylim=c(-0.5,2.5))
 week_lines()
+
+
+# CREATE PROXYAX AND PROXYWX BY FUDGING HOLIDAYS IN PROXYA AND PROXYW.
+
+holiday_fudge <- function (proxy)
+{
+  for (i in which(Thanksgiving_indicator!=0))
+  { proxy[i] <- (1/2)*proxy[i-1] + (1/2)*proxy[i+1]
+  }
+
+  for (i in which(New_Year_indicator!=0))  # Note: Christmas is not binary
+  { proxy[i-1] <- (2/3)*proxy[i-2] + (1/3)*proxy[i+1]
+    proxy[i] <- (1/3)*proxy[i-2] + (2/3)*proxy[i+1]
+  }
+
+  proxy
+}
+
+proxyWX <- holiday_fudge (proxyW)
+plot (start, proxyWX, pch=20); week_lines()
+week_lines()
+title("ProxyWX: ProxyW with holiday fudge")
+
+proxyAX <- holiday_fudge (proxyA)
+plot (start, proxyAX, pch=20); week_lines()
+week_lines()
+title("ProxyAX: ProxyA with holiday fudge")
 
 
 # CREATE PROXYB FROM RATIO OF ILI VISITS TO PREDICTED NON-ILI VISITS.
@@ -532,15 +563,35 @@ plot (log(ILI$weighted_pct_ili), log(proxyA), pch=20, asp=1,
 abline(0,1)
 title("ProxyA versus ProxyW (logs)")
 
+plot (log(proxyW), log(proxyWX), pch=20, asp=1,
+      col=yrcols[year-2013])
+abline(0,1)
+title("ProxyWX versus ProxyW (logs)")
+
+plot (log(proxyA), log(proxyAX), pch=20, asp=1,
+      col=yrcols[year-2013])
+abline(0,1)
+title("ProxyAX versus ProxyA (logs)")
+
 plot (log(proxyA), log(proxyB), pch=20, asp=1,
       col=yrcols[year-2013])
 abline(0,1)
 title("ProxyB versus ProxyA (logs)")
 
+plot (log(proxyAX), log(proxyB), pch=20, asp=1,
+      col=yrcols[year-2013])
+abline(0,1)
+title("ProxyB versus ProxyAX (logs)")
+
 plot (log(proxyA), log(proxyC), pch=20, asp=1,
       col=yrcols[year-2013])
 abline(0,1)
 title("ProxyC versus ProxyA (logs)")
+
+plot (log(proxyAX), log(proxyC), pch=20, asp=1,
+      col=yrcols[year-2013])
+abline(0,1)
+title("ProxyC versus ProxyAX (logs)")
 
 plot (log(proxyA), log(proxyD), pch=20, asp=1,
       col=yrcols[year-2013])
@@ -577,16 +628,40 @@ week_lines()
 title("ProxyA versus ProxyW (logs)")
 
 plot_two_with_lines (start, 
+  log(proxyW), log(proxyWX), 
+  pch=19, ylab="Line goes to log(ProxyWX)")
+week_lines()
+title("ProxyWX versus ProxyW (logs)")
+
+plot_two_with_lines (start, 
+  log(proxyA), log(proxyAX), 
+  pch=19, ylab="Line goes to log(ProxyAX)")
+week_lines()
+title("ProxyAX versus ProxyA (logs)")
+
+plot_two_with_lines (start, 
   log(proxyA), log(proxyB), 
   pch=19, ylab="Line goes to log(ProxyB)")
 week_lines()
 title("ProxyB versus ProxyA (logs)")
 
 plot_two_with_lines (start, 
+  log(proxyAX), log(proxyB), 
+  pch=19, ylab="Line goes to log(ProxyB)")
+week_lines()
+title("ProxyB versus ProxyAX (logs)")
+
+plot_two_with_lines (start, 
   log(proxyA), log(proxyC), 
   pch=19, ylab="Line goes to log(ProxyC)")
 week_lines()
 title("ProxyC versus ProxyA (logs)")
+
+plot_two_with_lines (start, 
+  log(proxyAX), log(proxyC), 
+  pch=19, ylab="Line goes to log(ProxyC)")
+week_lines()
+title("ProxyC versus ProxyAX (logs)")
 
 plot_two_with_lines (start, 
   log(proxyA), log(proxyD), 
@@ -605,6 +680,7 @@ plot_two_with_lines (start,
   pch=19, ylab="Line goes to log(ProxyD)")
 week_lines()
 title("ProxyD versus ProxyC (logs)")
+
 
 # PLOT ANOMALOUS POINTS IN PROXIES.
 
@@ -653,8 +729,11 @@ ILIproxy$proxyA <- proxyA
 ILIproxy$proxyB <- proxyB
 ILIproxy$proxyC <- proxyC
 ILIproxy$proxyD <- proxyD
-ILIproxy$proxyU <- ILI$unweighted_pct
-ILIproxy$proxyW <- ILI$weighted_pct
+ILIproxy$proxyU <- proxyU
+ILIproxy$proxyW <- proxyW
+ILIproxy$proxyWX <- proxyWX
+ILIproxy$proxyAX <- proxyAX
+
 
 write.table (ILIproxy, "ILIproxy.csv", sep=",",
              quote=FALSE, row.names=FALSE, col.names=TRUE)
