@@ -4,9 +4,9 @@ export LANG=en_CA.UTF-8
 
 if [ x$R == x ]; then R=R; fi
 
-for proxy in proxyW proxyA proxyB proxyC proxyD \
-             proxyWo proxyAo proxyBo proxyCo proxyDo \
-             proxyWss proxyAss proxyBss proxyCss proxyDss \
+for proxy in proxyW proxyA proxyB proxyC proxyD proxyWX proxyAX \
+             proxyWo proxyAo proxyBo proxyCo proxyDo proxyWXo proxyAXo \
+             proxyWss proxyAss proxyBss proxyCss proxyDss proxyWXaa proxyAXss \
              proxyWm proxyAm proxyBm proxyCm proxyDm \
              proxyWn proxyAn proxyBn proxyCn proxyDn \
 #            proxyWs proxyAs proxyBs proxyCs proxyDs
