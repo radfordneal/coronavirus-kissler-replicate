@@ -686,19 +686,28 @@ title("ProxyD versus ProxyC (logs)")
 
 par(mfrow=c(2,1))
 
-plot (start, anomalous(log(ILI$weighted_pct_ili)), 
+plot (start, anomalous(log(proxyW)), 
       pch=20, ylim=c(-0.2,0.22))
 week_lines(); abline(h=c(0,-0.1,-0.2,0.1,0.2))
-title("Anomalous points in log(weighted percent ILI)")
+title("Anomalous points in log(proxyW)")
 
-plot (start, anomalous(log(ILI$unweighted_pct_ili)), 
+plot (start, anomalous(log(proxyWX)), 
       pch=20, ylim=c(-0.2,0.22))
 week_lines(); abline(h=c(0,-0.1,-0.2,0.1,0.2))
-title("Anomalous points in log(unweighted percent ILI)")
+title("Anomalous points in log(proxyWX)")
+
+plot (start, anomalous(log(proxyU)), 
+      pch=20, ylim=c(-0.2,0.22))
+week_lines(); abline(h=c(0,-0.1,-0.2,0.1,0.2))
+title("Anomalous points in log(proxyU)")
 
 plot (start, anomalous(log(proxyA)), pch=20, ylim=c(-0.2,0.22))
 week_lines(); abline(h=c(0,-0.1,-0.2,0.1,0.2))
 title("Anomalous points in log(proxyA)")
+
+plot (start, anomalous(log(proxyAX)), pch=20, ylim=c(-0.2,0.22))
+week_lines(); abline(h=c(0,-0.1,-0.2,0.1,0.2))
+title("Anomalous points in log(proxyAX)")
 
 plot (start, anomalous(log(proxyB)), pch=20, ylim=c(-0.2,0.22))
 week_lines(); abline(h=c(0,-0.1,-0.2,0.1,0.2))
