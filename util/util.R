@@ -190,16 +190,21 @@ Thanksgiving_indicator <- as.numeric(as.character((start+4)) %in% Thanksgiving)
 
 Christmas_indicator <- rep(0,length(start))
 for (d in Christmas)
-{ # Flag week of Christmas, at slightly lower level if Christmas at end of week
+{ 
+  # Flag week of Christmas.
   Christmas_indicator [start <= d & d < start+7] <- 1
-  Christmas_indicator [start+6 == d] <- 0.9  # Christmas on Saturday
-  Christmas_indicator [start+5 == d] <- 0.8  # Christmas on Friday
+
+  # Maybe at slightly lower level if Christmas at end of week?
+  # Christmas_indicator [start+6 == d] <- 0.9  # Christmas on Saturday
+  # Christmas_indicator [start+5 == d] <- 0.8  # Christmas on Friday
+
   # Flag week before Christmas at lower level if Christmas is early in week
   Christmas_indicator [start+7 == d] <- 0.6  # Christmas on Sunday
   Christmas_indicator [start+8 == d] <- 0.5  # Christmas on Monday
   Christmas_indicator [start+9 == d] <- 0.4  # Christmas on Tuesday
   Christmas_indicator [start+10 == d] <- 0.3  # Christmas on Wednesday
   Christmas_indicator [start+11 == d] <- 0.2  # Christmas on Thursday
+
   # Note that the week after Christmas is the week of New Year's Day, so
   # nothing is done here for that week.
 }
