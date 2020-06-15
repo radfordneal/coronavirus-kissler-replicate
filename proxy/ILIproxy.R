@@ -47,6 +47,13 @@ ILI$year  <- ILI_raw$YEAR
 ILI$week  <- ILI_raw$WEEK
 ILI$syear <- ifelse (ILI$week<27, ILI$year-1, ILI$year)
 
+start_season <- 40 # Week of start of "flu season", according to CDC
+end_season <- 20   # Week of end of "flu season" (in year following start)
+                   # (except ends week earlier in 2015, since 2014 has 53 weeks)
+ILI$season_week <- 
+  ifelse (ILI$week>=start_season, ILI$week-start_season+1,
+          ILI$week+53-start_season+(ILI$year==2015))
+
 ILI$providers <- ILI_raw$NUM.OF.PROVIDERS
 
 ILI$all_visits <- ILI_raw$TOTAL
@@ -60,6 +67,7 @@ ILI$weighted_pct_ili   <- ILI_raw$PCT.WEIGHTED.ILI
 ILI$unweighted_pct_ili <- ILI_raw$PCT.UNWEIGHTED.ILI
 
 ILI$nonili_visits <- ILI$all_visits - ILI$ili_visits
+
 
 # Verify that the unweighted_pct_ili is just ili_vists/all_visits.
 # (Weighted_pc_ili adjusts for census population of regions.)
@@ -235,7 +243,7 @@ title("Log number of providers")
 
 # MODEL THE NUMER OF NON-ILI VISITS.
 
-nonili_visits_spline_df <- 6
+nonili_visits_spline_df <- 9
 nonili_visits_spline <- bs(start,df=nonili_visits_spline_df)
 
 par(mfrow=c(2,1))
@@ -290,11 +298,12 @@ visits_mod3 <- lm (log(nonili_visits)
                      + Thanksgiving_indicator
                      + Christmas_indicator
                      + New_Year_indicator
-                     + sin(2*pi*week/52) + cos(2*pi*week/52)
+                     + season_week + I(season_week^2)
+                     + sin(1*2*pi*week/52) + cos(1*2*pi*week/52)
                      + sin(2*2*pi*week/52) + cos(2*2*pi*week/52)
                      + sin(3*2*pi*week/52) + cos(3*2*pi*week/52)
-                     + sin(4*2*pi*week/52) + cos(4*2*pi*week/52)
-                     + sin(5*2*pi*week/52) + cos(5*2*pi*week/52)
+#                    + sin(4*2*pi*week/52) + cos(4*2*pi*week/52)
+#                    + sin(5*2*pi*week/52) + cos(5*2*pi*week/52)
 #                    + sin(6*2*pi*week/52) + cos(6*2*pi*week/52)
 #                    + sin(7*2*pi*week/52) + cos(7*2*pi*week/52)
                    , data=ILI, x=TRUE)
@@ -324,11 +333,11 @@ abline(h=0)
 
 plot_vs_doy (start, residuals(visits_mod3), pch=20)
 abline(h=0)
-title("Residuals vs DOY")
+title("Residuals vs DOY (from July 1)")
 
-plot (start, log(ILI$nonili_visits) - log(smooth_nonili_visits3), pch=20, ylab="")
+plot (start, log(ILI$nonili_visits)-log(smooth_nonili_visits3), pch=20, ylab="")
 week_lines(); abline(h=0)
-title("Residuals without seasonal component")
+title("Residuals without seasonal and holiday components")
 
 xx <- visits_mod3$x
 xx[,1:(nonili_visits_spline_df+xtra_df)] <- 0
@@ -384,12 +393,12 @@ ili_visits_mod3 <- lm (log(ili_visits)
                      + Christmas_indicator
                      + New_Year_indicator
                      + ili_visits_spline
-                     + sin(2*pi*week/52) + cos(2*pi*week/52)
+                     + sin(1*2*pi*week/52) + cos(1*2*pi*week/52)
                      + sin(2*2*pi*week/52) + cos(2*2*pi*week/52)
                      + sin(3*2*pi*week/52) + cos(3*2*pi*week/52)
-#                    + sin(4*2*pi*week/52) + cos(4*2*pi*week/52)
-#                    + sin(5*2*pi*week/52) + cos(5*2*pi*week/52)
-#                    + sin(6*2*pi*week/52) + cos(6*2*pi*week/52)
+                     + sin(4*2*pi*week/52) + cos(4*2*pi*week/52)
+                     + sin(5*2*pi*week/52) + cos(5*2*pi*week/52)
+                     + sin(6*2*pi*week/52) + cos(6*2*pi*week/52)
 #                    + sin(7*2*pi*week/52) + cos(7*2*pi*week/52)
 #                    + sin(8*2*pi*week/52) + cos(8*2*pi*week/52)
 #                    + sin(9*2*pi*week/52) + cos(9*2*pi*week/52)
@@ -408,7 +417,16 @@ week_lines(); abline(h=0)
 
 plot_vs_doy (start, residuals(ili_visits_mod3), pch=20)
 abline(h=0)
-title("Residuals vs DOY")
+title("Residuals vs DOY (from July 1)")
+
+xx <- ili_visits_mod3$x
+xx[,2:7] <- 0
+ili_spline_season3 <- as.vector (xx %*% coef(ili_visits_mod3))
+
+plot(start,ili_spline_season3,type="l",col="darkgray",lwd=3)
+points(start,ili_spline_season3+residuals(ili_visits_mod3),pch=20,ylab="")
+week_lines()
+title("Spline + seasonality, and that plus residuals")
 
 # spline + providers + holidays + seasonality + non-ili residuals
 
@@ -421,12 +439,12 @@ ili_visits_mod4 <- lm (log(ili_visits)
                      + New_Year_indicator
                      + residuals_nonili_visits3
                      + ili_visits_spline
-                     + sin(2*pi*week/52) + cos(2*pi*week/52)
+                     + sin(1*2*pi*week/52) + cos(1*2*pi*week/52)
                      + sin(2*2*pi*week/52) + cos(2*2*pi*week/52)
                      + sin(3*2*pi*week/52) + cos(3*2*pi*week/52)
-#                    + sin(4*2*pi*week/52) + cos(4*2*pi*week/52)
-#                    + sin(5*2*pi*week/52) + cos(5*2*pi*week/52)
-#                    + sin(6*2*pi*week/52) + cos(6*2*pi*week/52)
+                     + sin(4*2*pi*week/52) + cos(4*2*pi*week/52)
+                     + sin(5*2*pi*week/52) + cos(5*2*pi*week/52)
+                     + sin(6*2*pi*week/52) + cos(6*2*pi*week/52)
 #                    + sin(7*2*pi*week/52) + cos(7*2*pi*week/52)
 #                    + sin(8*2*pi*week/52) + cos(8*2*pi*week/52)
 #                    + sin(9*2*pi*week/52) + cos(9*2*pi*week/52)
@@ -445,14 +463,14 @@ week_lines(); abline(h=0)
 
 plot_vs_doy (start, residuals(ili_visits_mod4), pch=20)
 abline(h=0)
-title("Residuals vs DOY")
+title("Residuals vs DOY (from July 1)")
 
 xx <- ili_visits_mod4$x
 xx[,2:8] <- 0
-ili_spline_season <- as.vector (xx %*% coef(ili_visits_mod4))
+ili_spline_season4 <- as.vector (xx %*% coef(ili_visits_mod4))
 
-plot(start,ili_spline_season,type="l",col="darkgray",lwd=3)
-points(start,ili_spline_season+residuals(ili_visits_mod4),pch=20,ylab="")
+plot(start,ili_spline_season4,type="l",col="darkgray",lwd=3)
+points(start,ili_spline_season4+residuals(ili_visits_mod4),pch=20,ylab="")
 week_lines()
 title("Spline + seasonality, and that plus residuals")
 
@@ -491,10 +509,16 @@ plot (start, proxyWX, pch=20); week_lines()
 week_lines()
 title("ProxyWX: ProxyW with holiday fudge")
 
+plot (start, log(proxyWX), pch=20); week_lines()
+week_lines()
+
 proxyAX <- holiday_fudge (proxyA)
 plot (start, proxyAX, pch=20); week_lines()
 week_lines()
 title("ProxyAX: ProxyA with holiday fudge")
+
+plot (start, log(proxyAX), pch=20); week_lines()
+week_lines()
 
 
 # CREATE PROXYB FROM RATIO OF ILI VISITS TO PREDICTED NON-ILI VISITS.
@@ -511,15 +535,14 @@ week_lines()
 
 
 # CREATE PROXYC FROM ILI VISITS MINUS MODEL PREDICTIONS OF IRRELEVANT PART.  
-# Uses ili_visits_mod4 to produce predictions, omitting variation in
-# ILI due to the number of providers, the residuals from the model
-# for non-ILI visits, and the holidays, since these are considered to not
-# relate to actual ILI incidence.  Retains the spline over time, the
+# Uses ili_visits_mod3 to produce predictions, omitting variation in
+# ILI due to the number of providers and holidays, which are considered to 
+# not relate to actual ILI incidence.  Retains the spline over time, the
 # seasonal component, and the model residuals.  The result is divided
 # by a scale factor just to get it to numerically match (approximately) 
 # the other proxies.
 
-proxyC <- exp (ili_spline_season+residuals(ili_visits_mod4)) / 72
+proxyC <- exp (ili_spline_season3+residuals(ili_visits_mod3)) / 80
 
 plot (start, proxyC, pch=20); week_lines()
 title("ProxyC: Derived from model of ILI visits")
@@ -528,14 +551,21 @@ plot (start, log(proxyC), pch=20, ylim=c(-0.5,2.5))
 week_lines()
 
 
-# CREATE PROXYD.  Like proxyC, but without adding in the residuals.
+# CREATE PROXYD FROM ILI VISITS MINUS MODEL PREDICTIONS OF IRRELEVANT PART.  
+# Uses ili_visits_mod4 to produce predictions, omitting variation in
+# ILI due to the number of providers, the residuals from the model
+# for non-ILI visits, and the holidays, since these are considered to not
+# relate to actual ILI incidence.  Retains the spline over time, the
+# seasonal component, and the model residuals.  The result is divided
+# by a scale factor just to get it to numerically match (approximately) 
+# the other proxies.
 
-proxyD <- exp (ili_spline_season) / 72
+proxyD <- exp (ili_spline_season4+residuals(ili_visits_mod4)) / 80
 
 plot (start, proxyD, pch=20); week_lines()
-title("ProxyD: Derived from model of ILI visits, without residuals")
+title("ProxyD: Derived from model of ILI visits, with non-ILI residuals")
 
-plot (start, log(proxyD), pch=20, ylim=c(-0.5,2.5))
+plot (start, log(proxyC), pch=20, ylim=c(-0.5,2.5))
 week_lines()
 
 
@@ -635,6 +665,11 @@ plot (log(proxyA), log(proxyD), pch=20, asp=1,
 abline(0,1)
 title("ProxyD versus ProxyA (logs)")
 
+plot (log(proxyAX), log(proxyD), pch=20, asp=1,
+      col=yrcols[year-2013])
+abline(0,1)
+title("ProxyD versus ProxyAX (logs)")
+
 plot (log(proxyC), log(proxyB), pch=20, asp=1,
       col=yrcols[year-2013])
 abline(0,1)
@@ -705,6 +740,12 @@ plot_two_with_lines (start,
   pch=19, ylab="Line goes to log(ProxyD)")
 week_lines()
 title("ProxyD versus ProxyA (logs)")
+
+plot_two_with_lines (start, 
+  log(proxyAX), log(proxyD), 
+  pch=19, ylab="Line goes to log(ProxyD)")
+week_lines()
+title("ProxyD versus ProxyAX (logs)")
 
 plot_two_with_lines (start, 
   log(proxyC), log(proxyB), 
