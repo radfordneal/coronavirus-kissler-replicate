@@ -153,6 +153,9 @@ title("Log ILI visits vs day of year from July 1")
 
 # PLOT ILI VISITS OF DIFFERENT AGE GROUPS.
 
+stopifnot (ILI$age_0_4+ILI$age_5_24+ILI$age_25_64+ILI$age_65_up 
+            == ILI$ili_visits)  # Check that all ages add up to total
+
 par(mfrow=c(4,1))
 
 plot (start, ILI$age_0_4, pch=20, ylab="age 0-4"); week_lines()
@@ -166,6 +169,40 @@ title("Log ILI visits for different age groups")
 plot (start, log(ILI$age_5_24), pch=20, ylab="age 5-24, log"); week_lines()
 plot (start, log(ILI$age_25_64), pch=20,ylab="age 25-64, log");week_lines()
 plot (start, log(ILI$age_65_up), pch=20,ylab="age 65 up, log");week_lines()
+
+par(mfrow=c(2,1))
+
+plot (start, rep(0,length(start)), ylim=c(0,0.5), yaxs="i", type="n",
+      ylab="Fraction of ILI visits in each age group")
+week_lines()
+lines (start, ILI$age_0_4 / ILI$ili_visits, col="red", lwd=3)
+lines (start, ILI$age_5_24 / ILI$ili_visits, col="green", lwd=3)
+lines (start, ILI$age_25_64 / ILI$ili_visits, col="blue", lwd=3)
+lines (start, ILI$age_65_up / ILI$ili_visits, col="black", lwd=3)
+title ("ILI visits by age: red:0-4, green:5-24, blue:25-64, black:65+  ")
+
+plot (start, rep(0,length(start)), ylim=c(0.17,0.55), type="n",
+      ylab="Fraction of ILI visits in each age group")
+week_lines()
+lines (start, ILI$age_5_24 / ILI$ili_visits, col="green", lwd=3)
+lines (start, (ILI$age_25_64+ILI$age_65_up) / ILI$ili_visits, col="blue", lwd=3)
+lines (start, ILI$age_0_4 / ILI$ili_visits, col="red", lwd=3)
+title ("ILI visits by age: red:0-4, green:5-24, blue:25+")
+
+par(mfrow=c(4,1))
+plot (start, log (ILI$age_65_up / ILI$age_25_64), ylim=c(-2.2,-0.8), pch=20,
+      ylab="Log (age 65+ / age 25-64)")
+week_lines()
+title ("Ratios of ILI by age group")
+plot (start, log (ILI$age_25_64 / ILI$age_5_24), ylim=c(-0.8,0.6), pch=20,
+      ylab="Log (age 25-64 / age 5-24)")
+week_lines()
+plot (start, log (ILI$age_25_64 / ILI$age_0_4), ylim=c(-0.4,1.0), pch=20,
+      ylab="Log (age 25-64 / age 0-4)")
+week_lines()
+plot (start, log (ILI$age_5_24 / ILI$age_0_4), ylim=c(-0.4,1.0), pch=20,
+      ylab="Log (age 5-24 / age 0-4)")
+week_lines()
 
 
 # PLOT WEIGHTED AND UWEIGHTED ILI PERCENTAGE, AND RATIO.  Also repeat the
