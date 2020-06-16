@@ -119,6 +119,7 @@ pctss <- data.frame(start=start)  #  - and again
 adjCoV <- CoV
 
 adjCoV$NL63[8]   <- mean(adjCoV$NL63[c(6,7,9,10)]) / zero_below
+adjCoV$E229[10]  <- mean(adjCoV$E229[c(8,9,11,12)])
 adjCoV$HKU1[61]  <- mean(adjCoV$HKU1[c(59,60,62,63)])
 adjCoV$HKU1[127] <- mean(adjCoV$HKU1[c(125,126,128,129)])
 
@@ -129,7 +130,8 @@ for (virus in viruses)
 { adjCoV$total <- adjCoV$total + adjCoV[,virus]
 }
 
-# Adjust zeros.  Replace with minimum non-zero value for virus divided by 1.5.
+# Adjust zeros.  Replace with minimum non-zero value for virus divided 
+# by zero_below.
 
 for (virus in viruses)
 { nonzero <- adjCoV[,virus] != 0
@@ -277,7 +279,7 @@ for (virus in viruses)
 
 par(mfrow=c(2,1))
 
-tot_model <- lm (pct_logit(adjCoV$total) ~ bs(start,df=35))
+tot_model <- lm (pct_logit(adjCoV$total) ~ bs(start,df=40))
 
 plot (start, pct_logit(adjCoV$total), pch=20, ylab="log percent")
 lines (start, predict(tot_model), col="red")

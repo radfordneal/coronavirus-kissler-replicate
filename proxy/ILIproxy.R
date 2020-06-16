@@ -808,14 +808,14 @@ print (round (c (W=sd(ILI$weighted_pct), U=sd(ILI$unweighted_pct),
 
 ILIproxy <- data.frame (start = as.character(start), year=year, week=week)
 
+ILIproxy$proxyW <- proxyW
+ILIproxy$proxyWX <- proxyWX
+ILIproxy$proxyU <- proxyU
 ILIproxy$proxyA <- proxyA
+ILIproxy$proxyAX <- proxyAX
 ILIproxy$proxyB <- proxyB
 ILIproxy$proxyC <- proxyC
 ILIproxy$proxyD <- proxyD
-ILIproxy$proxyU <- proxyU
-ILIproxy$proxyW <- proxyW
-ILIproxy$proxyWX <- proxyWX
-ILIproxy$proxyAX <- proxyAX
 
 
 write.table (ILIproxy, "ILIproxy.csv", sep=",",
