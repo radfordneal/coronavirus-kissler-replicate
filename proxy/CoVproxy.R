@@ -258,10 +258,11 @@ pctm <- data.frame(start=start)
 for (virus in viruses)
 {
   d <- pct_logit(pcto[,virus])
+  t <- start
   d <- c(rep(mean(d[1:4]),2),d)
-  t <- c(start[1]-c(14,7),start)
-  pct_model[[virus]] <- lm (d ~ bs(t,df=30))
-  pctm[,virus] <- predict(pct_model[[virus]])[-c(1,2)]
+  t <- c(t[1]-c(14,7),t)
+  pct_model[[virus]] <- lm (d ~ bs(t,df=35))
+  pctm[,virus] <- predict(pct_model[[virus]]) [-c(1,2)]
 
   plot (start, pct_logit(pcto[,virus]), pch=20, ylab="logit")
   lines (start, pctm[,virus], col="red")
@@ -329,6 +330,24 @@ for (virus in viruses)
 
 cat("\nCORONAVIRUS PROXY SUMMARY:\n\n")
 print(summary(CoVproxy))
+
+
+# PLOT SOME COMPARISONS.
+
+par(mfrow=c(4,1))
+
+for (pair in list (c("proxyW","proxyWXss"), 
+                   c("proxyAXo","proxyDn"),
+                   c("proxyDss","proxyDn")))
+{ for (virus in viruses)
+  { plot_two_with_lines (start, 
+      log(CoVproxy[,paste0(virus,"_",pair[1])]), 
+      log(CoVproxy[,paste0(virus,"_",pair[2])]),
+      pch=19, ylab=paste("Line goes to log",pair[2]))
+    week_lines()
+    title(paste(pair[1],"versus",pair[2],"for",virus))
+  }
+}
 
 
 # WRITE A FILE WITH THE VARIOUS PROXIES FOR CORONAVIRUS INCIDENCE.
