@@ -91,6 +91,15 @@ week  <- ILI$week   # Number of each week in its year
 
 source("../util/util.R")
 
+Christmas_indicator1 <- Christmas_indicator2 <- Christmas_indicator
+
+Christmas_indicator1 [year>2016] <- 0
+Christmas_indicator1 [year==2016] <- 0.5 * Christmas_indicator [year==2017]
+
+Christmas_indicator2 [year<2016] <- 0
+Christmas_indicator2 [year==2016] <- 0.5 * Christmas_indicator [year==2017]
+
+
 
 # PLOT NUMBER OF PROVIDERS.
 
@@ -270,7 +279,7 @@ visits_mod2 <- lm (log(nonili_visits)
                      + July4th_indicator
                      + Labor_Day_indicator 
                      + Thanksgiving_indicator
-                     + Christmas_indicator
+                     + Christmas_indicator1 + Christmas_indicator2
                      + New_Year_indicator
                    , data=ILI)
 print(summary(visits_mod2))
@@ -287,16 +296,16 @@ abline(h=0)
 
 # spline + providers + holidays + seasonality
 
-xtra_df_prov <- 1  # df from providers
-xtra_df_ind <- 5   # df from indicators
-xtra_df <- 1 + xtra_df_prov + xtra_df_ind
+nonili_xtra_df_prov <- 1  # df from providers
+nonili_xtra_df_ind <- 6   # df from indicators
+nonili_xtra_df <- 1 + nonili_xtra_df_prov + nonili_xtra_df_ind
 
 visits_mod3 <- lm (log(nonili_visits) 
                      ~ nonili_visits_spline + log(providers)
                      + July4th_indicator
                      + Labor_Day_indicator 
                      + Thanksgiving_indicator
-                     + Christmas_indicator
+                     + Christmas_indicator1 + Christmas_indicator2
                      + New_Year_indicator
                      + season_week + I(season_week^2)
                      + sin(1*2*pi*week/52) + cos(1*2*pi*week/52)
@@ -313,12 +322,7 @@ residuals_nonili_visits3 <- residuals(visits_mod3)
 
 smooth_nonili_visits3 <- as.vector (exp (cbind (1,
    nonili_visits_spline, log(ILI$providers) 
-#  July4th_indicator,
-#  Labor_Day_indicator,
-#  Thanksgiving_indicator,
-#  Christmas_indicator,
-#  New_Year_indicator
-  ) %*% coef(visits_mod3) [1:(nonili_visits_spline_df+2)])) # xtra_df)]))
+  ) %*% coef(visits_mod3) [1:(nonili_visits_spline_df+2)]))
 
 par(mfrow=c(2,1))
 
@@ -340,7 +344,7 @@ week_lines(); abline(h=0)
 title("Residuals without seasonal and holiday components")
 
 xx <- visits_mod3$x
-xx[,1:(nonili_visits_spline_df+xtra_df)] <- 0
+xx[,1:(nonili_visits_spline_df+nonili_xtra_df)] <- 0
 
 seasonal_visits3 <- as.vector (xx %*% coef(visits_mod3))
 
@@ -356,8 +360,8 @@ plot (start, trend_visits3, type="l"); week_lines()
 title("Trend component of model (log domain)")
 
 xx <- visits_mod3$x
-xx[,1:(1+nonili_visits_spline_df+xtra_df_prov)] <- 0
-xx[,-(1:(nonili_visits_spline_df+xtra_df))] <- 0
+xx[,1:(1+nonili_visits_spline_df+nonili_xtra_df_prov)] <- 0
+xx[,-(1:(nonili_visits_spline_df+nonili_xtra_df))] <- 0
 
 holiday_visits3 <- as.vector (xx %*% coef(visits_mod3))
 
@@ -366,6 +370,10 @@ title("Holiday component of model (log domain)")
 
 
 # MODEL THE NUMER OF ILI VISITS.
+
+# Peak in 2014 coincides with Christmas - avoid it all being attributed to that.
+Christmas_indicator1_ili <- Christmas_indicator1
+Christmas_indicator1_ili[year==2014] <- 0.3*Christmas_indicator1_ili[year==2014]
 
 ili_bound <- range(start)
 
@@ -383,6 +391,10 @@ ili_knots <- rep (seq (start[1],start[ILI$syear==2018][1],length=5),
 
 ili_knots <- ili_knots[-1]
 
+ili_xtra_df_prov <- 1  # df from providers
+ili_xtra_df_ind <- 6   # df from indicators
+ili_xtra_df <- 1 + ili_xtra_df_prov + ili_xtra_df_ind
+
 ili_visits_spline_df <- length(ili_knots) + 3
 ili_visits_spline <- bs (start, knots=ili_knots, Bound=ili_bound)
 
@@ -393,7 +405,7 @@ ili_visits_mod3 <- lm (log(ili_visits)
                      + July4th_indicator
                      + Labor_Day_indicator 
                      + Thanksgiving_indicator
-                     + Christmas_indicator
+                     + Christmas_indicator1_ili + Christmas_indicator2
                      + New_Year_indicator
                      + ili_visits_spline
                   , data=ILI, x=TRUE)
@@ -414,7 +426,7 @@ abline(h=0)
 title("Residuals vs DOY (from July 1)")
 
 xx <- ili_visits_mod3$x
-xx[,2:7] <- 0
+xx[,2:ili_xtra_df] <- 0
 ili_spline3 <- as.vector (xx %*% coef(ili_visits_mod3))
 
 plot(start,ili_spline3,type="l",col="darkgray",lwd=3)
@@ -429,7 +441,7 @@ ili_visits_mod4 <- lm (log(ili_visits)
                      + July4th_indicator
                      + Labor_Day_indicator 
                      + Thanksgiving_indicator
-                     + Christmas_indicator
+                     + Christmas_indicator1_ili + Christmas_indicator2
                      + New_Year_indicator
                      + residuals_nonili_visits3
                      + ili_visits_spline
@@ -451,7 +463,7 @@ abline(h=0)
 title("Residuals vs DOY (from July 1)")
 
 xx <- ili_visits_mod4$x
-xx[,2:8] <- 0
+xx[,2:(ili_xtra_df+1)] <- 0
 ili_spline4 <- as.vector (xx %*% coef(ili_visits_mod4))
 
 plot(start,ili_spline4,type="l",col="darkgray",lwd=3)
@@ -519,12 +531,12 @@ plot (start, log(proxyB), pch=20, ylim=c(-0.5,2.5))
 week_lines()
 
 
-# CREATE PROXYC FROM ILI VISITS MINUS MODEL PREDICTIONS OF IRRELEVANT PART.  
+# CREATE PROXYC FROM ILI VISITS MINUS MODEL PREDICTIONS OF IRRELEVANT PART.
 # Uses ili_visits_mod3 to produce predictions, omitting variation in
-# ILI due to the number of providers and holidays, which are considered to 
-# not relate to actual ILI incidence.  Retains the spline over time, the
-# seasonal component, and the model residuals.  The result is divided
-# by a scale factor just to get it to numerically match (approximately) 
+# ILI due to the number of providers and holidays, which are
+# considered to not relate to actual ILI incidence.  Retains the
+# spline over time and the model residuals.  The result is divided by
+# a scale factor just to get it to numerically match (approximately)
 # the other proxies.
 
 proxyC <- exp (ili_spline3+residuals(ili_visits_mod3)) / 80
@@ -538,12 +550,11 @@ week_lines()
 
 # CREATE PROXYD FROM ILI VISITS MINUS MODEL PREDICTIONS OF IRRELEVANT PART.  
 # Uses ili_visits_mod4 to produce predictions, omitting variation in
-# ILI due to the number of providers, the residuals from the model
-# for non-ILI visits, and the holidays, since these are considered to not
-# relate to actual ILI incidence.  Retains the spline over time, the
-# seasonal component, and the model residuals.  The result is divided
-# by a scale factor just to get it to numerically match (approximately) 
-# the other proxies.
+# ILI due to the number of providers, the residuals from the model for
+# non-ILI visits, and the holidays, since these are considered to not
+# relate to actual ILI incidence.  Retains the spline over time, and
+# the model residuals.  The result is divided by a scale factor just
+# to get it to numerically match (approximately) the other proxies.
 
 proxyD <- exp (ili_spline4+residuals(ili_visits_mod4)) / 80
 
