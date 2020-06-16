@@ -4,7 +4,9 @@ export LANG=en_CA.UTF-8
 
 if [ x$R == x ]; then R=R; fi
 
-for R_estim in proxyW-fmm proxyWss-fmm proxyWss-fmm-filter proxyDn-fmm-filter
+for R_estim in proxyW-fmm proxyWss-fmm proxyWss-fmm-filter \
+               proxyCss-fmm-filter proxyDss-fmm-filter \
+               proxyCn-fmm-filter proxyDn-fmm-filter
 do
   for R_est_type in Rt Ru Ru_smoothed; do
     $R --save --no-restore --args $R_estim $R_est_type \

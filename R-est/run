@@ -6,7 +6,7 @@ if [ x$R == x ]; then R=R; fi
 
 for proxy in proxyW proxyA proxyB proxyC proxyD proxyWX proxyAX \
              proxyWo proxyAo proxyBo proxyCo proxyDo proxyWXo proxyAXo \
-             proxyWss proxyAss proxyBss proxyCss proxyDss proxyWXaa proxyAXss \
+             proxyWss proxyAss proxyBss proxyCss proxyDss proxyWXss proxyAXss \
              proxyWm proxyAm proxyBm proxyCm proxyDm \
              proxyWn proxyAn proxyBn proxyCn proxyDn \
 #            proxyWs proxyAs proxyBs proxyCs proxyDs
