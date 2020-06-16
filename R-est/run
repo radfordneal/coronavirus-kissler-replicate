@@ -11,13 +11,10 @@ for proxy in proxyW proxyA proxyB proxyC proxyD proxyWX proxyAX \
              proxyWn proxyAn proxyBn proxyCn proxyDn \
 #            proxyWs proxyAs proxyBs proxyCs proxyDs
 do
-  for method in fmm # natural hyman
-  do
-    $R --save --no-restore \
-       --args $proxy $method <R-est.R >&R-est-$proxy-$method.out
-    # cp .RData R-est-$proxy-$method.RData
-    $R --save --no-restore \
-       --args $proxy $method filter <R-est.R >&R-est-$proxy-$method-filter.out
-    # cp .RData R-est-$proxy-$method-filter.RData
-  done
+  $R --save --no-restore \
+     --args $proxy $method <R-est.R >&R-est-$proxy.out
+  # cp .RData R-est-$proxy.RData
+  $R --save --no-restore \
+     --args $proxy $method filter <R-est.R >&R-est-$proxy-filter.out
+  # cp .RData R-est-$proxy-filter.RData
 done

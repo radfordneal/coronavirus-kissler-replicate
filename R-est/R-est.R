@@ -3,19 +3,16 @@
 #
 # The coronavirus proxy to use is identified by the R command argument 
 # after --args (default proxyW, which is the proxy used in the Kissler, 
-# et al paper). Details of the method used can be set by other arguments, 
-# with the spline used for interpolation being set one of "fmm" (the default,
-# used by Kissler, et al), "natural", or "hyman", and smoothing of daily 
-# values  by post-filtering being specified by "filter" (default no filtering,
-# as with Kissler, et al).
+# et al paper).  Filtering of daily values is specified by "filter" 
+# (default no filtering, as with Kissler, et al).
 #
-# Produces various plots, written to R-est-<proxy>-<spline>[-filter].pdf.
-# The the estimates for R are written to R-est-<proxy>-<spline>[-filter].csv,
-# with columns named <virus>_<est>, with <est> being Rt, Ru, Rt_smoothed,
+# Produces various plots, written to R-est-<proxy>[-filter].pdf.  The
+# estimates for R are written to R-est-<proxy>[-filter].csv, with
+# columns named <virus>_<est>, with <est> being Rt, Ru, Rt_smoothed,
 # or Ru_smoothed (smoothed versions being 21-day averages, rather than
-# 7-day averages).  The estimate used by Kissler, et al is Ru_smoothed.
-# The proxy used for each virus is also recorded (as read from the ILI
-# proxy file), as a column named <virus>_<proxy>.
+# 7-day averages).  The estimate used by Kissler, et al is
+# Ru_smoothed.  The proxy used for each virus is also recorded (as
+# read from the ILI proxy file), as a column named <virus>_<proxy>.
 #
 # Copyright 2020 by Radford M. Neal
 # 
@@ -41,17 +38,9 @@ library(splines)
 # Includes proxy to use and generation interval distribution.
 
 proxy <- "proxyW"       # Defaults as in Kissler, et al
-spline_method <- "fmm"
 filter <- FALSE
 
 args <- commandArgs(trailing=TRUE)
-
-spline_args <- args %in% c("fmm","natural","hyman")
-if (any(spline_args))
-{ stopifnot(sum(spline_args)==1)
-  spline_method <- args[spline_args]
-  args <- args[!spline_args]
-}
 
 if (any(args=="filter"))
 { args <- args[args!="filter"]
@@ -78,8 +67,8 @@ gen_interval <- SARS_gen_interval
 
 # PLOT SETUP.
 
-pdf(paste0("R-est-",proxy,"-",spline_method,if(filter)"-filter"else"",".pdf"),
-    height=8,width=6)
+pdf (paste0 ("R-est-", proxy, if (filter) "-filter" else "", ".pdf"),
+     height=8,width=6)
 par(mar=c(1.5,2.3,3,0.5),mgp=c(1.4,0.3,0),tcl=-0.22)
 yrcols <- c("red","green","blue","orange","darkcyan","darkmagenta")
 
@@ -108,7 +97,7 @@ interpolate_daily <- function (weekly)
 { 
   cum_weekly <- c(0,cumsum(weekly))
   day_weekly <- seq(0,7*length(weekly),by=7)
-  cum_daily <- spline (day_weekly, cum_weekly, method=spline_method,
+  cum_daily <- spline (day_weekly, cum_weekly, method="fmm",
                        xout=seq(0,7*length(weekly))) $ y
   
   daily <- diff(cum_daily)
@@ -195,9 +184,6 @@ R_est <- data.frame (start=start, year=year, week=week)
 
 for (virus in viruses)
 {
-  cat("Doing computations for",virus,"with spline method",spline_method,
-      if (filter) "and filtering" else "", "\n")
-
   weekly <- CoVproxy[,paste0(virus,"_",proxy)]
   R_est[,paste0(virus,"_proxy")] <- weekly
 
@@ -247,8 +233,8 @@ for (virus in viruses)
 R_est$start <- as.character(R_est$start,year=year,week=week)
 
 write.table (R_est, 
- paste0("R-est-",proxy,"-",spline_method, if (filter)"-filter"else"", ".csv"),
- sep=",", quote=FALSE, row.names=FALSE, col.names=TRUE)
+  paste0 ("R-est-", proxy, if (filter) "-filter" else "", ".csv"),
+  sep=",", quote=FALSE, row.names=FALSE, col.names=TRUE)
 
 # ALL DONE.
 
