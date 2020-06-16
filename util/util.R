@@ -42,6 +42,13 @@ anomalous <- function (x)
 }
 
 
+# LOGIT AND INVERSE LOGIT, FOR PERCENTAGES.
+
+pct_logit <- function (pct) log (pct / (100-pct))
+
+pct_logit_inv <- function (lgt) 100 / (1 + exp(-lgt))
+
+
 # FUNCTION TO PLOT DATA VERSUS DAY OF YEAR, STARTING AT JULY 1.
 
 plot_vs_doy <- function (date, data, ylab="", ...)
