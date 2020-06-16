@@ -301,7 +301,7 @@ visits_mod3 <- lm (log(nonili_visits)
                      + season_week + I(season_week^2)
                      + sin(1*2*pi*week/52) + cos(1*2*pi*week/52)
                      + sin(2*2*pi*week/52) + cos(2*2*pi*week/52)
-                     + sin(3*2*pi*week/52) + cos(3*2*pi*week/52)
+#                    + sin(3*2*pi*week/52) + cos(3*2*pi*week/52)
 #                    + sin(4*2*pi*week/52) + cos(4*2*pi*week/52)
 #                    + sin(5*2*pi*week/52) + cos(5*2*pi*week/52)
 #                    + sin(6*2*pi*week/52) + cos(6*2*pi*week/52)
@@ -324,7 +324,7 @@ par(mfrow=c(2,1))
 
 plot (start, log(ILI$nonili_visits), pch=20); week_lines()
 lines (start, predict(visits_mod3), col="blue", lwd=2)
-lines (start, log(smooth_nonili_visits3), col="orange", lwd=2)
+#lines (start, log(smooth_nonili_visits3), col="orange", lwd=2)
 title("Non-ILI model, spline+providers+holidays+season")
 
 plot (start, residuals(visits_mod3), pch=20, ylab="Residuals"); week_lines()
@@ -370,8 +370,11 @@ title("Holiday component of model (log domain)")
 ili_bound <- range(start)
 
 ili_knots_within_year <- 
-  as.Date(c("2000-07-01","2000-08-01","2000-09-01","2000-10-15","2000-12-01",
-            "2001-01-01","2001-02-01","2001-03-01","2001-04-15","2001-06-01")) -
+# as.Date(c("2000-07-01","2000-08-01","2000-09-01","2000-10-15","2000-12-01",
+#           "2001-01-01","2001-02-01","2001-03-01","2001-04-15","2001-06-01")) -
+  as.Date(c("2000-07-01","2000-08-01","2000-09-01","2000-10-01","2000-11-01",
+            "2000-12-01","2001-01-01","2001-02-01","2001-03-01","2001-04-01",
+            "2001-05-01","2001-06-01")) -
   as.Date("2000-07-01")
 
 ili_knots <- rep (seq (start[1],start[ILI$syear==2018][1],length=5),
@@ -383,7 +386,7 @@ ili_knots <- ili_knots[-1]
 ili_visits_spline_df <- length(ili_knots) + 3
 ili_visits_spline <- bs (start, knots=ili_knots, Bound=ili_bound)
 
-# spline + providers + holidays + seasonality
+# spline + providers + holidays
 
 ili_visits_mod3 <- lm (log(ili_visits) 
                      ~ log(providers)
@@ -393,15 +396,6 @@ ili_visits_mod3 <- lm (log(ili_visits)
                      + Christmas_indicator
                      + New_Year_indicator
                      + ili_visits_spline
-                     + sin(1*2*pi*week/52) + cos(1*2*pi*week/52)
-                     + sin(2*2*pi*week/52) + cos(2*2*pi*week/52)
-                     + sin(3*2*pi*week/52) + cos(3*2*pi*week/52)
-                     + sin(4*2*pi*week/52) + cos(4*2*pi*week/52)
-                     + sin(5*2*pi*week/52) + cos(5*2*pi*week/52)
-                     + sin(6*2*pi*week/52) + cos(6*2*pi*week/52)
-#                    + sin(7*2*pi*week/52) + cos(7*2*pi*week/52)
-#                    + sin(8*2*pi*week/52) + cos(8*2*pi*week/52)
-#                    + sin(9*2*pi*week/52) + cos(9*2*pi*week/52)
                   , data=ILI, x=TRUE)
 print(summary(ili_visits_mod3))
 
@@ -409,7 +403,7 @@ par(mfrow=c(2,1))
 
 plot (start, log(ILI$ili_visits), pch=20); week_lines()
 lines (start, predict(ili_visits_mod3), col="blue", lwd=2)
-title("ILI model, spline+providers+holidays+season")
+title("ILI model, spline+providers+holidays")
 
 plot (start, residuals(ili_visits_mod3), pch=20, ylab="Residuals")
 title(paste("Residuals, std. dev. =",round(summary(ili_visits_mod3)$sigma,4)))
@@ -421,14 +415,14 @@ title("Residuals vs DOY (from July 1)")
 
 xx <- ili_visits_mod3$x
 xx[,2:7] <- 0
-ili_spline_season3 <- as.vector (xx %*% coef(ili_visits_mod3))
+ili_spline3 <- as.vector (xx %*% coef(ili_visits_mod3))
 
-plot(start,ili_spline_season3,type="l",col="darkgray",lwd=3)
-points(start,ili_spline_season3+residuals(ili_visits_mod3),pch=20,ylab="")
+plot(start,ili_spline3,type="l",col="darkgray",lwd=3)
+points(start,ili_spline3+residuals(ili_visits_mod3),pch=20,ylab="")
 week_lines()
-title("Spline + seasonality, and that plus residuals")
+title("Spline, and spline plus residuals")
 
-# spline + providers + holidays + seasonality + non-ili residuals
+# spline + providers + holidays + non-ili residuals
 
 ili_visits_mod4 <- lm (log(ili_visits) 
                      ~ log(providers)
@@ -439,15 +433,6 @@ ili_visits_mod4 <- lm (log(ili_visits)
                      + New_Year_indicator
                      + residuals_nonili_visits3
                      + ili_visits_spline
-                     + sin(1*2*pi*week/52) + cos(1*2*pi*week/52)
-                     + sin(2*2*pi*week/52) + cos(2*2*pi*week/52)
-                     + sin(3*2*pi*week/52) + cos(3*2*pi*week/52)
-                     + sin(4*2*pi*week/52) + cos(4*2*pi*week/52)
-                     + sin(5*2*pi*week/52) + cos(5*2*pi*week/52)
-                     + sin(6*2*pi*week/52) + cos(6*2*pi*week/52)
-#                    + sin(7*2*pi*week/52) + cos(7*2*pi*week/52)
-#                    + sin(8*2*pi*week/52) + cos(8*2*pi*week/52)
-#                    + sin(9*2*pi*week/52) + cos(9*2*pi*week/52)
                   , data=ILI, x=TRUE)
 print(summary(ili_visits_mod4))
 
@@ -455,7 +440,7 @@ par(mfrow=c(2,1))
 
 plot (start, log(ILI$ili_visits), pch=20); week_lines()
 lines (start, predict(ili_visits_mod4), col="blue", lwd=2)
-title("ILI model, spline+providers+holidays+season+noniliresid")
+title("ILI model, spline+providers+holidays+noniliresid")
 
 plot (start, residuals(ili_visits_mod4), pch=20, ylab="Residuals")
 title(paste("Residuals, std. dev. =",round(summary(ili_visits_mod4)$sigma,4)))
@@ -467,12 +452,12 @@ title("Residuals vs DOY (from July 1)")
 
 xx <- ili_visits_mod4$x
 xx[,2:8] <- 0
-ili_spline_season4 <- as.vector (xx %*% coef(ili_visits_mod4))
+ili_spline4 <- as.vector (xx %*% coef(ili_visits_mod4))
 
-plot(start,ili_spline_season4,type="l",col="darkgray",lwd=3)
-points(start,ili_spline_season4+residuals(ili_visits_mod4),pch=20,ylab="")
+plot(start,ili_spline4,type="l",col="darkgray",lwd=3)
+points(start,ili_spline4+residuals(ili_visits_mod4),pch=20,ylab="")
 week_lines()
-title("Spline + seasonality, and that plus residuals")
+title("Spline and spline plus residuals")
 
 
 # CREATE PROXYA FROM RATIO OF ILI VISITS TO NON-ILI VISITS.
@@ -542,7 +527,7 @@ week_lines()
 # by a scale factor just to get it to numerically match (approximately) 
 # the other proxies.
 
-proxyC <- exp (ili_spline_season3+residuals(ili_visits_mod3)) / 80
+proxyC <- exp (ili_spline3+residuals(ili_visits_mod3)) / 80
 
 plot (start, proxyC, pch=20); week_lines()
 title("ProxyC: Derived from model of ILI visits")
@@ -560,12 +545,12 @@ week_lines()
 # by a scale factor just to get it to numerically match (approximately) 
 # the other proxies.
 
-proxyD <- exp (ili_spline_season4+residuals(ili_visits_mod4)) / 80
+proxyD <- exp (ili_spline4+residuals(ili_visits_mod4)) / 80
 
 plot (start, proxyD, pch=20); week_lines()
 title("ProxyD: Derived from model of ILI visits, with non-ILI residuals")
 
-plot (start, log(proxyC), pch=20, ylim=c(-0.5,2.5))
+plot (start, log(proxyD), pch=20, ylim=c(-0.5,2.5))
 week_lines()
 
 
