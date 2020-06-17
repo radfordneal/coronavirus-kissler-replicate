@@ -469,7 +469,7 @@ ili_spline4 <- as.vector (xx %*% coef(ili_visits_mod4))
 plot(start,ili_spline4,type="l",col="darkgray",lwd=3)
 points(start,ili_spline4+residuals(ili_visits_mod4),pch=20,ylab="")
 week_lines()
-title("Spline and spline plus residuals")
+title("Spline, and spline plus residuals")
 
 
 # CREATE PROXYA FROM RATIO OF ILI VISITS TO NON-ILI VISITS.
@@ -556,7 +556,7 @@ week_lines()
 # the model residuals.  The result is divided by a scale factor just
 # to get it to numerically match (approximately) the other proxies.
 
-proxyD <- exp (ili_spline4+residuals(ili_visits_mod4)) / 80
+proxyD <- exp (ili_spline4+residuals(ili_visits_mod4)) / 85
 
 plot (start, proxyD, pch=20); week_lines()
 title("ProxyD: Derived from model of ILI visits, with non-ILI residuals")
@@ -754,6 +754,18 @@ plot_two_with_lines (start,
   pch=19, ylab="Line goes to log(ProxyD)")
 week_lines()
 title("ProxyD versus ProxyC (logs)")
+
+plot_two_with_lines (start, 
+  log(proxyD), log(proxyW), 
+  pch=19, ylab="Line goes to log(ProxyW)")
+week_lines()
+title("ProxyW versus ProxyD (logs)")
+
+plot_two_with_lines (start, 
+  log(proxyD), log(proxyAX), 
+  pch=19, ylab="Line goes to log(ProxyAX)")
+week_lines()
+title("ProxyAX versus ProxyD (logs)")
 
 
 # PLOT ANOMALOUS POINTS IN PROXIES.

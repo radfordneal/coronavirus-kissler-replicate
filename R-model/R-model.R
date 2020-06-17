@@ -90,9 +90,10 @@ if (any (args %in% season_types))
   args <- args [! (args %in% season_types)]
 }
 
-# The values below were found using the "search" script.
+# The values below were found using the "search" script, with proxyDss-filter
+# proxies.
 
-imm_decay <- c(NL63=0.9150,E229=0.9775,OC43=0.9300,HKU1=0.9675)
+imm_decay <- c(NL63=0.9125,E229=0.9775,OC43=0.9350,HKU1=0.9650)
 
 if (any (substr(args,1,6) == "decay:"))
 { stopifnot (sum (substr(args,1,6) == "decay:") == 1)
