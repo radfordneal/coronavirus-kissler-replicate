@@ -66,6 +66,9 @@ start <- ILIproxy$start    # Start dates of weeks being analysed
 year  <- ILIproxy$year     # Year for each week
 week  <- ILIproxy$week     # Number of each week in its year
 
+yrcont <- (0:(length(start)-1)) / (365.24/7) # Continuous week over whole period
+sncont <- yrcont %% (365.24/7)               # Continuous (0,1) value for season
+
 source("../util/util.R")
 
 
@@ -92,6 +95,9 @@ for (virus in viruses)
 { CoV[,virus] <- 100 * CoV_raw[,virus]  # convert to %
 }
 
+# Compute total percent positive for all coronaviruses. Note that this could
+# conceivably be greater than 100, though in fact it never is.
+
 CoV$total <- 0
 for (virus in viruses)
 { CoV$total <- CoV$total + CoV[,virus]
@@ -107,6 +113,20 @@ cat("\nCORONAVIRUS DATA SUMMARY:\n\n")
 print(summary(CoV))
 
 
+# PLOT ORIGINAL DATA.
+
+par(mfrow=c(4,1))
+
+for (virus in viruses)
+{ plot (start, CoV[,virus], pch=20, ylim=c(0,7.1), yaxs="i", ylab="percent")
+  week_lines()
+  title(paste("Percent positive tests,",virus))
+  plot (start, log(pmax(min_pct,CoV[,virus])),
+               pch=20, ylim=c(-5,2), ylab="log, zeros at bottom")
+  week_lines()
+}
+
+
 # CREATE TWEAKED PERCENTAGES AMONGST POSITIVE CORONAVIRUS TESTS.
 
 pct <- data.frame(start=start)    # original data
@@ -114,14 +134,40 @@ pcto <- data.frame(start=start)   # with outliers and zeros adjusted
 pcts <- data.frame(start=start)   #  - then smoothed once
 pctss <- data.frame(start=start)  #  - and again
 
-# Adjust outliers.  Manually identified.
+# Adjust outliers.  Manually identified.  Make plots too.
+
+par(mfrow=c(4,1))
 
 adjCoV <- CoV
 
 adjCoV$NL63[8]   <- mean(adjCoV$NL63[c(6,7,9,10)]) / zero_below
+
+plot (start, log(pmax(min_pct,CoV$NL63)), ylab="NL63", 
+      ylim=c(-5,2), pch=20, col="gray")
+points (start[8], log(pmax(min_pct,CoV$NL63[8])), pch=19, col="red")
+lines (rep(start[8],2), log(pmax(min_pct,c(CoV$NL63[8],adjCoV$NL63[8]))))
+title (
+ "Adjustment of outliers in percent positive tests for each virus (log scale)")
+
 adjCoV$E229[10]  <- mean(adjCoV$E229[c(8,9,11,12)])
+
+plot (start, log(pmax(min_pct,CoV$E229)), ylab="E229", 
+      ylim=c(-5,2), pch=20, col="gray")
+points (start[10], log(pmax(min_pct,CoV$E229[10])), pch=19, col="red")
+lines (rep(start[10],2), log(pmax(min_pct,c(CoV$E229[10],adjCoV$E229[10]))))
+
+plot (start, log(pmax(min_pct,CoV$OC43)), ylab="OC43", pch=20, 
+      ylim=c(-5,2), col="gray")
+
 adjCoV$HKU1[61]  <- mean(adjCoV$HKU1[c(59,60,62,63)])
 adjCoV$HKU1[127] <- mean(adjCoV$HKU1[c(125,126,128,129)])
+
+plot (start, log(pmax(min_pct,CoV$HKU1)), ylab="HKU1", pch=20,
+      ylim=c(-5,2), col="gray")
+points (start[c(61,127)], log(pmax(min_pct,CoV$HKU1[c(61,127)])), 
+        pch=19, col="red")
+lines (rep(start[61],2), log(pmax(min_pct,c(CoV$HKU1[61],adjCoV$HKU1[61]))))
+lines (rep(start[127],2), log(pmax(min_pct,c(CoV$HKU1[127],adjCoV$HKU1[127]))))
 
 # Recompute totals after outliers adjusted.
 
@@ -179,25 +225,17 @@ for (virus in viruses)
 
 par(mfrow=c(4,1))
 
-for (virus in c(viruses,"total"))
-{ plot (start, CoV[,virus], pch=20, ylim=c(0,7+7*(virus=="total")), yaxs="i",
-        ylab="percent")
-  week_lines()
-  title(paste("Percent positive tests,",virus))
-  plot (start, pct_logit(pmax(min_pct,CoV[,virus])),
-               pch=20, ylim=c(-9.5,-2.5)+(virus=="total"), ylab="logit")
-  week_lines()
-}
+plot (start, CoV$total, pch=20, ylim=c(0,14), yaxs="i", ylab="percent")
+week_lines()
+title("Total percent positive tests")
+plot(start, log(pmax(min_pct,CoV$total)), pch=20, ylim=c(-1.5,3), ylab="log")
+week_lines()
 
-for (virus in c("total"))
-{ plot (start, adjCoV[,virus], pch=20, ylim=c(0,7+7*(virus=="total")), yaxs="i",
-        ylab="percent")
-  week_lines()
-  title(paste("Percent positive tests after outlier/zero adjustment,",virus))
-  plot (start, pct_logit(adjCoV[,virus]),
-               pch=20, ylim=c(-9.5,-2.5)+(virus=="total"), ylab="logit")
-  week_lines()
-}
+plot (start, adjCoV$total, pch=20, ylim=c(0,14), yaxs="i", ylab="percent")
+week_lines()
+title("Total Percent positive tests after outlier/zero adjustment")
+plot (start, log(adjCoV$total), pch=20, ylim=c(-1.5,3), ylab="log")
+week_lines()
 
 par(mfrow=c(2,1))
 
@@ -239,12 +277,11 @@ week_lines()
 
 par(mfrow=c(2,1))
 
-for (virus in c(viruses,"total"))
-{ plot_vs_doy (start, adjCoV[,virus], pch=20, 
-               ylim=c(0,7+7*(virus=="total")), yaxs="i")
+for (virus in viruses)
+{ plot_vs_doy (start, adjCoV[,virus], pch=20, ylim=c(0,7), yaxs="i")
   title(paste("Pct positive vs day of year, outliers & zeros adjusted,",virus))
   plot_vs_doy (start, pct_logit(adjCoV[,virus]), 
-               pch=20, ylim=c(-9.5,-2.5)+(virus=="total"), ylab="logit")
+               pch=20, ylim=c(-9.5,-2.5), ylab="logit")
 }
 
 
@@ -259,11 +296,16 @@ pctm <- data.frame(start=start)
 
 for (virus in viruses)
 {
+  cat ("\nSpline model for logit percent positive for",virus,"\n\n")
+
   d <- pct_logit(pcto[,virus])
   t <- start
   d <- c(rep(mean(d[1:4]),2),d)
   t <- c(t[1]-c(14,7),t)
   pct_model[[virus]] <- lm (d ~ bs(t,df=35))
+
+  print(summary(pct_model[[virus]]))
+
   pctm[,virus] <- predict(pct_model[[virus]]) [-c(1,2)]
 
   plot (start, pct_logit(pcto[,virus]), pch=20, ylab="logit")
@@ -274,22 +316,41 @@ for (virus in viruses)
 }
 
 
-# CREATE SPLINE FIT FOR LOGIT TOTAL PERCENT POSITIVE.  Fit is done after 
+# CREATE SPLINE FIT FOR LOG TOTAL PERCENT POSITIVE.  Fit is done after 
 # outlier/zero adjustment.
 
 par(mfrow=c(2,1))
 
-tot_model <- lm (pct_logit(adjCoV$total) ~ bs(start,df=40))
+cat("\nModels for log total percent\n\n")
 
-plot (start, pct_logit(adjCoV$total), pch=20, ylab="log percent")
+tot_model <- lm (log(adjCoV$total) ~ bs(start,df=40))
+
+print(summary(tot_model))
+
+plot (start, log(adjCoV$total), pch=20, ylab="log percent")
 lines (start, predict(tot_model), col="red")
 week_lines()
-title ("Spline fit for logit total percent positive")
+title ("Spline fit for log total percent positive")
 
 plot (start, residuals(tot_model), pch=20, ylab="")
 abline(h=0)
 week_lines()
-title ("Residuals from spline fit for logit total percent positive")
+title ("Residuals from spline fit for log total percent positive")
+
+# tot_model2 <- lm (log(adjCoV$total) ~ bs(start,df=20)
+#                                     + sin(1*2*pi*sncont) + cos(1*2*pi*sncont))
+# 
+# print(summary(tot_model2))
+# 
+# plot (start, log(adjCoV$total), pch=20, ylab="log percent")
+# lines (start, predict(tot_model2), col="red")
+# week_lines()
+# title ("Spline + sine fit for log total percent positive")
+# 
+# plot (start, residuals(tot_model2), pch=20, ylab="")
+# abline(h=0)
+# week_lines()
+# title ("Residuals from spline + sine fit for log total percent positive")
 
 
 # COMPUTE AND PLOT ALL THE PROXIES.
@@ -313,7 +374,7 @@ for (virus in viruses)
     CoVproxy[,paste0(virus,"_",proxy,"m")] <- 
       ILIproxy[,proxy] * adjCoV$total * pct_logit_inv(pctm[,virus])  /  100
     CoVproxy[,paste0(virus,"_",proxy,"n")] <- 
-      ILIproxy[,proxy] * pct_logit_inv(predict(tot_model)) * 
+      ILIproxy[,proxy] * exp(predict(tot_model)) * 
                          pct_logit_inv(pctm[,virus]) / 100
 
     plot (start, log(pmax(min_pct,CoVproxy[,paste0(virus,"_",proxy)])),
@@ -334,13 +395,40 @@ cat("\nCORONAVIRUS PROXY SUMMARY:\n\n")
 print(summary(CoVproxy))
 
 
+# MORE PROXY PLOTS, GROUPED BY PROXY RATHER THAN VIRUS.
+
+proxies_to_show <- c("proxyW","proxyAXo","proxyAXss","proxyDn")
+for (proxy in proxies_to_show)
+{ 
+  par(mfrow=c(3,2))
+  for (virus in viruses)
+  { plot (start, CoVproxy[,paste0(virus,"_",proxy)],
+          ylim=c(0,35), yaxs="i", pch=20,
+          ylab=paste(proxy,"for",virus))
+    if (virus==viruses[1]) title(proxy)
+    # week_lines()
+  }
+
+  par(mfrow=c(3,2))
+  for (virus in viruses)
+  { plot (start, log(pmax(min_pct,CoVproxy[,paste0(virus,"_",proxy)])),
+          ylim=c(-5.3,3.4), pch=20,
+          ylab=paste("Log",proxy,"for",virus))
+    if (virus==viruses[1]) title(paste("Log",proxy))
+    # week_lines()
+  }
+}
+
+
 # PLOT SOME COMPARISONS.
 
 par(mfrow=c(4,1))
 
 for (pair in list (c("proxyW","proxyWXss"), 
+                   c("proxyDn","proxyW"),
                    c("proxyAXo","proxyDn"),
-                   c("proxyDss","proxyDn")))
+                   c("proxyDss","proxyDn"),
+                   c("proxyDm","proxyDn")))
 { for (virus in viruses)
   { plot_two_with_lines (start, 
       log(CoVproxy[,paste0(virus,"_",pair[1])]), 

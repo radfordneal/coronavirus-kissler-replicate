@@ -89,6 +89,9 @@ start <- ILI$start  # Start dates of weeks being analysed
 year  <- ILI$year   # Year for each week
 week  <- ILI$week   # Number of each week in its year
 
+yrcont <- (0:(length(start)-1)) / (365.24/7) # Continuous week over whole period
+sncont <- yrcont %% (365.24/7)               # Continuous [0,1) value for season
+
 source("../util/util.R")
 
 Christmas_indicator1 <- Christmas_indicator2 <- Christmas_indicator
@@ -308,13 +311,13 @@ visits_mod3 <- lm (log(nonili_visits)
                      + Christmas_indicator1 + Christmas_indicator2
                      + New_Year_indicator
                      + season_week + I(season_week^2)
-                     + sin(1*2*pi*week/52) + cos(1*2*pi*week/52)
-                     + sin(2*2*pi*week/52) + cos(2*2*pi*week/52)
-#                    + sin(3*2*pi*week/52) + cos(3*2*pi*week/52)
-#                    + sin(4*2*pi*week/52) + cos(4*2*pi*week/52)
-#                    + sin(5*2*pi*week/52) + cos(5*2*pi*week/52)
-#                    + sin(6*2*pi*week/52) + cos(6*2*pi*week/52)
-#                    + sin(7*2*pi*week/52) + cos(7*2*pi*week/52)
+                     + sin(1*2*pi*sncont) + cos(1*2*pi*sncont)
+                     + sin(2*2*pi*sncont) + cos(2*2*pi*sncont)
+#                    + sin(3*2*pi*sncont) + cos(3*2*pi*sncont)
+#                    + sin(4*2*pi*sncont) + cos(4*2*pi*sncont)
+#                    + sin(5*2*pi*sncont) + cos(5*2*pi*sncont)
+#                    + sin(6*2*pi*sncont) + cos(6*2*pi*sncont)
+#                    + sin(7*2*pi*sncont) + cos(7*2*pi*sncont)
                    , data=ILI, x=TRUE)
 print(summary(visits_mod3))
 
