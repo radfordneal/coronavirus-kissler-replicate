@@ -43,7 +43,7 @@ et al.:
   (cd R-model; run-kissler-et-al)
 
 Plots analogous to Figure 1 in Kissler, et al (but not identically
-formatted) should then be in R-model/R-model-proxyW-fmm-Ru_smoothed.pdf
+formatted) should then be in R-model/R-model-proxyW-Ru_smoothed.pdf
 (near the end).  These plots are for the full 33 week season (Kissler, 
 et al truncates them at week 30), and have an additional red line giving 
 the combined modelled value of R, and black dots giving the absolute 
@@ -51,7 +51,7 @@ season/virus effect (the black dots referenced to HKU1/2014-2015 of
 Kissler, et al are shown as gray dots).  There are logarithmic versions 
 as well as the non-logarithmic versions analogous to Kissler, et al.  
 Some variations on the methods of Kissler, et al. are also run, with 
-other .pdf files showning these results.  Some methods that differe more
+other .pdf files showing these results.  Some methods that differ more
 substantially are run with the run-alt shell file.  The code implements 
 additional methods that can be run with suitable command-line options.
 

@@ -5,7 +5,7 @@
 # Options are specified by arguments in the R command after --args, with 
 # defaults as in Kissler, et al, as follows:
 #
-#   - The R estimates to use (default proxyW-fmm), from corresponding file
+#   - The R estimates to use (default proxyW), from corresponding file
 #   - Type of R estimate - Rt, Rt-smoothed, Ru, or Ru-smoothed (default)
 #   - Model of seasonal effect - e1 (default, spline), e2 (sine), e3 (Fourier)
 #   - Flu season - s1 (default) or s2 (almost the whole year)
@@ -109,7 +109,7 @@ stage_decay2 <- 0.94
 R_estimates <- args
 
 if (length(R_estimates)==0) 
-{ R_estimates <- "proxyW-fmm"  # As in the Kissler, et al paper
+{ R_estimates <- "proxyW"  # As in the Kissler, et al paper
 }
 
 stopifnot(length(R_estimates)==1)

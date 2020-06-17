@@ -6,10 +6,10 @@ if [ x$R == x ]; then R=R; fi
 
 for proxy in proxyW proxyA proxyB proxyC proxyD proxyWX proxyAX \
              proxyWo proxyAo proxyBo proxyCo proxyDo proxyWXo proxyAXo \
-             proxyWss proxyAss proxyBss proxyCss proxyDss proxyWXss proxyAXss \
-             proxyWm proxyAm proxyBm proxyCm proxyDm \
-             proxyWn proxyAn proxyBn proxyCn proxyDn \
-#            proxyWs proxyAs proxyBs proxyCs proxyDs
+             proxyCs proxyDs proxyWXs proxyAXs \
+             proxyCss proxyDss proxyWXss proxyAXss \
+             proxyCm proxyDm proxyWXm proxyAXm \
+             proxyCn proxyDn proxyWXn proxyAXn
 do
   $R --save --no-restore \
      --args $proxy $method <R-est.R >&R-est-$proxy.out
