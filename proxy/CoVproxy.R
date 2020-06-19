@@ -397,7 +397,7 @@ print(summary(CoVproxy))
 
 # MORE PROXY PLOTS, GROUPED BY PROXY RATHER THAN VIRUS.
 
-proxies_to_show <- c("proxyW","proxyAXo","proxyAXss","proxyDn")
+proxies_to_show <- c("proxyW","proxyAXo","proxyAXss","proxyDn","proxyEn")
 for (proxy in proxies_to_show)
 { 
   par(mfrow=c(3,2))
@@ -428,7 +428,8 @@ for (pair in list (c("proxyW","proxyWXss"),
                    c("proxyDn","proxyW"),
                    c("proxyAXo","proxyDn"),
                    c("proxyDss","proxyDn"),
-                   c("proxyDm","proxyDn")))
+                   c("proxyDm","proxyDn"),
+                   c("proxyDn","proxyEn")))
 { for (virus in viruses)
   { plot_two_with_lines (start, 
       log(CoVproxy[,paste0(virus,"_",pair[1])]), 

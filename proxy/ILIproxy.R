@@ -565,6 +565,17 @@ plot (start, log(proxyD), pch=20, ylim=c(-0.5,2.5))
 week_lines()
 
 
+# CREATE PROXYE, LIKE PROXYD BUT WITHOUT INCLUDING RESIDUALS.
+
+proxyE <- exp (ili_spline4) / 85
+
+plot (start, proxyE, pch=20); week_lines()
+title("ProxyE: ProxyD without ILI model residuals")
+
+plot (start, log(proxyE), pch=20, ylim=c(-0.5,2.5))
+week_lines()
+
+
 # PLOTS COMPARING ILI PROXIES.
 
 par(mfrow=c(4,1))
@@ -676,6 +687,11 @@ plot (log(proxyC), log(proxyD), pch=20, asp=1,
 abline(0,1)
 title("ProxyD versus ProxyC (logs)")
 
+plot (log(proxyE), log(proxyD), pch=20, asp=1,
+      col=yrcols[year-2013])
+abline(0,1)
+title("ProxyD versus ProxyE (logs)")
+
 par(mfrow=c(4,1))
 plot_two_with_lines (start, 
   log(ILI$weighted_pct_ili), log(ILI$unweighted_pct_ili), 
@@ -756,6 +772,12 @@ week_lines()
 title("ProxyD versus ProxyC (logs)")
 
 plot_two_with_lines (start, 
+  log(proxyD), log(proxyE), 
+  pch=19, ylab="Line goes to log(ProxyE)")
+week_lines()
+title("ProxyE versus ProxyD (logs)")
+
+plot_two_with_lines (start, 
   log(proxyD), log(proxyW), 
   pch=19, ylab="Line goes to log(ProxyW)")
 week_lines()
@@ -807,6 +829,10 @@ plot (start, anomalous(log(proxyD)), pch=20, ylim=c(-0.2,0.22))
 week_lines(); abline(h=c(0,-0.1,-0.2,0.1,0.2))
 title("Anomalous points in log(proxyD)")
 
+plot (start, anomalous(log(proxyE)), pch=20, ylim=c(-0.2,0.22))
+week_lines(); abline(h=c(0,-0.1,-0.2,0.1,0.2))
+title("Anomalous points in log(proxyE)")
+
 
 # PRINT STANDARD DEVIATIONS OF LOG PROXIES.
 
@@ -828,6 +854,7 @@ ILIproxy$proxyAX <- proxyAX
 ILIproxy$proxyB <- proxyB
 ILIproxy$proxyC <- proxyC
 ILIproxy$proxyD <- proxyD
+ILIproxy$proxyE <- proxyE
 
 
 write.table (ILIproxy, "ILIproxy.csv", sep=",",
