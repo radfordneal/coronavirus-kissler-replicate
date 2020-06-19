@@ -1,8 +1,10 @@
 # Code to reproduce production of a proxy for Influenza-Like-Illness (ILI)
 # incidence in the Kissler, et al paper, and to investigate alternative
 # proxies.  Produces various plots that are written to ILIproxy.pdf.
-# Writes data for all proxies to ILIproxy.csv, with names the same as
-# the proxy name (eg, "proxyA").  ProxyW is the one used by Kissler, et al.
+# Writes weekly data for all proxies to ILIproxy.csv, with column names 
+# the same as the proxy name (eg, "proxyA").  ProxyW is the one used by 
+# Kissler, et al.  Also writes daily interpoliations of proxies that can
+# do that to ILIproxy-daily.pdf.
 #
 # Copyright 2020 by Radford M. Neal
 # 
@@ -89,7 +91,10 @@ start <- ILI$start  # Start dates of weeks being analysed
 year  <- ILI$year   # Year for each week
 week  <- ILI$week   # Number of each week in its year
 
-yrcont <- (0:(length(start)-1)) / (365.24/7) # Continuous week over whole period
+all_days <- rep(start,each=7) + (0:6)        # Dates for every day of the period
+all_days <- all_days[1:(length(all_days)-6)]
+
+yrcont <- (0:(length(start)-1)) / (365.24/7) # Continuous year over whole period
 
 source("../util/util.R")
 
@@ -839,10 +844,11 @@ title("Anomalous points in log(proxyE)")
 cat("\nStandard deviations of log proxies:\n\n")
 
 print (round (c (W=sd(ILI$weighted_pct), U=sd(ILI$unweighted_pct),
-                 A=sd(proxyA), B=sd(proxyB), C=sd(proxyC), D=sd(proxyD)), 4))
+                 A=sd(proxyA), B=sd(proxyB), C=sd(proxyC), D=sd(proxyD),
+                 E=sd(proxyE)), 4))
 
 
-# WRITE A FILE WITH THE VARIOUS PROXIES FOR ILI.
+# WRITE A FILE WITH THE VARIOUS WEEKLY PROXIES FOR ILI.
 
 ILIproxy <- data.frame (start = as.character(start), year=year, week=week)
 
@@ -856,9 +862,30 @@ ILIproxy$proxyC <- proxyC
 ILIproxy$proxyD <- proxyD
 ILIproxy$proxyE <- proxyE
 
-
 write.table (ILIproxy, "ILIproxy.csv", sep=",",
              quote=FALSE, row.names=FALSE, col.names=TRUE)
+
+
+# COMPUTE AND PLOT DAILY INTERPOLATIONS OF PROXIES THAT NATURALLY CAN DO THAT.
+
+xx <- predict (ili_visits_spline, all_days)
+cf <- coef(ili_visits_mod4)
+cf <- cf [(length(cf)-ncol(xx)+1):length(cf)]
+proxyE_daily <- exp (as.vector (xx %*% cf))
+
+plot (all_days, log(proxyE_daily), pch=20, ylab="log")
+title ("Daily interpolated proxyE (log)")
+
+
+# WRITE DAILY INTERPOLATIONS OF PROXIES THAT NATURALLY CAN DO THAT.
+
+ILIproxy_daily <- data.frame (date = as.character(all_days))
+
+ILIproxy_daily$proxyE <- proxyE_daily
+
+write.table (ILIproxy_daily, "ILIproxy-daily.csv", sep=",",
+             quote=FALSE, row.names=FALSE, col.names=TRUE)
+
 
 # ALL DONE.
 
