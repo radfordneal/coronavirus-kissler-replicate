@@ -383,7 +383,7 @@ Christmas_indicator1_ili <- Christmas_indicator1
 Christmas_indicator1_ili[year==2014] <- 0.3*Christmas_indicator1_ili[year==2014]
 
 #ili_bound <- range(start)
-ili_bound <- c (start[1], start[length(start)]+6)
+ili_bound <- c (start[1]-7/2, start[length(start)]+7/2)
 
 ili_knots_within_year <- 
   as.Date(c("2000-07-01","2000-08-01","2000-09-01","2000-10-01","2000-11-01",
@@ -869,7 +869,7 @@ write.table (ILIproxy, "ILIproxy.csv", sep=",",
 
 # COMPUTE AND PLOT DAILY INTERPOLATIONS OF PROXIES THAT NATURALLY CAN DO THAT.
 
-xx <- predict (ili_visits_spline, all_days)
+xx <- predict (ili_visits_spline, all_days-7/2)
 cf <- coef(ili_visits_mod4)
 cf <- cf [(length(cf)-ncol(xx)+1):length(cf)]
 proxyE_daily <- exp (as.vector (xx %*% cf))

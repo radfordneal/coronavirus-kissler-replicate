@@ -310,7 +310,7 @@ pct_model <- list()
 pctm <- data.frame(start=start)
 
 t <- start
-t <- c(t[1]-c(14,7),t)
+t <- c(t[1]-c(14,7),t+7/2)
 pctm_spline <- bs(t,df=35)
 
 for (virus in viruses)
@@ -422,7 +422,7 @@ proxies <- names(ILIproxy_daily) [substring(names(ILIproxy_daily),1,5)=="proxy"]
 par(mfrow=c(3,2))
 
 tot_model_predict_all_days <- 
-  as.vector (cbind (1, predict(tot_model_spline,all_days)) 
+  as.vector (cbind (1, predict(tot_model_spline,all_days-7/2)) 
                %*% coef(tot_model))
                                 
 for (virus in viruses)
