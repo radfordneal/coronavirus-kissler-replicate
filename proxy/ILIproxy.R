@@ -92,7 +92,7 @@ year  <- ILI$year   # Year for each week
 week  <- ILI$week   # Number of each week in its year
 
 all_days <- rep(start,each=7) + (0:6)        # Dates for every day of the period
-all_days <- all_days[1:(length(all_days)-6)]
+#all_days <- all_days[1:(length(all_days)-6)]
 
 yrcont <- (0:(length(start)-1)) / (365.24/7) # Continuous year over whole period
 
@@ -260,7 +260,7 @@ title("Log number of providers")
 # MODEL THE NUMER OF NON-ILI VISITS.
 
 nonili_visits_spline_df <- 9
-nonili_visits_spline <- bs(start,df=nonili_visits_spline_df)
+nonili_visits_spline <- bs (start, df = nonili_visits_spline_df)
 
 par(mfrow=c(2,1))
 
@@ -382,7 +382,8 @@ title("Holiday component of model (log domain)")
 Christmas_indicator1_ili <- Christmas_indicator1
 Christmas_indicator1_ili[year==2014] <- 0.3*Christmas_indicator1_ili[year==2014]
 
-ili_bound <- range(start)
+#ili_bound <- range(start)
+ili_bound <- c (start[1], start[length(start)]+6)
 
 ili_knots_within_year <- 
   as.Date(c("2000-07-01","2000-08-01","2000-09-01","2000-10-01","2000-11-01",

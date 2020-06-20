@@ -1,10 +1,13 @@
 # Code to reproduce production of proxies for common-cold coronavirus
 # incidence in the Kissler, et al paper, and to investigate alternative
-# proxies.  Reads the ILI proxies from ILIproxy.csv.  Produces various
+# proxies.  Reads the ILI proxies from ILIproxy.csv, and for proxies that
+# have daily interpolations, from ILIproxy-daily.csv.  Produces various
 # plots that are written to CoVproxy.pdf.  Writes data to CoVproxy.csv, 
-# with all proxies produced included, with column names having the form 
-# <virus>_<proxy>[<var>], with <proxy> being an ILI proxy, and the optional
-# <var> as described below (eg, "OC43_proxyW" or "OC43_proxyAs").
+# with all weekly proxies produced included, with column names having the 
+# form <virus>_<proxy>[<var>], with <proxy> being an ILI proxy, and the 
+# optional <var> as described below (eg, "OC43_proxyW" or "OC43_proxyAs").
+# Daily proxies from daily ILI proxies are written to CoVproxy-daily.csv,
+# with only the "n" variant currently produced.
 #
 # The "o" variant has (manually-identified) outliers adjusted, and
 # zeros for the fraction testing positive for each coronavirus amongst 
@@ -49,7 +52,7 @@ zero_below <- 1.3     # Factor to put zeros under minimum non-zero (or other
                       # reference) value
 
 
-# READ THE FILE OF ILI PROXIES.  As produced by ILIproxy.R.  Dates are
+# READ THE FILE OF WEEKLY ILI PROXIES.  As produced by ILIproxy.R.  Dates are
 # for the start of the week (Sunday).
 
 ILIproxy <- read.csv ("ILIproxy.csv",
@@ -60,13 +63,25 @@ ILIproxy <- ILIproxy[-1,]  # First week not used by Kissler, et al
 ILIproxy$start <- as.Date(ILIproxy$start)
 
 
+# READ THE FILE OF DAILY-INTERPOLATED ILI PROXIES.  As produced by ILIproxy.R.
+
+ILIproxy_daily <- read.csv ("ILIproxy-daily.csv",
+                             header=TRUE, stringsAsFactors=FALSE)
+
+ILIproxy_daily <- ILIproxy_daily[-(1:7),]# First week not used by Kissler, et al
+ILIproxy_daily$date <- as.Date(ILIproxy_daily$date)
+
+
 # INCLUDE UTILITY FUNCTIONS.  They need "start" and "week" to be defined.
 
 start <- ILIproxy$start    # Start dates of weeks being analysed
 year  <- ILIproxy$year     # Year for each week
 week  <- ILIproxy$week     # Number of each week in its year
 
-yrcont <- (0:(length(start)-1)) / (365.24/7) # Continuous week over whole period
+all_days <- rep(start,each=7) + (0:6)        # Dates for every day of the period
+#all_days <- all_days[1:(length(all_days)-6)]
+
+yrcont <- (0:(length(start)-1)) / (365.24/7) # Continuous year over whole period
 sncont <- yrcont %% (365.24/7)               # Continuous (0,1) value for season
 
 source("../util/util.R")
@@ -294,15 +309,17 @@ par(mfrow=c(4,1))
 pct_model <- list()
 pctm <- data.frame(start=start)
 
+t <- start
+t <- c(t[1]-c(14,7),t)
+pctm_spline <- bs(t,df=35)
+
 for (virus in viruses)
 {
   cat ("\nSpline model for logit percent positive for",virus,"\n\n")
 
   d <- pct_logit(pcto[,virus])
-  t <- start
   d <- c(rep(mean(d[1:4]),2),d)
-  t <- c(t[1]-c(14,7),t)
-  pct_model[[virus]] <- lm (d ~ bs(t,df=35))
+  pct_model[[virus]] <- lm (d ~ pctm_spline)
 
   print(summary(pct_model[[virus]]))
 
@@ -323,7 +340,8 @@ par(mfrow=c(2,1))
 
 cat("\nModels for log total percent\n\n")
 
-tot_model <- lm (log(adjCoV$total) ~ bs(start,df=40))
+tot_model_spline <- bs(start,df=40)
+tot_model <- lm (log(adjCoV$total) ~ tot_model_spline)
 
 print(summary(tot_model))
 
@@ -353,7 +371,7 @@ title ("Residuals from spline fit for log total percent positive")
 # title ("Residuals from spline + sine fit for log total percent positive")
 
 
-# COMPUTE AND PLOT ALL THE PROXIES.
+# COMPUTE AND PLOT ALL THE WEEKLY PROXIES.
 
 CoVproxy <- data.frame (start = as.character(start), year=year, week=week)
 
@@ -379,23 +397,55 @@ for (virus in viruses)
 
     plot (start, log(pmax(min_pct,CoVproxy[,paste0(virus,"_",proxy)])),
           ylim=c(-5.3,3.4), pch=20,
-          ylab=paste("Log",proxy,"proxy,",virus))
+          ylab=paste0("Log ",proxy,", ",virus))
     # week_lines()
-    if (proxy==proxies[1]) title(paste("Proxies for",virus))
+    if (proxy==proxies[1]) title(paste("Weekly proxies for",virus))
     for (w in c("o","s","ss","m","n"))
     { plot (start, log(CoVproxy[,paste0(virus,"_",proxy,w)]),
             ylim=c(-4.8,3.4), pch=20,
-            ylab=paste("Log",paste0(proxy,w),"proxy,",virus))
+            ylab=paste0("Log ",paste0(proxy,w),", ",virus))
       # week_lines()
     }
   }
 }
 
-cat("\nCORONAVIRUS PROXY SUMMARY:\n\n")
+cat("\nCORONAVIRUS WEEKLY PROXY SUMMARY:\n\n")
 print(summary(CoVproxy))
 
 
-# MORE PROXY PLOTS, GROUPED BY PROXY RATHER THAN VIRUS.
+# COMPUTE AND PLOT ALL THE DAILY PROXIES.
+
+CoVproxy_daily <- data.frame (date = as.character(all_days))
+
+proxies <- names(ILIproxy_daily) [substring(names(ILIproxy_daily),1,5)=="proxy"]
+
+par(mfrow=c(3,2))
+
+tot_model_predict_all_days <- 
+  as.vector (cbind (1, predict(tot_model_spline,all_days)) 
+               %*% coef(tot_model))
+                                
+for (virus in viruses)
+{ for (proxy in proxies)
+  { 
+    CoVproxy_daily[,paste0(virus,"_",proxy,"n")] <-
+       ILIproxy_daily[,proxy] * exp(tot_model_predict_all_days) *
+         pct_logit_inv (as.vector (cbind (1, predict(pctm_spline,all_days))
+                                     %*% coef (pct_model[[virus]]))) / 100
+    for (w in c("n"))
+    { plot (all_days, log(CoVproxy_daily[,paste0(virus,"_",proxy,w)]),
+            ylim=c(-4.8,3.4), pch=20,
+            ylab=paste0("Log ",paste0(proxy,w),", ",virus))
+      if (proxy==proxies[1]) title(paste("Daily proxies for",virus))
+    }
+  }
+}
+
+cat("\nCORONAVIRUS DAILY PROXY SUMMARY:\n\n")
+print(summary(CoVproxy_daily))
+
+
+# MORE WEEKLY PROXY PLOTS, GROUPED BY PROXY RATHER THAN VIRUS.
 
 proxies_to_show <- c("proxyW","proxyAXo","proxyAXss","proxyDn","proxyEn")
 for (proxy in proxies_to_show)
@@ -404,7 +454,7 @@ for (proxy in proxies_to_show)
   for (virus in viruses)
   { plot (start, CoVproxy[,paste0(virus,"_",proxy)],
           ylim=c(0,35), yaxs="i", pch=20,
-          ylab=paste(proxy,"for",virus))
+          ylab=paste("Weekly",proxy,"for",virus))
     if (virus==viruses[1]) title(proxy)
     # week_lines()
   }
@@ -413,9 +463,32 @@ for (proxy in proxies_to_show)
   for (virus in viruses)
   { plot (start, log(pmax(min_pct,CoVproxy[,paste0(virus,"_",proxy)])),
           ylim=c(-5.3,3.4), pch=20,
-          ylab=paste("Log",proxy,"for",virus))
+          ylab=paste("Log weekly",proxy,"for",virus))
     if (virus==viruses[1]) title(paste("Log",proxy))
     # week_lines()
+  }
+}
+
+
+# DAILY PROXY PLOTS, GROUPED BY PROXY RATHER THAN VIRUS.
+
+proxies_to_show <- c("proxyEn")
+for (proxy in proxies_to_show)
+{ 
+  par(mfrow=c(3,2))
+  for (virus in viruses)
+  { plot (all_days, CoVproxy_daily[,paste0(virus,"_",proxy)],
+          ylim=c(0,35), yaxs="i", pch=20,
+          ylab=paste("Daily",proxy,"for",virus))
+    if (virus==viruses[1]) title(proxy)
+  }
+
+  par(mfrow=c(3,2))
+  for (virus in viruses)
+  { plot (all_days, log(pmax(min_pct,CoVproxy_daily[,paste0(virus,"_",proxy)])),
+          ylim=c(-5.3,3.4), pch=20,
+          ylab=paste("Log daily",proxy,"for",virus))
+    if (virus==viruses[1]) title(paste("Log",proxy))
   }
 }
 
@@ -441,9 +514,13 @@ for (pair in list (c("proxyW","proxyWXss"),
 }
 
 
-# WRITE A FILE WITH THE VARIOUS PROXIES FOR CORONAVIRUS INCIDENCE.
+# WRITE FILES WITH THE VARIOUS PROXIES FOR CORONAVIRUS INCIDENCE.
 
 write.table (CoVproxy, "CoVproxy.csv", sep=",",
+             quote=FALSE, row.names=FALSE, col.names=TRUE)
+
+
+write.table (CoVproxy_daily, "CoVproxy-daily.csv", sep=",",
              quote=FALSE, row.names=FALSE, col.names=TRUE)
 
 

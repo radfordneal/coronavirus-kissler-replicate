@@ -12,9 +12,16 @@ for proxy in proxyW proxyA proxyB proxyC proxyD proxyE proxyWX proxyAX \
              proxyCn proxyDn proxyEn proxyWXn proxyAXn
 do
   $R --save --no-restore \
-     --args $proxy $method <R-est.R >&R-est-$proxy.out
+     --args $proxy <R-est.R >&R-est-$proxy.out
   # cp .RData R-est-$proxy.RData
   $R --save --no-restore \
-     --args $proxy $method filter <R-est.R >&R-est-$proxy-filter.out
+     --args $proxy filter <R-est.R >&R-est-$proxy-filter.out
   # cp .RData R-est-$proxy-filter.RData
+done
+
+for proxy in proxyEn
+do
+  $R --save --no-restore \
+     --args $proxy daily <R-est.R >&R-est-$proxy-daily.out
+  # cp .RData R-est-$proxy-daily.RData
 done

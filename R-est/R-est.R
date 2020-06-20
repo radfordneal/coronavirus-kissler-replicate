@@ -1,18 +1,23 @@
 # Code to reproduce the estimation of R values for common cold coronaviruses 
 # as in the Kissler, et al paper, and to investigate alternative methods.
 #
-# The coronavirus proxy to use is identified by the R command argument 
-# after --args (default proxyW, which is the proxy used in the Kissler, 
-# et al paper).  Filtering of daily values is specified by "filter" 
-# (default no filtering, as with Kissler, et al).
+# The coronavirus proxy to use is identified by the R command argument
+# after --args (default proxyW, which is the proxy used in the
+# Kissler, et al paper).  Use of the daily proxies for coronaviruses
+# is specified with the "daily" argument (default is to use weekly proxies,
+# as with Kissler, et al).  Filtering of interpolated daily values is 
+# specified by "filter" (default no filtering, as with Kissler, et al).  
+# Note that "filter" makes no sense in conjunction with "daily".
 #
-# Produces various plots, written to R-est-<proxy>[-filter].pdf.  The
-# estimates for R are written to R-est-<proxy>[-filter].csv, with
-# columns named <virus>_<est>, with <est> being Rt, Ru, Rt_smoothed,
-# or Ru_smoothed (smoothed versions being 21-day averages, rather than
-# 7-day averages).  The estimate used by Kissler, et al is
-# Ru_smoothed.  The proxy used for each virus is also recorded (as
-# read from the ILI proxy file), as a column named <virus>_<proxy>.
+# Produces various plots, written to R-est-<proxy>[-filter].pdf or to
+# R-est-<proxy>-daily.pdf.  Weekly estimates for R are written to
+# R-est-<proxy>[-filter].csv or to R-est-<proxy>-daily.csv, with columns 
+# named <virus>_<est>, with <est> being Rt, Ru, Rt_smoothed, or Ru_smoothed
+# (smoothed versions being 21-day averages, rather than 7-day averages).
+# The estimate used by Kissler, et al is Ru_smoothed.  The proxy used for 
+# each virus is also recorded (as read from the ILI proxy file), as a 
+# column named <virus>_<proxy>; for daily proxies, this is the proxy value
+# at the start of the week (Sunday).
 #
 # Copyright 2020 by Radford M. Neal
 # 
@@ -39,12 +44,19 @@ library(splines)
 
 proxy <- "proxyW"       # Defaults as in Kissler, et al
 filter <- FALSE
+dailyp <- FALSE
 
 args <- commandArgs(trailing=TRUE)
 
 if (any(args=="filter"))
 { args <- args[args!="filter"]
   filter <- TRUE
+}
+
+if (any(args=="daily"))
+{ args <- args[args!="daily"]
+  dailyp <- TRUE
+  stopifnot(!filter)
 }
 
 if (length(args)>0) 
@@ -67,8 +79,9 @@ gen_interval <- SARS_gen_interval
 
 # PLOT SETUP.
 
-pdf (paste0 ("R-est-", proxy, if (filter) "-filter" else "", ".pdf"),
-     height=8,width=6)
+pdf (
+  paste0 ("R-est-", proxy, if (filter) "-filter", if (dailyp) "-daily", ".pdf"),
+  height=8,width=6)
 par(mar=c(1.5,2.3,3,0.5),mgp=c(1.4,0.3,0),tcl=-0.22)
 yrcols <- c("red","green","blue","orange","darkcyan","darkmagenta")
 
@@ -77,8 +90,18 @@ yrcols <- c("red","green","blue","orange","darkcyan","darkmagenta")
 
 CoVproxy <- read.csv ("../proxy/CoVproxy.csv", 
                       header=TRUE, stringsAsFactors=FALSE)
-
 CoVproxy$start <- as.Date(CoVproxy$start)
+
+if (dailyp)
+{ CoVproxy_daily <- read.csv ("../proxy/CoVproxy-daily.csv",
+                              header=TRUE, stringsAsFactors=FALSE)
+  CoVproxy_daily$date <- as.Date(CoVproxy_daily$date)
+  start_week <- seq(1,nrow(CoVproxy_daily)-6,by=7)
+  stopifnot (all (CoVproxy$start == CoVproxy_daily$date[start_week]))
+  CoVproxy <- cbind (CoVproxy [, c("start","year","week")],
+                     CoVproxy_daily [start_week, ])
+  CoVproxy$date <- NULL
+} 
 
 
 # INCLUDE UTILITY FUNCTIONS.  They need "start" and "week" to be defined.
@@ -104,8 +127,7 @@ interpolate_daily <- function (weekly)
 
   if (filter) 
   { daily <- as.vector ( # discard ts class
-#              filter (daily, c(0.05,0.1,0.2,0.3,0.2,0.1,0.05)))
-               filter (daily, c(0.04,0.07,0.1,0.17,0.24,0.17,0.1,0.07,0.04)))
+               filter (daily, c(0.04,0.07,0.10,0.17,0.24,0.17,0.10,0.07,0.04)))
   }
 
   daily [daily<0] <- 0.0000001
@@ -184,15 +206,17 @@ R_est <- data.frame (start=start, year=year, week=week)
 
 for (virus in viruses)
 {
-  weekly <- CoVproxy[,paste0(virus,"_",proxy)]
+  virus_proxy <- paste0(virus,"_",proxy)
+  weekly <- CoVproxy[,virus_proxy]
   R_est[,paste0(virus,"_proxy")] <- weekly
 
-  daily <- interpolate_daily(weekly)
+  daily <- 
+    if (dailyp) CoVproxy_daily[,virus_proxy] else interpolate_daily(weekly)
   plot(daily,pch=20,xlab="",ylab="")
   abline(h=0)
-  title(paste("Daily interpolated proxy for",virus))
+  title(paste("Daily proxy for",virus,if(!dailyp)"(interpolated)"))
   plot(log(daily),pch=20,xlab="",ylab="")
-  title(paste("Log daily interpolated proxy for",virus))
+  title(paste("Log daily proxy for",virus,if(!dailyp)"(interpolated)"))
   cat("Number of non-missing daily values:",sum(!is.na(daily)),"\n")
 
   Rt_daily <- estimate_Rt(daily,gen_interval)
@@ -233,7 +257,7 @@ for (virus in viruses)
 R_est$start <- as.character(R_est$start,year=year,week=week)
 
 write.table (R_est, 
-  paste0 ("R-est-", proxy, if (filter) "-filter" else "", ".csv"),
+  paste0 ("R-est-", proxy, if (filter) "-filter", if (dailyp) "-daily", ".csv"),
   sep=",", quote=FALSE, row.names=FALSE, col.names=TRUE)
 
 # ALL DONE.

@@ -548,7 +548,7 @@ for (rep in 1:11)  # Do 11 times, retaining only 4th, 7th, 11th
                            mc[paste0(virus,"_other")] * t [if (j==1) 2 else 1] +
                            mc[paste0(virus,"_overall")]
         inf <- sum (past[[j]]*rev_gen_interval)
-        p[j] <- exp (log_Rt + rnorm(1,0,0.1)) * inf
+        p[j] <- exp (log_Rt + rnorm(1,0,0.01)) * inf  # noise could be higher...
         past[[j]] <- c (past[[j]][-1], p[j])
         sim[[j]][i] <- p[j]
         t[j] <- p[j]/7 + t[j]*daily_decay[virus]
@@ -561,7 +561,7 @@ for (rep in 1:11)  # Do 11 times, retaining only 4th, 7th, 11th
     ylim <- max (ylim, sim[[1]], sim[[2]])
   }
 
-  n <- exp(rnorm(2,0,0.2))        # Randomize start of next simulation a bit
+  n <- exp(rnorm(2,0,0.4))       # Randomize start of next simulation a bit
   for (j in 1:2) 
   { past[[j]] <- past[[j]] * n[j]
   }
