@@ -130,7 +130,10 @@ interpolate_daily <- function (weekly)
                filter (daily, c(0.04,0.07,0.10,0.17,0.24,0.17,0.10,0.07,0.04)))
   }
 
-  daily [daily<0] <- 0.0000001
+  if (sum(daily<0,na.rm=TRUE) > 0)
+  { cat (sum(daily<0,na.rm=TRUE), "interpolated daily values less than zero\n")
+    daily [daily<0] <- 0.0000001
+  }
 
   daily
 }
@@ -200,18 +203,30 @@ smoothed_weekly_from_daily <- function (daily)
 
 # RUN EVERYTHING FOR EACH VIRUS.
 
+R_est <- data.frame (start=start, year=year, week=week)
+
 par(mfrow=c(2,1))
 
-R_est <- data.frame (start=start, year=year, week=week)
+plot(gen_interval, pch=20, ylim=c(0,1.05*max(gen_interval)), yaxs="i", 
+     xlim=c(0,length(gen_interval)+1), xaxs="i",
+     xlab="", ylab="probability", type="n")
+for (i in 1:length(gen_interval)) lines (c(i,i),c(0,gen_interval[i]))
+title ("Generative interval distribution")
+
+cat("Sum of generative interval probabilities:",sum(gen_interval),"\n")
+
+par(mfrow=c(2,1))
 
 for (virus in viruses)
 {
+  cat ("\nEstimating R for",virus,"\n\n")
+
   virus_proxy <- paste0(virus,"_",proxy)
   weekly <- CoVproxy[,virus_proxy]
   R_est[,paste0(virus,"_proxy")] <- weekly
 
-  daily <- 
-    if (dailyp) CoVproxy_daily[,virus_proxy] else interpolate_daily(weekly)
+  daily <- if (dailyp) CoVproxy_daily[,virus_proxy] 
+           else interpolate_daily(weekly)
   plot(daily,pch=20,xlab="",ylab="")
   abline(h=0)
   title(paste("Daily proxy for",virus,if(!dailyp)"(interpolated)"))
@@ -249,6 +264,25 @@ for (virus in viruses)
   R_est[,paste0(virus,"_Ru")] <- Ru_weekly
   R_est[,paste0(virus,"_Rt_smoothed")] <- Rt_weekly_smoothed
   R_est[,paste0(virus,"_Ru_smoothed")] <- Ru_weekly_smoothed
+}
+
+
+# COMPACT PLOTS FOR ALL VIRUSES.
+
+par(mfrow=c(2,2))
+
+mm <- 6
+
+for (est in c("Rt","Ru","Rt_smoothed","Ru_smoothed"))
+{
+  for (virus in viruses)
+  { e <- R_est[,paste0(virus,"_",est)]
+    plot (start, pmax(1/mm,pmin(mm,e)), log="y",
+          ylim = c(1/mm,mm), ylab = "", pch = 20, 
+          col = ifelse (e<1/mm | e>mm, "red", "black"))
+    abline(h=1)
+    title (paste (est,"for",virus,"(log scale)    "))
+  }
 }
 
 
