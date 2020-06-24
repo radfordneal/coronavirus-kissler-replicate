@@ -14,3 +14,14 @@ do
   done
 done
 
+for R_estim in proxyW
+do
+  for R_est_type in Ru_smoothed; do
+    $R --save --no-restore --args $R_estim $R_est_type e2 \
+       <R-model.R >&R-model-$R_estim-$R_est_type-e2.out
+    # cp .RData R-model-$R_estim-$R_est_type-e2.RData
+    $R --save --no-restore --args $R_estim $R_est_type e3 \
+       <R-model.R >&R-model-$R_estim-$R_est_type-e3.out
+    # cp .RData R-model-$R_estim-$R_est_type-e3.RData
+  done
+done

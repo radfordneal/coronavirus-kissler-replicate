@@ -444,6 +444,11 @@ plot_components <- function (s, virus, logarithmic=FALSE)
       e2 = seffect_e2 (df$yrcont),
       e3 = seffect_e3 (df$yrcont)
     )
+  mc0 <- mc
+  if (season_type=="s1" && seffect_type!="e1")
+  { mc0[paste0(virus,"_overall")] <- mc0[paste0(virus,"_overall")] + seasonal_component[1]
+    seasonal_component <- seasonal_component - seasonal_component[1]
+  }
   lines (itrans(seasonal_component), col="orange", lwd=2)
   same <- df[,paste0(virus,"_same")] * mc[paste0(virus,"_same")]
   lines (itrans(same), col="black", lwd=2)
@@ -456,7 +461,7 @@ plot_components <- function (s, virus, logarithmic=FALSE)
     points (1, itrans (mc[paste0(virus,"_season_",s)]), pch=19)
   }
   else
-  { points (1, itrans (mc[paste0(virus,"_overall")]), pch=19)
+  { points (1, itrans (mc0[paste0(virus,"_overall")]), pch=19)
   }
   title(paste0(virus," ",s,"-",s+1," ",R_estimates))
 }
