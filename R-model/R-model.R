@@ -559,8 +559,9 @@ proxy1 <- R_est[,paste0(virus_group[1],"_proxy")]
 proxy2 <- R_est[,paste0(virus_group[2],"_proxy")]
 
 ylim <-  max (proxy1, proxy2)
+sv_past <- NULL
 
-for (rep in 1:11)  # Do 11 times, retaining only 4th, 7th, 11th
+for (rep in 1:22)  # Do 22 times, retaining only seven of them (see below)
 {
   for (i in seq_along(start))
   {
@@ -581,24 +582,29 @@ for (rep in 1:11)  # Do 11 times, retaining only 4th, 7th, 11th
                            mc[paste0(virus,"_other")] * t [if (j==1) 2 else 1] +
                            mc[paste0(virus,"_overall")]
         inf <- sum (past[[j]]*rev_gen_interval)
-        p[j] <- exp (log_Rt + rnorm(1,0,0.01)) * inf  # noise could be higher...
+        p[j] <- exp (log_Rt + rnorm(1,0,0.05)) * inf  
         past[[j]] <- c (past[[j]][-1], p[j])
         sim[[j]][i] <- p[j]
         t[j] <- p[j]/7 + t[j]*daily_decay[virus]
       }
     }
+
+    if (i %% 52 == 0 && (is.null(sv_past) || runif(1) < 0.25))
+    { sv_past <- past
+      sv_t <- t
+    }
   }
 
-  if (rep %in% c(4,7,11))
+  if (rep %in% c(4,7,11,12,15,19,22))
   { sims <- c(sims,list(sim))
     ylim <- max (ylim, sim[[1]], sim[[2]])
   }
 
   n <- exp(rnorm(2,0,0.4))       # Randomize start of next simulation a bit
   for (j in 1:2) 
-  { past[[j]] <- past[[j]] * n[j]
+  { past[[j]] <- sv_past[[j]] * n[j]
   }
-  t <- t * n
+  t <- sv_t * n
 }
 
 par(mfrow=c(4,1))
