@@ -12,9 +12,11 @@
 #   - Model of immunity - i1 (default), i2 (exp decay), i3 (two-stage)
 #   - Immune decay constants for i2 model (see code for default) - for example:
 #       decay:NL63=0.96,E229=0.95,OC43=0.97,HKU1=0.98
+#   - Whether heteroskedasticity w.r.t. virus is modelled - het for "yes" 
+#     (default "no")
 #
 # Produces various plots that are written to the file with name
-# R-model-<R-estimates>-<R-estimate-type>[-<sn>][-<in>][-<en>].pdf.  
+# R-model-<R-estimates>-<R-estimate-type>[-<sn>][-<in>][-<en>][-het].pdf.  
 # Information on the model fit is written to standard output.
 #
 # The e1 seasonal effect model uses a spline, as in the regression model
@@ -90,6 +92,14 @@ if (any (args %in% season_types))
   args <- args [! (args %in% season_types)]
 }
 
+het_virus <- FALSE
+if (any (args %in% c("het")))
+{ stopifnot (sum (args %in% c("het")) == 1)
+  het_virus <- TRUE
+  args <- args [! (args %in% c("het"))]
+}
+
+
 # The values below were found using the "search" script, with proxyDss-filter
 # proxies.
 
@@ -121,6 +131,7 @@ pdf (paste0 ("R-model-",R_estimates,"-",R_est_type,
              if (season_type=="s2") "-s2",
              if (immune_type=="i2") "-i2" else if (immune_type=="i3") "-i3",
              if (seffect_type=="e2") "-e2" else if (seffect_type=="e3") "-e3",
+             if (het_virus) "-het",
              ".pdf"),
      height=8,width=6)
 par(mar=c(1.5,2.3,3,0.5),mgp=c(1.4,0.3,0),tcl=-0.22)
@@ -363,74 +374,34 @@ trend_spline <-
       knots = c ((2/3)*min(model_df$yrcont) + (1/3)*max(model_df$yrcont),
                  (1/3)*min(model_df$yrcont) + (2/3)*max(model_df$yrcont)))
 
-model <- lm (parse(text=formula)[[1]], data=model_df, x=TRUE, y=TRUE)
-
+# Fit model, perhaps repeatedly, each time adjusting weights based on previous 
+# fit to account for heterskedasticity w.r.t. virus.
+  
 cat ("\nMODEL FOR", paste(virus_group,collapse=" & "), "\n\n")
 options(digits=9)
-print(summary(model))
 
-resid <- log(R_value) - as.vector(predict(model,model_df))
+var_ratio_2over1 <- 1
 
-virus_residuals <- 
-  list (resid [1:sum(in_season)], resid [(sum(in_season)+1):(2*sum(in_season))])
-names(virus_residuals) <- virus_group
+for (rpt in if (het_virus) 1:4 else 1)
+{
+  model <- lm (parse(text=formula)[[1]], data=model_df, x=TRUE, y=TRUE,
+               weights=c(rep(c(var_ratio_2over1,1),each=sum(in_season))))
 
-for (virus in virus_group)
-{ cat ("Residual standard deviation for", virus, ":",
-        round (sd(virus_residuals[[virus]],na.rm=TRUE), 5), "\n")
-}
+  print(summary(model))
+  
+  resid <- log(R_value) - as.vector(predict(model,model_df))
+  
+  virus_residuals <- 
+    list (resid[1:sum(in_season)], resid[(sum(in_season)+1):(2*sum(in_season))])
+  names(virus_residuals) <- virus_group
+  
+  for (virus in virus_group)
+  { cat ("Residual standard deviation for", virus, ":",
+          round (sd(virus_residuals[[virus]],na.rm=TRUE), 5), "\n")
+  }
 
-
-# FIT A SECOND MODEL ADJUSTING FOR HETEROSKEDASTICITY WRT VIRUSES.
-
-sd_ratio_2over1 <- sd(virus_residuals[[2]],na.rm=TRUE) /
-                   sd(virus_residuals[[1]],na.rm=TRUE)
-
-model <- lm (parse(text=formula)[[1]], data=model_df, x=TRUE, y=TRUE,
-             weights=c(rep(c(sd_ratio_2over1^2,1),each=sum(in_season))))
-
-print(summary(model))
-
-resid <- log(R_value) - as.vector(predict(model,model_df))
-
-virus_residuals <- 
-  list (resid [1:sum(in_season)], resid [(sum(in_season)+1):(2*sum(in_season))])
-names(virus_residuals) <- virus_group
-
-for (virus in virus_group)
-{ cat ("Residual standard deviation for", virus, ":",
-        round (sd(virus_residuals[[virus]],na.rm=TRUE), 5), "\n")
-}
-
-x <- model$x; attributes(x) <- NULL
-dim(x) <- dim(model$x); colnames(x) <- colnames(model$x)
-x[1:sum(in_season),] <- x[1:sum(in_season),] * sd_ratio_2over1
-y <- model$y; attributes(y) <- NULL
-y[1:sum(in_season)] <- y[1:sum(in_season)] * sd_ratio_2over1
-
-model2 <- lm (y ~ x - 1)
-
-print(summary(model2))
-
-p <- as.vector(predict(model2,data.frame(x=x)))
-p[1:sum(in_season)] <- p[1:sum(in_season)] / sd_ratio_2over1
-resid2 <- log(R_value) - p
-
-virus_residuals2 <- 
-  list (resid2[1:sum(in_season)], resid2[(sum(in_season)+1):(2*sum(in_season))])
-names(virus_residuals2) <- virus_group
-
-for (virus in virus_group)
-{ cat ("Residual standard deviation for", virus, ":",
-        round (sd(virus_residuals2[[virus]],na.rm=TRUE), 5), "\n")
-}
-
-if (FALSE) {
-
-model <- model2
-resid <- resid2
-virus_residuals <- virus_residuals2
-
+  var_ratio_2over1 <- mean(virus_residuals[[2]]^2,na.rm=TRUE) /
+                      mean(virus_residuals[[1]]^2,na.rm=TRUE)
 }
 
 

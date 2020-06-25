@@ -10,12 +10,18 @@ do
     $R --save --no-restore --args $R_estim $R_est_type \
        <R-model.R >&R-model-$R_estim-$R_est_type.out
     # cp .RData R-model-$R_estim-$R_est_type.RData
+    $R --save --no-restore --args $R_estim $R_est_type het \
+       <R-model.R >&R-model-$R_estim-$R_est_type-het.out
+    # cp .RData R-model-$R_estim-$R_est_type-het.RData
     $R --save --no-restore --args $R_estim $R_est_type s2 i2 e2 \
        <R-model.R >&R-model-$R_estim-$R_est_type-s2-i2-e3.out
     # cp .RData R-model-$R_estim-$R_est_type-s2-i2-e3.RData
     $R --save --no-restore --args $R_estim $R_est_type s2 i2 e3 \
        <R-model.R >&R-model-$R_estim-$R_est_type-s2-i2-e3.out
     # cp .RData R-model-$R_estim-$R_est_type-s2-i2-e3.RData
+    $R --save --no-restore --args $R_estim $R_est_type s2 i2 e3 het \
+       <R-model.R >&R-model-$R_estim-$R_est_type-s2-i2-e3-het.out
+    # cp .RData R-model-$R_estim-$R_est_type-s2-i2-e3-het.RData
     $R --save --no-restore --args $R_estim $R_est_type s2 i3 e3 \
        <R-model.R >&R-model-$R_estim-$R_est_type-s2-i3-e3.out
     # cp .RData R-model-$R_estim-$R_est_type-s2-i3-e3.RData
