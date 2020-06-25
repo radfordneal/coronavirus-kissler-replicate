@@ -363,11 +363,22 @@ trend_spline <-
       knots = c ((2/3)*min(model_df$yrcont) + (1/3)*max(model_df$yrcont),
                  (1/3)*min(model_df$yrcont) + (2/3)*max(model_df$yrcont)))
 
-model <- lm (parse(text=formula)[[1]], data=model_df, x=TRUE)
+model <- lm (parse(text=formula)[[1]], data=model_df, x=TRUE, y=TRUE)
 
 cat ("\nMODEL FOR", paste(virus_group,collapse=" & "), "\n\n")
 options(digits=9)
 print(summary(model))
+
+resid <- log(R_value) - as.vector(predict(model,model_df))
+
+virus_residuals <- 
+ list (resid [1:sum(in_season)], resid [(sum(in_season)+1):(2*sum(in_season))])
+names(virus_residuals) <- virus_group
+
+for (virus in virus_group)
+{ cat ("Residual standard deviation for", virus, ":",
+        round (sd(virus_residuals[[virus]],na.rm=TRUE), 5), "\n")
+}
 
 
 # FUNCTIONS TO COMPUTE VALUE OF SEASONAL EFFECT FOR e2 and e3 MODELS.
@@ -394,21 +405,13 @@ seffect_e3 <- function (yrcont)
 
 par(mfrow=c(2,1))
 
-resid <- log(R_value) - as.vector(predict(model,model_df))
-
-resid1 <- resid [1:sum(in_season)]
-plot (start[in_season], resid1, pch=20, ylab="")
-abline(h=0); week_lines()
-title(paste("Residuals for",virus_group[1],"- std. dev.",
-             round(sd(resid1,na.rm=TRUE),4)))
-acf (resid1,na.action=na.pass,lag.max=35,main="")
-
-resid2 <- resid [(sum(in_season)+1):(2*sum(in_season))]
-plot (start[in_season], resid2, pch=20, ylab="")
-abline(h=0); week_lines()
-title(paste("Residuals for",virus_group[2],"- std. dev.",
-             round(sd(resid2,na.rm=TRUE),4)))
-acf (resid2,na.action=na.pass,lag.max=35,main="")
+for (virus in virus_group)
+{ plot (start[in_season], virus_residuals[[virus]], pch=20, ylab="")
+  abline(h=0); week_lines()
+  title(paste("Residuals for",virus,"- std. dev.",
+               round(sd(virus_residuals[[virus]],na.rm=TRUE),4)))
+  acf (virus_residuals[[virus]],na.action=na.pass,lag.max=35,main="")
+}
 
 
 # PLOT COMPONENTS OF MODEL FOR EACH VIRUS AND SEASON.  Similar to plots
@@ -446,7 +449,8 @@ plot_components <- function (s, virus, logarithmic=FALSE)
     )
   mc0 <- mc
   if (season_type=="s1" && seffect_type!="e1")
-  { mc0[paste0(virus,"_overall")] <- mc0[paste0(virus,"_overall")] + seasonal_component[1]
+  { mc0[paste0(virus,"_overall")] <- 
+      mc0[paste0(virus,"_overall")] + seasonal_component[1]
     seasonal_component <- seasonal_component - seasonal_component[1]
   }
   lines (itrans(seasonal_component), col="orange", lwd=2)
