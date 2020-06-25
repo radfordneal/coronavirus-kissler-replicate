@@ -372,12 +372,65 @@ print(summary(model))
 resid <- log(R_value) - as.vector(predict(model,model_df))
 
 virus_residuals <- 
- list (resid [1:sum(in_season)], resid [(sum(in_season)+1):(2*sum(in_season))])
+  list (resid [1:sum(in_season)], resid [(sum(in_season)+1):(2*sum(in_season))])
 names(virus_residuals) <- virus_group
 
 for (virus in virus_group)
 { cat ("Residual standard deviation for", virus, ":",
         round (sd(virus_residuals[[virus]],na.rm=TRUE), 5), "\n")
+}
+
+
+# FIT A SECOND MODEL ADJUSTING FOR HETEROSKEDASTICITY WRT VIRUSES.
+
+sd_ratio_2over1 <- sd(virus_residuals[[2]],na.rm=TRUE) /
+                   sd(virus_residuals[[1]],na.rm=TRUE)
+
+model <- lm (parse(text=formula)[[1]], data=model_df, x=TRUE, y=TRUE,
+             weights=c(rep(c(sd_ratio_2over1^2,1),each=sum(in_season))))
+
+print(summary(model))
+
+resid <- log(R_value) - as.vector(predict(model,model_df))
+
+virus_residuals <- 
+  list (resid [1:sum(in_season)], resid [(sum(in_season)+1):(2*sum(in_season))])
+names(virus_residuals) <- virus_group
+
+for (virus in virus_group)
+{ cat ("Residual standard deviation for", virus, ":",
+        round (sd(virus_residuals[[virus]],na.rm=TRUE), 5), "\n")
+}
+
+x <- model$x; attributes(x) <- NULL
+dim(x) <- dim(model$x); colnames(x) <- colnames(model$x)
+x[1:sum(in_season),] <- x[1:sum(in_season),] * sd_ratio_2over1
+y <- model$y; attributes(y) <- NULL
+y[1:sum(in_season)] <- y[1:sum(in_season)] * sd_ratio_2over1
+
+model2 <- lm (y ~ x - 1)
+
+print(summary(model2))
+
+p <- as.vector(predict(model2,data.frame(x=x)))
+p[1:sum(in_season)] <- p[1:sum(in_season)] / sd_ratio_2over1
+resid2 <- log(R_value) - p
+
+virus_residuals2 <- 
+  list (resid2[1:sum(in_season)], resid2[(sum(in_season)+1):(2*sum(in_season))])
+names(virus_residuals2) <- virus_group
+
+for (virus in virus_group)
+{ cat ("Residual standard deviation for", virus, ":",
+        round (sd(virus_residuals2[[virus]],na.rm=TRUE), 5), "\n")
+}
+
+if (FALSE) {
+
+model <- model2
+resid <- resid2
+virus_residuals <- virus_residuals2
+
 }
 
 
