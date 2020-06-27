@@ -475,6 +475,7 @@ plot_components <- function (s, virus, logarithmic=FALSE)
         ylim=trans(c(0.5,2.0)), xlim=c(0,season_length), xaxs="i",
         ylab = if (logarithmic) "Additive effect on log(R)"
                else "Multiplicative effect on R")
+  points (trans(model_df[,paste0(virus,"_R")][this]), pch=20, col="pink")
   abline (v=1, h=trans(1))
   abline(h = if (logarithmic) c(-0.6,-0.4,-0.2,0.2,0.4,0.6) else c(0.5,1.5,2.0),
          col="gray", lty=3)
@@ -510,9 +511,6 @@ plot_components <- function (s, virus, logarithmic=FALSE)
     lines (itrans(samelt), col="black", lwd=2, lty=2)
     otherlt <- df[,paste0(virus,"_otherlt")] * mc[paste0(virus,"_otherlt")]
     lines (itrans(otherlt), col="gray", lwd=2, lty=2)
-#cat("LT:",virus,mc[paste0(virus,"_samelt")],mc[paste0(virus,"_otherlt")],"\n")
-#print(df[,paste0(virus,"_samelt")]); print(samelt)
-#print(df[,paste0(virus,"_otherlt")]); print(otherlt)
   }
   if (immune_type=="i1" && seffect_type=="e1")
   { points (1, itrans (mc[paste0(virus,"_season_",s)]
