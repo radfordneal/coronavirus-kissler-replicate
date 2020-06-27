@@ -16,6 +16,8 @@
 #     (default "no")
 #   - Immune decay constants for i2 model (default in code, different for I2).
 #     For example: decay:NL63=0.96,E229=0.95,OC43=0.97,HKU1=0.98
+#   - Whether simulations are run (when possible) - nosim for "no", default
+#     is "yes"
 #
 # Produces various plots that are written to the file with name
 # R-model-<R-estimates>-<R-estimate-type>[-<sn>][-<in>][-<en>][-het].pdf.  
@@ -58,58 +60,27 @@ library(splines)
 
 args <- commandArgs(trailing=TRUE)
 
-R_est_types <- c("Rt","Rt_smoothed","Ru","Ru_smoothed")
-R_est_type <- "Ru_smoothed"
-
-if (any (args %in% R_est_types))
-{ stopifnot (sum (args %in% R_est_types) == 1)
-  R_est_type <- args [args %in% R_est_types]
-  args <- args [! (args %in% R_est_types)]
+getarg <- function (what, default="")
+{ if (any (args %in% what))
+  { stopifnot (sum (args %in% what) == 1)
+    res <- args [args %in% what]
+    args <<- args [! (args %in% what)]
+    res
+  }
+  else
+    default
 }
 
-immune_types <- c("i1","i2","i3")
-immune_type <- "i1"
+R_est_type <- getarg (c("Rt","Rt_smoothed","Ru","Ru_smoothed"), "Ru_smoothed")
 
-if (any (args %in% immune_types))
-{ stopifnot (sum (args %in% immune_types) == 1)
-  immune_type <- args [args %in% immune_types]
-  args <- args [! (args %in% immune_types)]
-}
+immune_type <- getarg (c("i1","i2","i3"), "i1")
+ltimmune_type <- getarg (c("I1","I2"), "I1")
+seffect_type <- getarg (c("e1","e2","e3"), "e1")
+season_type <- getarg (c("s1","s2"), "s1")
 
-ltimmune_types <- c("I1","I2")
-ltimmune_type <- "I1"
+het_virus <- getarg ("het") == "het"
 
-if (any (args %in% ltimmune_types))
-{ stopifnot (sum (args %in% ltimmune_types) == 1)
-  ltimmune_type <- args [args %in% ltimmune_types]
-  args <- args [! (args %in% ltimmune_types)]
-}
-
-seffect_types <- c("e1","e2","e3")
-seffect_type <- "e1"
-
-if (any (args %in% seffect_types))
-{ stopifnot (sum (args %in% seffect_types) == 1)
-  seffect_type <- args [args %in% seffect_types]
-  args <- args [! (args %in% seffect_types)]
-}
-
-season_types <- c("s1","s2")
-season_type <- "s1"
-
-if (any (args %in% season_types))
-{ stopifnot (sum (args %in% season_types) == 1)
-  season_type <- args [args %in% season_types]
-  args <- args [! (args %in% season_types)]
-}
-
-het_virus <- FALSE
-if (any (args %in% c("het")))
-{ stopifnot (sum (args %in% c("het")) == 1)
-  het_virus <- TRUE
-  args <- args [! (args %in% c("het"))]
-}
-
+run_sims <- getarg ("nosim") != "nosim"
 
 # The default values below were found using the "search" and
 # "search-lt" scripts, with proxyDss-filter proxies.
@@ -582,9 +553,10 @@ for (virus in virus_group)
 
 # DO SIMULATIONS FOR SUITABLE MODELS.  Done only if the model is for Rt, and
 # season type is s2, immune type is i2, and seasonal effect type is e2 or e3.
+# Can be disabled (for speed) with nosim.
 
-if (R_est_type != "Rt" || immune_type != "i2" 
-                       || seffect_type != "e2" && seffect_type != "e3")
+if (!run_sims || R_est_type != "Rt" || immune_type != "i2" 
+              || seffect_type != "e2" && seffect_type != "e3")
 { next
 }
 

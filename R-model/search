@@ -14,7 +14,7 @@ R_est_type=Rt
 ( for NL63 in 0.9150 0.9175 0.9800; do
     for E229 in 0.9825 0.9850 0.9875; do
       echo -n \
-       `$R --no-save --no-restore --args $R_estim $R_est_type s2 i2 e3 \
+       `$R --no-save --no-restore --args $R_estim $R_est_type s2 i2 e3 nosim \
           decay:NL63=$NL63,E229=$E229,OC43=0.9300,HKU1=0.9675 \
           <R-model.R | fgrep "Residual standard error" \
                         | sed "s/.*://" | sed "s/ on .*//" | head -1`
@@ -28,7 +28,7 @@ sort -n <search.grp1 | head -1 | sed "s/,OC43.*//" | sed "s/decay:/ /"
 ( for OC43 in 0.9400 0.9500 0.9600; do
     for HKU1 in 0.9700 0.9750 0.9800; do
       echo -n \
-       `$R --no-save --no-restore --args $R_estim $R_est_type s2 i2 e3 \
+       `$R --no-save --no-restore --args $R_estim $R_est_type s2 i2 e3 nosim \
           decay:NL63=0.9150,E229=0.9775,OC43=$OC43,HKU1=$HKU1 \
           <R-model.R | fgrep "Residual standard error" \
                         | sed "s/.*://" | sed "s/ on .*//" | tail -1`
