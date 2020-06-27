@@ -1,15 +1,14 @@
 #!/bin/bash
 
 # Search for optimal immunity decay rates for i2 immunity model, for each 
-# of the coronaviruses, in conjunction with the proxyDss-filter proxies, 
-# and options s2 and e3.
+# of the coronaviruses, using options s2 and e3.  
+
+R_estim=proxyDss-filter  # proxies to use
+R_est_type=Rt            # R estimate to use
 
 export LANG=en_CA.UTF-8
 
 if [ x$R == x ]; then R=R; fi
-
-R_estim=proxyDss-filter
-R_est_type=Rt
 
 ( for NL63 in 0.9150 0.9175 0.9800; do
     for E229 in 0.9825 0.9850 0.9875; do

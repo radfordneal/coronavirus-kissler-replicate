@@ -558,8 +558,6 @@ if (!run_sims || R_est_type != "Rt" || immune_type != "i2"
 { next
 }
 
-if (ltimmune_type=="I2") next  ### for now
-
 set.seed(1)
 
 # Generation interval distribution used by Kissler, et al.
@@ -577,6 +575,7 @@ rev_gen_interval <- rev(gen_interval)
 # Initial levels for exponentially-decaying past incidence.
 
 t <- c(0.5,0.5) / (1-imm_decay[virus_group])
+tlt <- c(0.5,0.5) / (1-ltimm_decay[virus_group])
 past <- rep (list(rep(0.5,length(gen_interval))), 2)
 p <- numeric(2)
 
@@ -587,6 +586,7 @@ sims <- list()
 
 tn <- ncol(trend_spline)
 daily_decay <- imm_decay ^ (1/7)
+ltdaily_decay <- ltimm_decay ^ (1/7)
 
 proxy1 <- R_est[,paste0(virus_group[1],"_proxy")]
 proxy2 <- R_est[,paste0(virus_group[2],"_proxy")]
@@ -600,25 +600,29 @@ for (rep in 1:22)  # Do 22 times, retaining only seven of them (see below)
   {
     yrcont <- R_est$yrcont[i]
 
+    tseff <- ( if (seffect_type=="e2") seffect_e2(yrcont) 
+               else seffect_e3(yrcont)
+                     + as.vector (predict (trend_spline, yrcont) %*% mc[1:tn]))
+
     for (w in 1:7) # days of this week
     { 
       for (j in 1:2)
       { virus <- virus_group[j]
-        if (seffect_type=="e2")
-        { log_Rt <- seffect_e2(yrcont)
+        log_Rt <- tseff + mc[paste0(virus,"_same")] * t[j] +
+                          mc[paste0(virus,"_other")] * t [if (j==1) 2 else 1] +
+                          mc[paste0(virus,"_overall")]
+        if (ltimmune_type=="I2")
+        { log_Rt <- log_Rt + mc[paste0(virus,"_samelt")] * log(1-ltfac*tlt[j]) +
+                             mc[paste0(virus,"_otherlt")] * 
+                               log (1 - ltfac * tlt[if (j==1) 2 else 1])
         }
-        else
-        { log_Rt <- seffect_e3(yrcont) +
-                    as.vector (predict (trend_spline, yrcont) %*% mc[1:tn])
-        }
-        log_Rt <- log_Rt + mc[paste0(virus,"_same")] * t[j] +
-                           mc[paste0(virus,"_other")] * t [if (j==1) 2 else 1] +
-                           mc[paste0(virus,"_overall")]
         inf <- sum (past[[j]]*rev_gen_interval)
         p[j] <- exp (log_Rt + rnorm(1,0,0.05)) * inf  
         past[[j]] <- c (past[[j]][-1], p[j])
         sim[[j]][i] <- p[j]
+
         t[j] <- p[j]/7 + t[j]*daily_decay[virus]
+        tlt[j] <- p[j]/7 + tlt[j]*ltdaily_decay[virus]
       }
     }
 
