@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Search for optimal immunity decay rates (for i2 immunity model) for each 
-# of the coronaviruses, in conjunction with the proxyCss-fmm-filter proxies, 
+# Search for optimal immunity decay rates for i2 immunity model, for each 
+# of the coronaviruses, in conjunction with the proxyDss-filter proxies, 
 # and options s2 and e3.
 
 export LANG=en_CA.UTF-8
@@ -9,10 +9,10 @@ export LANG=en_CA.UTF-8
 if [ x$R == x ]; then R=R; fi
 
 R_estim=proxyDss-filter
-R_est=Rt
+R_est_type=Rt
 
-( for NL63 in 0.9075 0.9100 0.9125 0.9150 0.9175; do
-    for E229 in 0.9725 0.9750 0.9775 0.9800 0.9825; do
+( for NL63 in 0.9150 0.9175 0.9800; do
+    for E229 in 0.9825 0.9850 0.9875; do
       echo -n \
        `$R --no-save --no-restore --args $R_estim $R_est_type s2 i2 e3 \
           decay:NL63=$NL63,E229=$E229,OC43=0.9300,HKU1=0.9675 \
@@ -25,9 +25,8 @@ R_est=Rt
 
 sort -n <search.grp1 | head -1 | sed "s/,OC43.*//" | sed "s/decay:/ /"
 
-( for OC43 in 0.9300 0.9325 0.9350 0.9375 0.9400; do
-    for HKU1 in 0.9600 0.9625 0.9650 0.9675 0.9700; do
-      decay=
+( for OC43 in 0.9400 0.9500 0.9600; do
+    for HKU1 in 0.9700 0.9750 0.9800; do
       echo -n \
        `$R --no-save --no-restore --args $R_estim $R_est_type s2 i2 e3 \
           decay:NL63=0.9150,E229=0.9775,OC43=$OC43,HKU1=$HKU1 \
