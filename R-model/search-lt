@@ -1,0 +1,52 @@
+#!/bin/bash
+
+# Search for optimal immunity decay rates for i2+I2 immunity model, for each 
+# of the coronaviruses, in conjunction with the proxyDss-filter proxies, 
+# and options s2 and e3.
+
+export LANG=en_CA.UTF-8
+
+if [ x$R == x ]; then R=R; fi
+
+R_estim=proxyDss-filter
+R_est_type=Rt
+
+( for NL63 in 0.80 0.90 0.95; do
+    for E229 in 0.96 0.98 0.99; do
+      echo -n \
+       `$R --no-save --no-restore --args $R_estim $R_est_type s2 i2 I2 e3 nosim\
+          decay:NL63=$NL63,E229=$E229,OC43=0.95,HKU1=0.70 \
+          <R-model.R | fgrep "Residual standard error" \
+                        | sed "s/.*://" | sed "s/ on .*//" | head -1`
+      echo " " NL63=$NL63 E229=$E229
+    done
+  done
+) >search-lt.grp1
+
+sort -n <search-lt.grp1 | head -1 | sed "s/,OC43.*//" | sed "s/decay:/ /"
+
+( for OC43 in 0.92 0.96 0.98; do
+    for HKU1 in 0.70 0.80 0.90; do
+      echo -n \
+       `$R --no-save --no-restore --args $R_estim $R_est_type s2 i2 I2 e3 nosim\
+          decay:NL63=0.90,E229=0.95,OC43=$OC43,HKU1=$HKU1 \
+          <R-model.R | fgrep "Residual standard error" \
+                        | sed "s/.*://" | sed "s/ on .*//" | tail -1`
+      echo " " OC43=$OC43 HKU1=$HKU1
+    done
+  done
+) >search-lt.grp2
+
+sort -n <search-lt.grp2 | head -1 | sed "s/NL63.*OC43/OC43/" | sed "s/decay:/ /"
+
+( for ltfac in 0.00200 0.00225 0.00250; do
+    echo -n \
+     `$R --no-save --no-restore --args $R_estim $R_est_type s2 i2 I2 e3 nosim \
+        ltfactor:$ltfac \
+        <R-model.R | fgrep "Residual standard error" \
+                      | sed "s/.*://" | sed "s/ on .*//" | tail -1`
+    echo " " ltfactor=$ltfac
+  done
+) >search-lt.ltfac
+
+sort -n <search-lt.ltfac | head -1
