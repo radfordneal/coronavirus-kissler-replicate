@@ -393,7 +393,7 @@ seasonal_spline <- ( if (season_type=="s1")
 # Spline for slow trend over the years.
 
 trend_spline <- 
-  bs (model_df$yrcont, Boundary=range(model_df$yrcont),
+  bs (model_df$yrcont, Boundary=range(model_df$yrcont)+c(-3.5,3.5)/365.24,
       knots = c ((2/3)*min(model_df$yrcont) + (1/3)*max(model_df$yrcont),
                  (1/3)*min(model_df$yrcont) + (2/3)*max(model_df$yrcont)))
 
@@ -571,12 +571,13 @@ if (!run_sims || R_est_type != "Rt" || immune_type != "i2"
 
 set.seed(1)
 
+nsims_warmup <- 10   # Number of initial simulations to "warm up"
+nsims_plotted <- 15  # Number of subsequent simulations that are plotted
+nsims <- nsims_warmup + nsims_plotted  # Total number of simulations
+
 mc <- coef(model)
 
-days <- rep(start,each=7) + (0:6)
-days <- days[1:(length(days)-6)]
-yrcontd <- rep(R_est$yrcont,each=7) + (0:6)/365.24
-yrcontd <- yrcontd[1:(length(yrcontd)-6)]
+yrcontd <- rep(R_est$yrcont,each=7) + (0:6)/365.24 - 3.5/365.24
 
 proxy1 <- R_est[,paste0(virus_group[1],"_proxy")]
 proxy2 <- R_est[,paste0(virus_group[2],"_proxy")]
@@ -600,8 +601,10 @@ rev_gen_interval <- rev(gen_interval)
 
 tn <- ncol(trend_spline)
 tseff <- 
-( if (seffect_type=="e2") seffect_e2(yrcontd) 
-  else seffect_e3(yrcontd) + as.vector(predict(trend_spline,yrcontd)%*%mc[1:tn])
+( if (seffect_type=="e2")
+    seffect_e2(yrcontd) 
+  else 
+    seffect_e3(yrcontd) + as.vector(predict (trend_spline,yrcontd) %*% mc[1:tn])
 )
 
 # Initial levels for exponentially-decaying past incidence.
@@ -617,18 +620,18 @@ p <- numeric(2)
 
 ylim <-  max (proxy1, proxy2)
 
-sim <- rep (list(numeric(7*length(start)-6)), 2)
+sim <- rep (list(numeric(7*length(start))), 2)
 sims <- list()
 
 sv_past <- NULL
 
-for (w in (-3):7)  # Four warm-up simulations, then 7 that are plotted
-{
-  wsave <- sample(1:5,1)
+wsave <- sample(rep(1:5,length=nsims))
 
+for (w in 1:nsims) 
+{
   # Do one simulation, for all years.
 
-  for (i in 1:(7*length(start)-6))
+  for (i in 1:(7*length(start)))
   {
     for (j in 1:2)
     { virus <- virus_group[j]
@@ -641,7 +644,7 @@ for (w in (-3):7)  # Four warm-up simulations, then 7 that are plotted
                              log (1 - ltfac * tlt[if (j==1) 2 else 1])
       }
       inf <- sum (past[[j]]*rev_gen_interval)
-      p[j] <- exp (log_Rt + rnorm(1,0,0.05)) * inf  
+      p[j] <- exp (log_Rt + rnorm(1,0,0.1)) * inf    # Some randomness here
       past[[j]] <- c (past[[j]][-1], p[j])
       sim[[j]][i] <- p[j]
 
@@ -649,27 +652,26 @@ for (w in (-3):7)  # Four warm-up simulations, then 7 that are plotted
       tlt[j] <- p[j] + tlt[j]*ltdaily_decay[virus]
     }
 
-    if (i %% 52 == 0)
-    { wsave <- wsave - 1
-      if (wsave == 0)
+    if ((i+5) %% 365 == 0)
+    { wsave[w] <- wsave[w] - 1
+      if (wsave[w] == 0)
       { sv_past <- past
         sv_t <- t
         sv_tlt <- tlt
-cat("Saving:",w,i,t,tlt,"\n"); print(past)
       }
     }
   }
 
   # Save simulation for later plotting, if past warm-up.
 
-  if (w > 0)
+  if (w > nsims_warmup)
   { sims <- c(sims,list(sim))
-    ylim <- max (ylim, 7*sim[[1]], 7*sim[[2]])
+    ylim <- max (ylim, 7*sim[[1]], 7*sim[[2]], na.rm=TRUE)
   }
 
   # Set up initial state for next simulation. Randomized a bit.
 
-  n <- exp(rnorm(2,0,0.0))
+  n <- exp(rnorm(2,0,0.2))
   for (j in 1:2) 
   { past[[j]] <- sv_past[[j]] * n[j]
   }
@@ -678,11 +680,11 @@ cat("Saving:",w,i,t,tlt,"\n"); print(past)
 
 }
 
-# Plot the observed incidence, then 7 simulations.
+# Plot the observed incidence, then saved simulations.
 
 par(mfrow=c(4,1))
 
-plot (days, rep(0,length(days)),
+plot (start, rep(0,length(start)),
       ylim=c(0,1.02*ylim), yaxs="i", type="n", ylab="Incidence proxy")
 
 lines (start, proxy1, col="blue")
@@ -695,11 +697,13 @@ for (k in seq_along(sims))
 { 
   sim <- sims[[k]]
 
-  plot (days, rep(0,length(days)),
+  plot (start, rep(0,length(start)),
         ylim=c(0,1.02*ylim), yaxs="i", type="n", ylab="Simulated incidence")
 
-  lines (days, 7*sim[[1]], col="blue")
-  lines (days, 7*sim[[2]], col="red")
+  weekly <- filter (sim[[1]],rep(1,7)) [seq(4,length(sim[[1]]),by=7)]
+  lines (start, weekly, col="blue")
+  weekly <- filter (sim[[2]],rep(1,7)) [seq(4,length(sim[[2]]),by=7)]
+  lines (start, weekly, col="red")
 
   if (k==1) title (paste ("Simulations of",virus_group[1],"and",virus_group[2]))
 }
