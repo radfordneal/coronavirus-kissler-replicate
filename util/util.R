@@ -26,6 +26,7 @@ alphacoronaviruses <- c("NL63","E229")
 betacoronaviruses  <- c("OC43","HKU1")
 
 viruses <- c (alphacoronaviruses, betacoronaviruses)
+virus_groups <- list (alpha=alphacoronaviruses, beta=betacoronaviruses)
 
 other_virus_of_type <- c (NL63="E229", E229="NL63", OC43="HKU1", HKU1="OC43")
 
