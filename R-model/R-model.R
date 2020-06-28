@@ -16,6 +16,7 @@
 #     (default "no")
 #   - Immune decay constants for i2 model (default in code, different for I2).
 #     For example: decay:NL63=0.96,E229=0.95,OC43=0.97,HKU1=0.98
+#     May override just a subst of the values
 #   - Whether simulations are run (when possible) - nosim for "no", default
 #     is "yes"
 #
@@ -95,13 +96,15 @@ if (any (substr(args,1,9) == "ltfactor:"))
 { stopifnot (sum (substr(args,1,9) == "ltfactor:") == 1)
   ltfac_arg <- substr (args [substr(args,1,9) == "ltfactor:"], 10, 100)
   ltfac <- eval(parse(text=ltfac_arg))
+  stopifnot (is.numeric(ltfac) && length(ltfac)==1)
   args <- args [substr(args,1,9) != "ltfactor:"]
 }
 
 if (any (substr(args,1,6) == "decay:"))
 { stopifnot (sum (substr(args,1,6) == "decay:") == 1)
   decay_arg <- substr (args [substr(args,1,6) == "decay:"], 7, 100)
-  imm_decay <- eval(parse(text=paste0("c(",decay_arg,")")))
+  repl_imm_decay <- eval(parse(text=paste0("c(",decay_arg,")")))
+  imm_decay[names(repl_imm_decay)] <- repl_imm_decay
   args <- args [substr(args,1,6) != "decay:"]
 }
 
@@ -113,7 +116,8 @@ ltimm_decay <- c(NL63=0.98,E229=0.98,OC43=0.98,HKU1=0.98)
 if (any (substr(args,1,8) == "ltdecay:"))
 { stopifnot (sum (substr(args,1,8) == "ltdecay:") == 1)
   ltdecay_arg <- substr (args [substr(args,1,8) == "ltdecay:"], 9, 100)
-  ltimm_decay <- eval(parse(text=paste0("c(",ltdecay_arg,")")))
+  repl_ltimm_decay <- eval(parse(text=paste0("c(",ltdecay_arg,")")))
+  ltimm_decay[names(repl_ltimm_decay)] <- repl_ltimm_decay
   args <- args [substr(args,1,8) != "ltdecay:"]
 }
 
@@ -269,7 +273,8 @@ for (virus in virus_group)
         ylab="cum incidence, black short term, green long term")
   points (start, clt, pch=20, col=ifelse(in_season,"green","lightgreen"))
   abline(h=0)
-  title (paste ("Exponentially-weighted cumulative incidences for",virus))
+  title (paste ("Exp-weighted cum. incidences for",virus,
+                 "- decay",imm_decay[virus],ltimm_decay[virus],"   "))
 
   p <- R_est[,paste0(virus,"_proxy")]
   c1 <- c2 <- rep(0,length(p))
