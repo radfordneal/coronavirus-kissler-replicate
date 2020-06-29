@@ -890,4 +890,6 @@ write.table (ILIproxy_daily, "ILIproxy-daily.csv", sep=",",
 
 # ALL DONE.
 
+warnings()
+
 dev.off()

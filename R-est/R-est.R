@@ -294,6 +294,9 @@ write.table (R_est,
   paste0 ("R-est-", proxy, if (filter) "-filter", if (dailyp) "-daily", ".csv"),
   sep=",", quote=FALSE, row.names=FALSE, col.names=TRUE)
 
+
 # ALL DONE.
+
+warnings()
 
 dev.off()

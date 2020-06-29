@@ -526,4 +526,6 @@ write.table (CoVproxy_daily, "CoVproxy-daily.csv", sep=",",
 
 # ALL DONE.
 
+warnings()
+
 dev.off()

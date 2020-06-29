@@ -17,12 +17,12 @@ if [ x$R == x ]; then R=R; fi
           decay:NL63=$NL63,E229=$E229 \
           <R-model.R | fgrep "Residual standard error" \
                         | sed "s/.*://" | sed "s/ on .*//" | head -1`
-      echo " " NL63=$NL63 E229=$E229
+      echo " " decay:NL63=$NL63,E229=$E229
     done
   done
 ) >search.grp1
 
-sort -n <search.grp1 | head -1 | sed "s/,OC43.*//" | sed "s/decay:/ /"
+sort -n <search.grp1 | head -1 
 
 ( for OC43 in 0.9400 0.9500 0.9600; do
     for HKU1 in 0.9700 0.9750 0.9800; do
@@ -31,9 +31,9 @@ sort -n <search.grp1 | head -1 | sed "s/,OC43.*//" | sed "s/decay:/ /"
           decay:OC43=$OC43,HKU1=$HKU1 \
           <R-model.R | fgrep "Residual standard error" \
                         | sed "s/.*://" | sed "s/ on .*//" | tail -1`
-      echo " " OC43=$OC43 HKU1=$HKU1
+      echo " " decay:OC43=$OC43,HKU1=$HKU1
     done
   done
 ) >search.grp2
 
-sort -n <search.grp2 | head -1 | sed "s/NL63.*OC43/OC43/" | sed "s/decay:/ /"
+sort -n <search.grp2 | head -1 

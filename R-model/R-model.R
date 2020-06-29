@@ -13,7 +13,13 @@
 #   - Whether heteroskedasticity w.r.t. virus is modelled - het for "yes" 
 #     (default "no")
 #   - Immune decay constants for i2 or i3 model (defaults in code).
-#     For example: decay:NL63=0.96,E229=0.95,OC43=0.97,HKU1=0.98
+#     For example: decay:NL63=0.9,E229=0.8,OC43=0.7,HKU1=0.6
+#     May override just a subst of the values
+#   - Long-term immune decay constants for i3 model (defaults in code).
+#     For example: ltdecay:NL63=0.91,E229=0.92,OC43=0.93,HKU1=0.94
+#     May override just a subst of the values
+#   - Long-term immune scaling factor. 
+#     For example: ltfactor:NL63=0.001,E229=0.002,OC43=0.001,HKU1=0.001
 #     May override just a subst of the values
 #   - Whether simulations are run (when possible) - nosim for "no", default
 #     is "yes"
@@ -83,16 +89,20 @@ run_sims <- getarg ("nosim") != "nosim"
 # The default values below were found using the "search" and
 # "search-lt" scripts, with proxyDss-filter proxies.
 
-imm_decay <- ( if (immune_type=="i3") c(NL63=0.90,E229=0.98,OC43=0.96,HKU1=0.80)
-               else c(NL63=0.9175,E229=0.9850,OC43=0.9500,HKU1=0.9750) )
+imm_decay <- ( if (immune_type=="i3") 
+                 c (NL63=0.92, E229=0.91, OC43=0.80, HKU1=0.70)
+               else 
+                 c (NL63=0.9175, E229=0.9850, OC43=0.9500, HKU1=0.9750) )
 
-ltfac <- 0.00230
+ltimm_decay <- c (NL63=0.93, E229=0.93, OC43=0.99, HKU1=0.975)
+
+ltfactor <- c (NL63=0.0019, E229=0.0020, OC43=0.0020, HKU1=0.0020)
 
 if (any (substr(args,1,9) == "ltfactor:"))
 { stopifnot (sum (substr(args,1,9) == "ltfactor:") == 1)
-  ltfac_arg <- substr (args [substr(args,1,9) == "ltfactor:"], 10, 100)
-  ltfac <- eval(parse(text=ltfac_arg))
-  stopifnot (is.numeric(ltfac) && length(ltfac)==1)
+  ltfactor_arg <- substr (args [substr(args,1,9) == "ltfactor:"], 10, 100)
+  repl_ltfactor <- eval(parse(text=paste0("c(",ltfactor_arg,")")))
+  ltfactor[names(repl_ltfactor)] <- repl_ltfactor
   args <- args [substr(args,1,9) != "ltfactor:"]
 }
 
@@ -103,8 +113,6 @@ if (any (substr(args,1,6) == "decay:"))
   imm_decay[names(repl_imm_decay)] <- repl_imm_decay
   args <- args [substr(args,1,6) != "decay:"]
 }
-
-ltimm_decay <- c(NL63=0.98,E229=0.98,OC43=0.98,HKU1=0.98)
 
 if (any (substr(args,1,8) == "ltdecay:"))
 { stopifnot (sum (substr(args,1,8) == "ltdecay:") == 1)
@@ -154,11 +162,12 @@ week  <- R_est$week   # Number of each week in its year
 source("../util/util.R")
 
 
-# FUNCTION TO LONG-TERM IMMUNITY EFFECT.  Returns the quantity that enters
-# the regression for log(R) for this effect, taking the exponentially-decayed
-# cumulative incidence as its argument. Can be used on a vector.
+# FUNCTION TO COMPUTE LONG-TERM IMMUNITY EFFECT.  Returns the quantity
+# that enters the regression for log(R) for this effect, taking the
+# exponentially-decayed cumulative incidence as its argument. Can be
+# used on a vector.
 
-ltimm_effect <- function (clt) log (1 - pmin (0.9, ltfac*clt))
+ltimm_effect <- function (clt, ltfac) log (1 - pmin (0.9, ltfac*clt))
 
 
 # ----- DO EVERYTHING FOR BOTH ALPHACORONAVIRUSES AND BETACORONAVIRUSES -----
@@ -317,9 +326,11 @@ for (virus in virus_group)
   formula <- paste (formula, "+", paste0(virus,"_other"))
   if (immune_type=="i3")
   { v_df [, paste0(virus,"_samelt")] <- 
-      ltimm_effect (v_df [, paste0 (virus, "_cumexplt")])
+      ltimm_effect (v_df [, paste0 (virus, "_cumexplt")],
+                    ltfactor[virus])
     v_df [, paste0(virus,"_otherlt")] <-  
-      ltimm_effect (v_df [, paste0 (other_virus_of_type[virus],"_cumexplt")])
+      ltimm_effect (v_df [, paste0 (other_virus_of_type[virus],"_cumexplt")], 
+                    ltfactor[virus])
     v_df[,paste0(other_virus_of_type[virus],"_samelt")] <- 0
     v_df[,paste0(other_virus_of_type[virus],"_otherlt")] <- 0
     formula <- paste (formula, "+", paste0(virus,"_samelt"))
@@ -607,9 +618,10 @@ for (w in 1:nsims)
                            mc[paste0(virus,"_other")] * t [if (j==1) 2 else 1] +
                            mc[paste0(virus,"_overall")]
       if (immune_type=="i3")
-      { log_Rt <- log_Rt + mc[paste0(virus,"_samelt")] * ltimm_effect(tlt[j]) +
-                           mc[paste0(virus,"_otherlt")] * 
-                             ltimm_effect(tlt[if (j==1) 2 else 1])
+      { log_Rt <- log_Rt + 
+          mc[paste0(virus,"_samelt")] * ltimm_effect(tlt[j],ltfactor[virus]) +
+          mc[paste0(virus,"_otherlt")] * ltimm_effect(tlt[if (j==1) 2 else 1],
+                                                      ltfactor[virus])
       }
       inf <- sum (past[[j]]*rev_gen_interval)
       p[j] <- exp (log_Rt + rnorm(1,0,0.1)) * inf    # Some randomness here
@@ -682,5 +694,7 @@ for (k in seq_along(sims))
 }
 
 # ALL DONE.
+
+warnings()
 
 dev.off()
