@@ -332,6 +332,18 @@ for (virus in viruses)
     "Spline fit for logit percent of",virus,"among coronavirus positive tests"))
 }
 
+par(mfrow=c(4,1))
+
+for (g in seq_along(virus_groups))
+{ 
+  virus_group <- virus_groups[[g]]
+  plot (start, pct_logit(pcto[,virus_group[1]]+pcto[,virus_group[2]]),
+        pch=20, ylab="logit")
+  week_lines()
+  title (paste ("Logit total percent of",names(virus_groups)[g],
+                "viruses among coronavirus positive tests"))
+}
+
 
 # CREATE SPLINE FIT FOR LOG TOTAL PERCENT POSITIVE.  Fit is done after 
 # outlier/zero adjustment.
