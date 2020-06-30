@@ -25,6 +25,9 @@ do
     $R --save --no-restore --args $R_estim $R_est_type s2 i3 e3 \
        <R-model.R >&R-model-$R_estim-$R_est_type-s2-i3-e3.out
     # cp .RData R-model-$R_estim-$R_est_type-s2-i3-e3.RData
+    $R --save --no-restore --args $R_estim $R_est_type s2 i4 e3 \
+       <R-model.R >&R-model-$R_estim-$R_est_type-s2-i4-e3.out
+    # cp .RData R-model-$R_estim-$R_est_type-s2-i4-e3.RData
   done
 done
 

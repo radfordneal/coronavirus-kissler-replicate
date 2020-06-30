@@ -19,9 +19,6 @@
 #   - Long-term immune decay constants for i3/i4 model (defaults in code).
 #     For example: ltdecay:NL63=0.91,E229=0.92,OC43=0.93,HKU1=0.94
 #     May override just a subst of the values
-#   - Long-term immune scaling factor. 
-#     For example: ltfactor:NL63=0.001,E229=0.002,OC43=0.001,HKU1=0.001
-#     May override just a subst of the values
 #   - Whether simulations are run (when possible) - nosim for "no", default
 #     is "yes"
 #
@@ -92,28 +89,12 @@ run_sims <- getarg ("nosim") != "nosim"
 # The default values below were found using the "search" and
 # "search-lt" scripts, with proxyDss-filter proxies.
 
-imm_decay <- ( if (immune_type == "i3")
-                 c (NL63=0.92, E229=0.91, OC43=0.80, HKU1=0.70)
-               else if (immune_type == "i4")
-                 c (NL63=0.78, E229=0.78, OC43=0.78, HKU1=0.78)
-               else 
-                 c (NL63=0.9175, E229=0.9850, OC43=0.9500, HKU1=0.9750) )
+imm_decay <- ( if (immune_type == "i2")
+                 c (NL63=0.9175, E229=0.9850, OC43=0.9500, HKU1=0.9750)
+               else
+                 c (NL63=0.9, E229=0.9, OC43=0.9, HKU1=0.9) )
 
-ltimm_decay <- ( if (immune_type == "i3")
-                   c (NL63=0.93, E229=0.93, OC43=0.99, HKU1=0.975)
-                 else 
-                   c (NL63=0.94, E229=0.94, OC43=0.99, HKU1=0.97) )
-
-#ltfactor <- c (NL63=0.0019, E229=0.0020, OC43=0.0020, HKU1=0.0020)
-ltfactor <- c (NL63=0.0020, E229=0.0020, OC43=0.0020, HKU1=0.0020)
-
-if (any (substr(args,1,9) == "ltfactor:"))
-{ stopifnot (sum (substr(args,1,9) == "ltfactor:") == 1)
-  ltfactor_arg <- substr (args [substr(args,1,9) == "ltfactor:"], 10, 100)
-  repl_ltfactor <- eval(parse(text=paste0("c(",ltfactor_arg,")")))
-  ltfactor[names(repl_ltfactor)] <- repl_ltfactor
-  args <- args [substr(args,1,9) != "ltfactor:"]
-}
+ltimm_decay <- c (NL63=0.985, E229=0.985, OC43=0.985, HKU1=0.985)
 
 if (any (substr(args,1,6) == "decay:"))
 { stopifnot (sum (substr(args,1,6) == "decay:") == 1)
@@ -141,7 +122,6 @@ stopifnot(length(R_estimates)==1)
 
 cat("imm_decay:\n"); print(imm_decay); cat("\n")
 cat("ltimm_decay:\n"); print(ltimm_decay); cat("\n")
-cat("ltfactor:\n"); print(ltfactor); cat("\n")
 
 
 # PLOT SETUP.
@@ -173,16 +153,6 @@ year  <- R_est$year   # Year for each week
 week  <- R_est$week   # Number of each week in its year
 
 source("../util/util.R")
-
-
-# FUNCTION TO COMPUTE LONG-TERM IMMUNITY EFFECT.  Returns the quantity
-# that enters the regression for log(R) for this effect, taking the
-# exponentially-decayed cumulative incidence as its argument. Can be
-# used on a vector.
-
-ltimm_effect <- function (clt, ltfac) log (1 - pmin (0.9, ltfac*clt))
-
-#ltimm_effect <- function (clt, ltfac) clt
 
 
 # ----- DO EVERYTHING FOR BOTH ALPHACORONAVIRUSES AND BETACORONAVIRUSES -----
@@ -298,15 +268,6 @@ for (virus in virus_group)
                  "- decay",imm_decay[virus],ltimm_decay[virus],"   "))
 }
 
-par(mfrow=c(2,2))
-
-for (virus in virus_group)
-{ plot (select_df[,paste0(virus,"_cumexplt")],
-        ltimm_effect (select_df[,paste0(virus,"_cumexplt")], ltfactor[virus]),
-        pch=20, col="green", xlab="", ylab="additive effect on log(R)")
-  title(paste("Term for long-term immunity:",virus,"  "))
-}
-
 
 # FIT A JOINT MODEL OF LOG(R) FOR BOTH CORONAVIRUSES.  The spline
 # modelling the seasonal effect is shared between the two strains.
@@ -355,14 +316,12 @@ for (virus in virus_group)
   if (immune_type=="i3" || immune_type=="i4")
   { 
     v_df [, paste0(virus,"_samelt")] <- 
-      ltimm_effect (v_df [, paste0 (virus, "_cumexplt")],
-                    ltfactor[virus])
+      v_df [, paste0 (virus, "_cumexplt")]
     v_df[,paste0(other_virus_of_type[virus],"_samelt")] <- 0
     formula <- paste (formula, "+", paste0(virus,"_samelt"))
 
     v_df [, paste0(virus,"_otherlt")] <-  
-      ltimm_effect (v_df [, paste0 (other_virus_of_type[virus],"_cumexplt")], 
-                    ltfactor[virus])
+      v_df [, paste0 (other_virus_of_type[virus],"_cumexplt")]
     v_df[,paste0(other_virus_of_type[virus],"_otherlt")] <- 0
     formula <- paste (formula, "+", paste0(virus,"_otherlt"))
   }
@@ -657,10 +616,8 @@ for (w in 1:nsims)
       { log_Rt <- log_Rt + mc[paste0(virus,"_other")] * t [if (j==1) 2 else 1]
       }
       if (immune_type=="i3" || immune_type=="i4")
-      { log_Rt <- log_Rt + 
-          mc[paste0(virus,"_samelt")] * ltimm_effect(tlt[j],ltfactor[virus]) +
-          mc[paste0(virus,"_otherlt")] * ltimm_effect(tlt[if (j==1) 2 else 1],
-                                                      ltfactor[virus])
+      { log_Rt <- log_Rt + mc[paste0(virus,"_samelt")] * tlt[j] +
+                           mc[paste0(virus,"_otherlt")] * tlt[if(j==1) 2 else 1]
       }
       log_Rt <- log_Rt + mc[paste0(virus,"_overall")]
       inf <- sum (past[[j]]*rev_gen_interval)
