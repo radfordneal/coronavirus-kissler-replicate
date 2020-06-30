@@ -9,13 +9,14 @@
 #   - Type of R estimate - Rt, Rt-smoothed, Ru, or Ru-smoothed (default)
 #   - Model of seasonal effect - e1 (default, spline), e2 (sine), e3 (Fourier)
 #   - Flu season - s1 (default) or s2 (almost the whole year)
-#   - Model of "immunity" - i1 (default), i2 (exp decay), i3 (short & long)
+#   - Model of "immunity" - i1 (default), i2 (exp decay), i3 (short & long),
+#                           i4 (like i3 but with no short-term cross-immunity)
 #   - Whether heteroskedasticity w.r.t. virus is modelled - het for "yes" 
 #     (default "no")
-#   - Immune decay constants for i2 or i3 model (defaults in code).
+#   - Immune decay constants for i2 or i3/i4 model (defaults in code).
 #     For example: decay:NL63=0.9,E229=0.8,OC43=0.7,HKU1=0.6
 #     May override just a subst of the values
-#   - Long-term immune decay constants for i3 model (defaults in code).
+#   - Long-term immune decay constants for i3/i4 model (defaults in code).
 #     For example: ltdecay:NL63=0.91,E229=0.92,OC43=0.93,HKU1=0.94
 #     May override just a subst of the values
 #   - Long-term immune scaling factor. 
@@ -65,6 +66,8 @@ library(splines)
 
 args <- commandArgs(trailing=TRUE)
 
+cat("ARGUMENTS:",args,"\n\n")
+
 getarg <- function (what, default="")
 { if (any (args %in% what))
   { stopifnot (sum (args %in% what) == 1)
@@ -78,7 +81,7 @@ getarg <- function (what, default="")
 
 R_est_type <- getarg (c("Rt","Rt_smoothed","Ru","Ru_smoothed"), "Ru_smoothed")
 
-immune_type <- getarg (c("i1","i2","i3"), "i1")
+immune_type <- getarg (c("i1","i2","i3", "i4"), "i1")
 seffect_type <- getarg (c("e1","e2","e3"), "e1")
 season_type <- getarg (c("s1","s2"), "s1")
 
@@ -89,14 +92,20 @@ run_sims <- getarg ("nosim") != "nosim"
 # The default values below were found using the "search" and
 # "search-lt" scripts, with proxyDss-filter proxies.
 
-imm_decay <- ( if (immune_type=="i3") 
+imm_decay <- ( if (immune_type == "i3")
                  c (NL63=0.92, E229=0.91, OC43=0.80, HKU1=0.70)
+               else if (immune_type == "i4")
+                 c (NL63=0.78, E229=0.78, OC43=0.78, HKU1=0.78)
                else 
                  c (NL63=0.9175, E229=0.9850, OC43=0.9500, HKU1=0.9750) )
 
-ltimm_decay <- c (NL63=0.93, E229=0.93, OC43=0.99, HKU1=0.975)
+ltimm_decay <- ( if (immune_type == "i3")
+                   c (NL63=0.93, E229=0.93, OC43=0.99, HKU1=0.975)
+                 else 
+                   c (NL63=0.94, E229=0.94, OC43=0.99, HKU1=0.97) )
 
-ltfactor <- c (NL63=0.0019, E229=0.0020, OC43=0.0020, HKU1=0.0020)
+#ltfactor <- c (NL63=0.0019, E229=0.0020, OC43=0.0020, HKU1=0.0020)
+ltfactor <- c (NL63=0.0020, E229=0.0020, OC43=0.0020, HKU1=0.0020)
 
 if (any (substr(args,1,9) == "ltfactor:"))
 { stopifnot (sum (substr(args,1,9) == "ltfactor:") == 1)
@@ -130,13 +139,17 @@ if (length(R_estimates)==0)
 
 stopifnot(length(R_estimates)==1)
 
+cat("imm_decay:\n"); print(imm_decay); cat("\n")
+cat("ltimm_decay:\n"); print(ltimm_decay); cat("\n")
+cat("ltfactor:\n"); print(ltfactor); cat("\n")
+
 
 # PLOT SETUP.
 
 pdf (paste0 ("R-model-",R_estimates,"-",R_est_type,
-             if (season_type=="s2") "-s2",
-             if (immune_type=="i2") "-i2" else if (immune_type=="i3") "-i3",
-             if (seffect_type=="e2") "-e2" else if (seffect_type=="e3") "-e3",
+             if (season_type!="s1") paste0("-",season_type),
+             if (immune_type!="i1") paste0("-",immune_type),
+             if (seffect_type!="e1") paste0("-",seffect_type),
              if (het_virus) "-het",
              ".pdf"),
      height=8,width=6)
@@ -168,6 +181,8 @@ source("../util/util.R")
 # used on a vector.
 
 ltimm_effect <- function (clt, ltfac) log (1 - pmin (0.9, ltfac*clt))
+
+#ltimm_effect <- function (clt, ltfac) clt
 
 
 # ----- DO EVERYTHING FOR BOTH ALPHACORONAVIRUSES AND BETACORONAVIRUSES -----
@@ -228,13 +243,12 @@ select_df$season_week <-
 
 # COMPUTE CUMULATIVE SEASONAL INCIDENCE FOR EACH CORONAVIRUS IN GROUP.
 # These are added to select_df as columns named <virus>_cum.  A second
-# set of columns are added named <virus>_cumexp that are
-# exponentially-weighted sums from the start of the record (not paying
-# attention to "seasons"), using the imm_decay values for each virus,
-# wrapping around once so that the start has a sum obtained from the
-# average of last four starts-of-years.  Similary, columns named
-# <virus>_cumexplt that are exponentially-weights sums using
-# ltimm_decay values are added. 
+# set of columns are added named <virus>_cumexp that are exponentially
+# weighted sums from the start of the record (not paying attention to
+# "seasons"), using the imm_decay values for each virus, wrapping
+# around once so that the start has a sum obtained from the average of
+# the last four starts-of-years.  Similary, columns named <virus>_cumexplt 
+# that are exponentially-weights sums using ltimm_decay values are added.
 
 par(mfrow=c(2,1))
 
@@ -284,6 +298,15 @@ for (virus in virus_group)
                  "- decay",imm_decay[virus],ltimm_decay[virus],"   "))
 }
 
+par(mfrow=c(2,2))
+
+for (virus in virus_group)
+{ plot (select_df[,paste0(virus,"_cumexplt")],
+        ltimm_effect (select_df[,paste0(virus,"_cumexplt")], ltfactor[virus]),
+        pch=20, col="green", xlab="", ylab="additive effect on log(R)")
+  title(paste("Term for long-term immunity:",virus,"  "))
+}
+
 
 # FIT A JOINT MODEL OF LOG(R) FOR BOTH CORONAVIRUSES.  The spline
 # modelling the seasonal effect is shared between the two strains.
@@ -315,25 +338,32 @@ for (virus in virus_group)
 { v_df <- select_df
   row.names(v_df) <- NULL
   v_df$virus <- virus
+
   v_df [, paste0(virus,"_same")] <- 
     v_df [, paste0 (virus, if (immune_type=="i1") "_cum" else "_cumexp")]
-  v_df [, paste0(virus,"_other")] <- 
-    v_df [, paste0 (other_virus_of_type[virus], 
-                    if (immune_type=="i1") "_cum" else "_cumexp")]
   v_df[,paste0(other_virus_of_type[virus],"_same")] <- 0
-  v_df[,paste0(other_virus_of_type[virus],"_other")] <- 0
   formula <- paste (formula, "+", paste0(virus,"_same"))
-  formula <- paste (formula, "+", paste0(virus,"_other"))
-  if (immune_type=="i3")
-  { v_df [, paste0(virus,"_samelt")] <- 
+
+  if (immune_type!="i4") 
+  { v_df [, paste0(virus,"_other")] <- 
+      v_df [, paste0 (other_virus_of_type[virus], 
+                      if (immune_type=="i1") "_cum" else "_cumexp")]
+    v_df[,paste0(other_virus_of_type[virus],"_other")] <- 0
+    formula <- paste (formula, "+", paste0(virus,"_other"))
+  }
+
+  if (immune_type=="i3" || immune_type=="i4")
+  { 
+    v_df [, paste0(virus,"_samelt")] <- 
       ltimm_effect (v_df [, paste0 (virus, "_cumexplt")],
                     ltfactor[virus])
+    v_df[,paste0(other_virus_of_type[virus],"_samelt")] <- 0
+    formula <- paste (formula, "+", paste0(virus,"_samelt"))
+
     v_df [, paste0(virus,"_otherlt")] <-  
       ltimm_effect (v_df [, paste0 (other_virus_of_type[virus],"_cumexplt")], 
                     ltfactor[virus])
-    v_df[,paste0(other_virus_of_type[virus],"_samelt")] <- 0
     v_df[,paste0(other_virus_of_type[virus],"_otherlt")] <- 0
-    formula <- paste (formula, "+", paste0(virus,"_samelt"))
     formula <- paste (formula, "+", paste0(virus,"_otherlt"))
   }
   model_df <- if (is.null(model_df)) v_df else rbind(model_df,v_df)
@@ -484,9 +514,11 @@ plot_components <- function (s, virus, logarithmic=FALSE)
   lines (itrans(seasonal_component), col="orange", lwd=2)
   same <- df[,paste0(virus,"_same")] * mc[paste0(virus,"_same")]
   lines (itrans(same), col="black", lwd=2)
-  other <- df[,paste0(virus,"_other")] * mc[paste0(virus,"_other")]
-  lines (itrans(other), col="gray", lwd=2)
-  if (immune_type=="i3")
+  if (immune_type!="i4")
+  { other <- df[,paste0(virus,"_other")] * mc[paste0(virus,"_other")]
+    lines (itrans(other), col="gray", lwd=2)
+  }
+  if (immune_type=="i3" || immune_type=="i4")
   { samelt <- df[,paste0(virus,"_samelt")] * mc[paste0(virus,"_samelt")]
     lines (itrans(samelt), col="black", lwd=2, lty=2)
     otherlt <- df[,paste0(virus,"_otherlt")] * mc[paste0(virus,"_otherlt")]
@@ -530,7 +562,7 @@ for (virus in virus_group)
 
 
 # DO SIMULATIONS FOR SUITABLE MODELS.  Done only if the model is for Rt, 
-# and season type is s2, immune type is i2 or i3, and seasonal effect 
+# and season type is s2, immune type is i2, i3, or i4, and seasonal effect 
 # type is e2 or e3. Can be disabled (for speed) with nosim.
 #
 # The simulation is done multiple times for the five seasons, using the
@@ -610,21 +642,31 @@ for (w in 1:nsims)
 {
   # Do one simulation, for all years.
 
+  Rt_offset_sd <- 0.05                     # AR(1) process that modifies
+  Rt_offset_alpha <- 0.9                   #   modelled Rt values
+  Rt_offset <- rnorm(1,0,Rt_offset_sd)
+
+  Rt_iid_noise_sd <- 0.05                  # Extra iid noise in Rt
+
   for (i in 1:(7*length(start)))
   {
     for (j in 1:2)
     { virus <- virus_group[j]
-      log_Rt <- tseff[i] + mc[paste0(virus,"_same")] * t[j] +
-                           mc[paste0(virus,"_other")] * t [if (j==1) 2 else 1] +
-                           mc[paste0(virus,"_overall")]
-      if (immune_type=="i3")
+      log_Rt <- tseff[i] + mc[paste0(virus,"_same")] * t[j]
+      if (immune_type!="i4")
+      { log_Rt <- log_Rt + mc[paste0(virus,"_other")] * t [if (j==1) 2 else 1]
+      }
+      if (immune_type=="i3" || immune_type=="i4")
       { log_Rt <- log_Rt + 
           mc[paste0(virus,"_samelt")] * ltimm_effect(tlt[j],ltfactor[virus]) +
           mc[paste0(virus,"_otherlt")] * ltimm_effect(tlt[if (j==1) 2 else 1],
                                                       ltfactor[virus])
       }
+      log_Rt <- log_Rt + mc[paste0(virus,"_overall")]
       inf <- sum (past[[j]]*rev_gen_interval)
-      p[j] <- exp (log_Rt + rnorm(1,0,0.1)) * inf    # Some randomness here
+      Rt_offset <- Rt_offset_alpha*Rt_offset +            
+                   sqrt(1-Rt_offset_alpha^2) * rnorm(1,0,Rt_offset_sd)
+      p[j] <- exp (log_Rt + Rt_offset + rnorm(1,0,Rt_iid_noise_sd)) * inf
       past[[j]] <- c (past[[j]][-1], p[j])
       sim[[j]][i] <- p[j]
 

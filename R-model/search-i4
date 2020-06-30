@@ -1,0 +1,61 @@
+#!/bin/bash
+
+# Search for optimal immunity decay rates for i4 immunity model, for each 
+# of the coronaviruses, using options s2 and e3.
+
+R_estim=proxyDss-filter  # proxies to use
+R_est_type=Rt            # R estimate to use
+
+export LANG=en_CA.UTF-8
+
+if [ x$R == x ]; then R=R; fi
+
+( for short in 0.78 0.83 0.87; do
+    for NL63ltd in 0.94 0.95 0.96; do
+      for E229ltd in 0.94 0.95 0.96; do
+        for NL63ltf in 0.0019 0.0020; do
+          for E229ltf in 0.0019 0.0020; do
+            echo -n \
+             `$R --no-save --no-restore \
+                 --args $R_estim $R_est_type nosim s2 i4 e3 \
+                        decay:NL63=$short,E229=$short \
+                        ltdecay:NL63=$NL63ltd,E229=$E229ltd \
+                        ltfactor:NL63=$NL63ltf,E229=$E229ltf \
+                 <R-model.R | fgrep "Residual standard error" \
+                            | sed "s/.*://" | sed "s/ on .*//" | head -1`
+            echo " " decay:NL63=$short,E229=$short \
+                     ltdecay:NL63=$NL63ltd,E229=$E229ltd \
+                     ltfactor:NL63=$NL63ltf,E229=$E229ltf
+          done
+        done
+      done
+    done
+  done
+) >search-i4.grp1
+
+sort -n <search-i4.grp1 | head -1
+
+( for short in 0.78 0.83 0.87; do
+    for OC43ltd in 0.987 0.990 0.992; do
+      for HKU1ltd in 0.965 0.97 0.975; do
+        for OC43ltf in 0.0019 0.0020; do
+          for HKU1ltf in 0.0019 0.0020; do
+            echo -n \
+             `$R --no-save --no-restore \
+                 --args $R_estim $R_est_type nosim s2 i4 e3 \
+                        decay:OC43=$short,HKU1=$short \
+                        ltdecay:OC43=$OC43ltd,HKU1=$HKU1ltd \
+                        ltfactor:OC43=$OC43ltf,HKU1=$HKU1ltf \
+                 <R-model.R | fgrep "Residual standard error" \
+                            | sed "s/.*://" | sed "s/ on .*//" | tail -1`
+            echo " " decay:OC43=$short,HKU1=$short \
+                     ltdecay:OC43=$OC43ltd,HKU1=$HKU1ltd \
+                     ltfactor:OC43=$OC43ltf,HKU1=$HKU1ltf
+          done
+        done
+      done
+    done
+  done
+) >search-i4.grp2
+
+sort -n <search-i4.grp2 | head -1
