@@ -449,7 +449,9 @@ plot_components <- function (s, virus, logarithmic=FALSE)
   abline(h = if (logarithmic) c(-0.6,-0.4,-0.2,0.2,0.4,0.6) 
              else c(0.5,0.75,1.25,1.5,1.75,2.0),
          col="gray", lty=3)
-  abline (v = c(5,10,15,20,15,30), col="gray", lty=3)
+  if (season_type=="s1") 
+  { abline (v = c(5,10,15,20,15,30), col="gray", lty=3)
+  }
   if (season_type=="s2")  # Show Kissler, et al season as dotted lines
   { abline(v=40+1-start_season,col="gray",lty=3)
     abline(v=40+33-start_season,col="gray",lty=3)
