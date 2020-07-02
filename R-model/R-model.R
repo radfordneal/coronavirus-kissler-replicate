@@ -433,7 +433,7 @@ for (virus in virus_group)
 # PLOT COMPONENTS OF MODEL FOR EACH VIRUS AND SEASON.  Similar to plots
 # of Kissler, et al. Figure 1.
 
-plot_components <- function (s, virus, logarithmic=FALSE)
+plot_components <- function (s, virus, logarithmic=FALSE, ...)
 {
   trans <- if (logarithmic) log else identity
   itrans <- if (logarithmic) identity else exp
@@ -441,17 +441,18 @@ plot_components <- function (s, virus, logarithmic=FALSE)
   this <- model_df$season==s & model_df$virus==virus
   df <- model_df[this,]
   plot (c(1,season_length), trans(c(1,1)), type="n",
-        ylim=trans(c(0.5,2.0)), xlim=c(0,season_length), xaxs="i",
+        ylim=trans(c(0.5,2.0)), xlim=c(0,season_length), xaxs="i", xlab="", 
         ylab = if (logarithmic) "Additive effect on log(R)"
-               else "Multiplicative effect on R")
-  points (trans(model_df[,paste0(virus,"_R")][this]), pch=20, col="pink")
-  abline (v=1, h=trans(1))
+               else "Multiplicative effect on R", ...)
   abline(h = if (logarithmic) c(-0.6,-0.4,-0.2,0.2,0.4,0.6) 
              else c(0.5,0.75,1.25,1.5,1.75,2.0),
-         col="gray", lty=3)
+         col="gray", lwd=0.5)
   if (season_type=="s1") 
-  { abline (v = c(5,10,15,20,15,30), col="gray", lty=3)
+  { abline (v = c(5,10,15,20,25,30), col="gray", lwd=0.5)
   }
+  abline (v=1, h=trans(1))
+  points (trans(model_df[,paste0(virus,"_R")][this]), pch=20, cex=0.75,
+          col="pink")
   if (season_type=="s2")  # Show Kissler, et al season as dotted lines
   { abline(v=40+1-start_season,col="gray",lty=3)
     abline(v=40+33-start_season,col="gray",lty=3)
@@ -460,7 +461,7 @@ plot_components <- function (s, virus, logarithmic=FALSE)
   if (seffect_type=="e3")
   { tn <- ncol(trend_spline)
     trend_component <- as.vector (trend_spline[this,] %*% mc[1:tn])
-    lines (itrans(trend_component), col="green", lwd=2)
+    lines (itrans(trend_component), col="green", lwd=1.5)
   }
   seasonal_component <- switch (seffect_type,
       e1 = as.vector (seasonal_spline[1:season_length,] 
@@ -474,44 +475,49 @@ plot_components <- function (s, virus, logarithmic=FALSE)
       mc0[paste0(virus,"_overall")] + seasonal_component[1]
     seasonal_component <- seasonal_component - seasonal_component[1]
   }
-  lines (itrans(seasonal_component), col="orange", lwd=2)
+  lines (itrans(seasonal_component), col="orange", lwd=1.5)
   same <- df[,paste0(virus,"_same")] * mc[paste0(virus,"_same")]
-  lines (itrans(same), col="black", lwd=2)
+  lines (itrans(same), col="black", lwd=1.5)
   if (immune_type!="i4")
   { other <- df[,paste0(virus,"_other")] * mc[paste0(virus,"_other")]
-    lines (itrans(other), col="gray", lwd=2)
+    lines (itrans(other), col="gray", lwd=1.5)
   }
   if (immune_type=="i3" || immune_type=="i4")
   { samelt <- df[,paste0(virus,"_samelt")] * mc[paste0(virus,"_samelt")]
-    lines (itrans(samelt), col="black", lwd=2, lty=2)
+    lines (itrans(samelt), col="black", lwd=1.5, lty=2)
     otherlt <- df[,paste0(virus,"_otherlt")] * mc[paste0(virus,"_otherlt")]
-    lines (itrans(otherlt), col="gray", lwd=2, lty=2)
+    lines (itrans(otherlt), col="gray", lwd=1.5, lty=2)
   }
   if (immune_type=="i1" && seffect_type=="e1")
   { points (1, itrans (mc[paste0(virus,"_season_",s)]
                      - mc[paste0(virus_group[2],"_season_2014")]), 
-               pch=19, col="gray")
-    points (1, itrans (mc[paste0(virus,"_season_",s)]), pch=19)
+               pch=20, col="black", cex=0.75)
+    points (1, itrans (mc[paste0(virus,"_season_",s)]), 
+               pch=20, col="green", cex=0.75)
   }
   else
-  { points (1, itrans (mc0[paste0(virus,"_overall")]), pch=19)
+  { points (1, itrans (mc0[paste0(virus,"_overall")]), 
+               pch=20, col="green", cex=0.75)
   }
-  title(paste0(virus," ",s,"-",s+1," ",R_estimates))
+  title(paste0(virus," ",s,"-",s+1," ",R_estimates," "),line=0.5)
 }
 
-par(mfrow=c(5,2))
+par(mfcol=c(5,4))
+sv <- par (cex.main=3/4, cex.lab=2/3, cex.axis=4/10, mgp=c(0.8,0.18,0))
 
-for (s in unique(model_df$season))
-{ for (virus in virus_group)
+for (virus in virus_group)
+{ for (s in unique(model_df$season))
   { plot_components(s,virus,logarithmic=FALSE)
   }
 }
 
-for (s in unique(model_df$season))
-{ for (virus in virus_group)
+for (virus in virus_group)
+{ for (s in unique(model_df$season))
   { plot_components(s,virus,logarithmic=TRUE)
   }
 }
+
+par(sv)
 
 # Again, but bigger, and in a different order.
 
