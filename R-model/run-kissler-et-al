@@ -33,4 +33,9 @@ do
        <R-model.R >&R-model-$R_estim-$R_est_type-e3-het.out
     # cp .RData R-model-$R_estim-$R_est_type-e3-het.RData
   done
+  for R_est_type in Ru; do
+    $R --save --no-restore --args $R_estim $R_est_type het \
+       <R-model.R >&R-model-$R_estim-$R_est_type-het.out
+    # cp .RData R-model-$R_estim-$R_est_type-het.RData
+  done
 done

@@ -238,6 +238,7 @@ for (virus in virus_group)
   select_df[,paste0(virus,"_cum")] <- c
   plot (select_df$start, c, pch=20, ylab="", xlim=range(start))
   abline(h=0)
+  abline(h=seq(0,1000,by=50),col="gray",lty=3)
   title (paste ("Cumulative seasonal incidence for",virus))
 
   p <- R_est[,paste0(virus,"_proxy")]
@@ -380,6 +381,9 @@ for (rpt in if (het_virus) 1:4 else 1)
                weights=c(rep(c(var_ratio_2over1,1),each=sum(in_season))))
 
   print(summary(model))
+
+  print(round(summary(model)$coefficients[,1:2],5))
+  cat("\n")
   
   resid <- log(R_value) - as.vector(predict(model,model_df))
   
@@ -388,8 +392,12 @@ for (rpt in if (het_virus) 1:4 else 1)
   names(virus_residuals) <- virus_group
   
   for (virus in virus_group)
-  { cat ("Residual standard deviation for", virus, ":",
-          round (sd(virus_residuals[[virus]],na.rm=TRUE), 5), "\n")
+  { cat ("Residual standard deviation for", paste0(virus,":"),
+          round (sd(virus_residuals[[virus]],na.rm=TRUE), 4), "\n")
+    cat ("Residual ACF:", 
+          round (acf (virus_residuals[[virus]],
+                      na.action=na.pass, lag.max=4, plot=FALSE) $ acf, 2), 
+         "\n\n")
   }
 
   var_ratio_2over1 <- mean(virus_residuals[[2]]^2,na.rm=TRUE) /
