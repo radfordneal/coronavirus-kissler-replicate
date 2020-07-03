@@ -378,7 +378,7 @@ var_ratio_2over1 <- 1
 for (rpt in if (het_virus) 1:4 else 1)
 {
   model <- lm (parse(text=formula)[[1]], data=model_df, x=TRUE, y=TRUE,
-               weights=c(rep(c(var_ratio_2over1,1),each=sum(in_season))))
+               weights=rep(c(var_ratio_2over1,1),each=sum(in_season)))
 
   print(summary(model))
 
