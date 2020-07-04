@@ -507,7 +507,7 @@ plot_components <- function (s, virus, logarithmic=FALSE, ...)
   { points (1, itrans (mc0[paste0(virus,"_overall")]), 
                pch=20, col="green", cex=0.75)
   }
-  title(paste0(virus," ",s,"-",s+1," ",R_estimates," "),line=0.5)
+  title(paste0(virus," ",s,"-",s+1," ",R_estimates,"   "),line=0.5)
 }
 
 par(mfcol=c(5,4))
