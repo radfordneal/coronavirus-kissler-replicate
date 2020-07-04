@@ -57,6 +57,7 @@
 
 
 library(splines)
+library(sandwich)  # needs to be installed with install.packages("sandwich")
 
 
 # ESTABLISH WHICH PARAMETERS TO USE, LOOKING AT R'S ARGUMENTS.
@@ -370,19 +371,30 @@ trend_spline <-
 # Fit model, perhaps repeatedly, each time adjusting weights based on previous 
 # fit to account for heterskedasticity w.r.t. virus.
   
-cat ("\nMODEL FOR", paste(virus_group,collapse=" & "), "\n\n")
+cat ("\nMODEL FOR", paste(virus_group,collapse=" & "), "\n")
 options(digits=9)
 
 var_ratio_2over1 <- 1
 
-for (rpt in if (het_virus) 1:4 else 1)
+for (rpt in if (het_virus) 1:3 else 1)
 {
   model <- lm (parse(text=formula)[[1]], data=model_df, x=TRUE, y=TRUE,
                weights=rep(c(var_ratio_2over1,1),each=sum(in_season)))
 
-  print(summary(model))
+  # print(summary(model))
 
-  print(round(summary(model)$coefficients[,1:2],5))
+  std.errs <- summary(model)$coefficients[,1:2]
+  std.errs <- cbind (std.errs, 
+    NW.se = sqrt (diag (NeweyWest (model, adjust=TRUE, verbose=TRUE))))
+  cat("\n")
+  std.errs <- cbind (std.errs, 
+    NWlag5 = sqrt (diag (NeweyWest (model, adjust=TRUE, lag=5))))
+  std.errs <- cbind (std.errs, 
+    NWlag10 = sqrt (diag (NeweyWest (model, adjust=TRUE, lag=10))))
+  std.errs <- cbind (std.errs, 
+    NWlag20 = sqrt (diag (NeweyWest (model, adjust=TRUE, lag=20))))
+
+  print(round(std.errs,5))
   cat("\n")
   
   resid <- log(R_value) - as.vector(predict(model,model_df))
@@ -390,13 +402,14 @@ for (rpt in if (het_virus) 1:4 else 1)
   virus_residuals <- 
     list (resid[1:sum(in_season)], resid[(sum(in_season)+1):(2*sum(in_season))])
   names(virus_residuals) <- virus_group
-  
+
+  cat("\n")  
   for (virus in virus_group)
   { cat ("Residual standard deviation for", paste0(virus,":"),
           round (sd(virus_residuals[[virus]],na.rm=TRUE), 4), "\n")
     cat ("Residual ACF:", 
           round (acf (virus_residuals[[virus]],
-                      na.action=na.pass, lag.max=4, plot=FALSE) $ acf, 2), 
+                      na.action=na.pass, lag.max=11, plot=FALSE) $ acf, 2), 
          "\n\n")
   }
 
