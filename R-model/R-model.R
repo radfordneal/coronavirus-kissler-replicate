@@ -59,6 +59,8 @@
 library(splines)
 library(sandwich)  # needs to be installed with install.packages("sandwich")
 
+options(warn=1)
+
 
 # ESTABLISH WHICH PARAMETERS TO USE, LOOKING AT R'S ARGUMENTS.
 
@@ -174,9 +176,9 @@ end_season <- 20   # Week of end of "flu season" (in year following start)
                    # (except ends week earlier in 2015, since 2014 has 53 weeks)
 
 if (season_type=="s2") # Alternative
-{ start_season <- 28     # Week of start of "flu season"
-  end_season <- 26       # Week of end of "flu season" (in year following start)
-                         # (except ends week earler in 2015, 2014 has 53 weeks)
+{ start_season <- 28   # Week of start of "flu season"
+  end_season <- 27     # Week of end of "flu season" (in year following start)
+                       # (except ends week earler in 2015, as 2014 has 53 weeks)
 }
 
 R_est_names <- paste0(virus_group,"_",R_est_type)
@@ -726,7 +728,5 @@ for (k in seq_along(sims))
 }
 
 # ALL DONE.
-
-warnings()
 
 dev.off()
