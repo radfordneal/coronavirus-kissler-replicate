@@ -95,7 +95,7 @@ run_sims <- getarg ("nosim") != "nosim"
 imm_decay <- ( if (immune_type == "i2")
                  c (NL63=0.9175, E229=0.9850, OC43=0.9500, HKU1=0.9750)
                else
-                 c (NL63=0.9, E229=0.9, OC43=0.9, HKU1=0.9) )
+                 c (NL63=0.85, E229=0.85, OC43=0.85, HKU1=0.85) )
 
 ltimm_decay <- c (NL63=0.985, E229=0.985, OC43=0.985, HKU1=0.985)
 
