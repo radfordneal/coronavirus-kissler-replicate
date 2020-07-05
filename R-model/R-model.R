@@ -385,6 +385,8 @@ for (rpt in if (het_virus) 1:3 else 1)
 
   std.errs <- summary(model)$coefficients[,1:2]
   std.errs <- cbind (std.errs, 
+    HC3.se = sqrt (diag (vcovHC (model, type="HC3"))))
+  std.errs <- cbind (std.errs, 
     NW.se = sqrt (diag (NeweyWest (model, adjust=TRUE, verbose=TRUE))))
   cat("\n")
   std.errs <- cbind (std.errs, 
