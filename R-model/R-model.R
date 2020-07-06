@@ -146,7 +146,7 @@ R_est <- read.csv (paste0("../R-est/R-est-",R_estimates,".csv"),
                    header=TRUE, stringsAsFactors=FALSE)
 
 R_est$start <- as.Date(R_est$start)
-R_est$yrcont <- (0:(nrow(R_est)-1)) / (365.24/7)
+R_est$yrs <- (0:(nrow(R_est)-1)) / (365.24/7)
 
 
 # INCLUDE UTILITY FUNCTIONS.  They need "start" and "week" to be defined.
@@ -167,7 +167,7 @@ for (virus_group in virus_groups) {
 # The new data frame, select_df, has columns start, year, week, season (year
 # of start of flu season), season_week (week in the flu season, from 1),
 # <virus>_R (for R estimates), <virus>_proxy (for incidence proxy), and
-# yrcont (year from 0, varying continuously).
+# yrs (year from 0, varying continuously).
 
 # Default, as in Kissler, et al.
 
@@ -183,7 +183,7 @@ if (season_type=="s2")  # Whole year, except when year is 53 weeks long
 R_est_names <- paste0(virus_group,"_",R_est_type)
 proxy_names <- paste0(virus_group,"_proxy")
 
-select_df <- R_est [, c("start", "year", "week", "yrcont",
+select_df <- R_est [, c("start", "year", "week", "yrs",
                         R_est_names, proxy_names)]
 names(select_df) [names(select_df) %in% R_est_names] <- paste0(virus_group,"_R")
 
@@ -287,13 +287,13 @@ if (seffect_type=="e3")
 
 switch (seffect_type,
   e1 = formula <- paste(formula,"+ seasonal_spline"),
-  e2 = formula <- paste(formula,"+ sin(2*pi*yrcont) + cos(2*pi*yrcont)"),
-  e3 = formula <- paste(formula,"+ sin(1*2*pi*yrcont) + cos(1*2*pi*yrcont)",
-                                "+ sin(2*2*pi*yrcont) + cos(2*2*pi*yrcont)",
-                                "+ sin(3*2*pi*yrcont) + cos(3*2*pi*yrcont)",
-                                "+ sin(4*2*pi*yrcont) + cos(4*2*pi*yrcont)",
-                                "+ sin(5*2*pi*yrcont) + cos(5*2*pi*yrcont)",
-                                "+ sin(6*2*pi*yrcont) + cos(6*2*pi*yrcont)"
+  e2 = formula <- paste(formula,"+ sin(2*pi*yrs) + cos(2*pi*yrs)"),
+  e3 = formula <- paste(formula,"+ sin(1*2*pi*yrs) + cos(1*2*pi*yrs)",
+                                "+ sin(2*2*pi*yrs) + cos(2*2*pi*yrs)",
+                                "+ sin(3*2*pi*yrs) + cos(3*2*pi*yrs)",
+                                "+ sin(4*2*pi*yrs) + cos(4*2*pi*yrs)",
+                                "+ sin(5*2*pi*yrs) + cos(5*2*pi*yrs)",
+                                "+ sin(6*2*pi*yrs) + cos(6*2*pi*yrs)"
                   )
 )
 
@@ -365,9 +365,9 @@ seasonal_spline <- ( if (season_type=="s1")
 # Spline for slow trend over the years.
 
 trend_spline <- 
-  bs (model_df$yrcont, Boundary=range(model_df$yrcont)+c(-3.5,3.5)/365.24,
-      knots = c ((2/3)*min(model_df$yrcont) + (1/3)*max(model_df$yrcont),
-                 (1/3)*min(model_df$yrcont) + (2/3)*max(model_df$yrcont)))
+  bs (model_df$yrs, Boundary=range(model_df$yrs)+c(-3.5,3.5)/365.24,
+      knots = c ((2/3)*min(model_df$yrs) + (1/3)*max(model_df$yrs),
+                 (1/3)*min(model_df$yrs) + (2/3)*max(model_df$yrs)))
 
 # Fit model, perhaps repeatedly, each time adjusting weights based on previous 
 # fit to account for heterskedasticity w.r.t. virus.
@@ -399,6 +399,22 @@ for (rpt in if (het_virus) 1:3 else 1)
 
   print(round(std.errs,5))
   cat("\n")
+
+  # Special computation for standard error in sum of short and long term
+  # immunity coefficients for i3/i4 model, using Newey-West covariance
+  # matrix of estimates.
+
+  if (immune_type %in% c("i3","i4"))
+  { v <- NeweyWest (model, adjust=TRUE)
+    for (virus in virus_group)
+    { wv <- paste0(virus,c("_same","_samelt"))
+      vv <- v[wv,wv]
+      cat("Sum of",wv[1],"and",wv[2],":",
+           round(sum(summary(model)$coefficients[wv,1]),5),
+           "NW std err",round(sqrt(sum(vv)),5),
+           "\n")
+    }
+  }
   
   resid <- log(R_value) - as.vector(predict(model,model_df))
   
@@ -423,20 +439,20 @@ for (rpt in if (het_virus) 1:3 else 1)
 
 # FUNCTIONS TO COMPUTE VALUE OF SEASONAL EFFECT FOR e2 and e3 MODELS.
 
-seffect_e2 <- function (yrcont)
+seffect_e2 <- function (yrs)
 { mc <- coef(model)
-  sin(2*pi*yrcont)*mc[1] + cos(2*pi*yrcont)*mc[2]
+  sin(2*pi*yrs)*mc[1] + cos(2*pi*yrs)*mc[2]
 }
 
-seffect_e3 <- function (yrcont)
+seffect_e3 <- function (yrs)
 { mc <- coef(model)
   tn <- ncol(trend_spline)
-  ( sin(1*2*pi*yrcont)*mc[tn+1] + cos(1*2*pi*yrcont)*mc[tn+2]
-    + sin(2*2*pi*yrcont)*mc[tn+3] + cos(2*2*pi*yrcont)*mc[tn+4]
-    + sin(3*2*pi*yrcont)*mc[tn+5] + cos(3*2*pi*yrcont)*mc[tn+6]
-    + sin(4*2*pi*yrcont)*mc[tn+7] + cos(4*2*pi*yrcont)*mc[tn+8]
-    + sin(5*2*pi*yrcont)*mc[tn+9] + cos(5*2*pi*yrcont)*mc[tn+10]
-    + sin(6*2*pi*yrcont)*mc[tn+11] + cos(6*2*pi*yrcont)*mc[tn+12] )
+  ( sin(1*2*pi*yrs)*mc[tn+1] + cos(1*2*pi*yrs)*mc[tn+2]
+    + sin(2*2*pi*yrs)*mc[tn+3] + cos(2*2*pi*yrs)*mc[tn+4]
+    + sin(3*2*pi*yrs)*mc[tn+5] + cos(3*2*pi*yrs)*mc[tn+6]
+    + sin(4*2*pi*yrs)*mc[tn+7] + cos(4*2*pi*yrs)*mc[tn+8]
+    + sin(5*2*pi*yrs)*mc[tn+9] + cos(5*2*pi*yrs)*mc[tn+10]
+    + sin(6*2*pi*yrs)*mc[tn+11] + cos(6*2*pi*yrs)*mc[tn+12] )
 }
 
 
@@ -490,8 +506,8 @@ plot_components <- function (s, virus, logarithmic=FALSE, ...)
   seasonal_component <- switch (seffect_type,
       e1 = as.vector (seasonal_spline[1:season_length,] 
                        %*% mc[1:ncol(seasonal_spline)]),
-      e2 = seffect_e2 (df$yrcont),
-      e3 = seffect_e3 (df$yrcont)
+      e2 = seffect_e2 (df$yrs),
+      e3 = seffect_e3 (df$yrs)
     )
   mc0 <- mc
   if (season_type=="s1" && seffect_type!="e1")
@@ -581,7 +597,7 @@ nsims <- nsims_warmup + nsims_plotted  # Total number of simulations
 
 mc <- coef(model)
 
-yrcontd <- rep(R_est$yrcont,each=7) + (0:6)/365.24 - 3.5/365.24
+yrsd <- rep(R_est$yrs,each=7) + (0:6)/365.24 - 3.5/365.24
 
 proxy1 <- R_est[,paste0(virus_group[1],"_proxy")]
 proxy2 <- R_est[,paste0(virus_group[2],"_proxy")]
@@ -606,9 +622,9 @@ rev_gen_interval <- rev(gen_interval)
 tn <- ncol(trend_spline)
 tseff <- 
 ( if (seffect_type=="e2")
-    seffect_e2(yrcontd) 
+    seffect_e2(yrsd) 
   else 
-    seffect_e3(yrcontd) + as.vector(predict (trend_spline,yrcontd) %*% mc[1:tn])
+    seffect_e3(yrsd) + as.vector(predict (trend_spline,yrsd) %*% mc[1:tn])
 )
 
 # Initial levels for exponentially-decaying past incidence.
