@@ -8,7 +8,7 @@
 #   - The R estimates to use (default proxyW), from corresponding file
 #   - Type of R estimate - Rt, Rt-smoothed, Ru, or Ru-smoothed (default)
 #   - Model of seasonal effect - e1 (default, spline), e2 (sine), e3 (Fourier)
-#   - Flu season - s1 (default) or s2 (almost the whole year)
+#   - Flu season - s1 (default) or s2 (52 weeks, usually the whole year)
 #   - Model of "immunity" - i1 (default), i2 (exp decay), i3 (short & long),
 #                           i4 (like i3 but with no short-term cross-immunity)
 #   - Whether heteroskedasticity w.r.t. virus is modelled - het for "yes" 
@@ -175,10 +175,9 @@ start_season <- 40 # Week of start of "flu season"
 end_season <- 20   # Week of end of "flu season" (in year following start)
                    # (except ends week earlier in 2015, since 2014 has 53 weeks)
 
-if (season_type=="s2") # Alternative
-{ start_season <- 28   # Week of start of "flu season"
-  end_season <- 27     # Week of end of "flu season" (in year following start)
-                       # (except ends week earler in 2015, as 2014 has 53 weeks)
+if (season_type=="s2")  # Whole year, except when year is 53 weeks long
+{ start_season <- 28
+  end_season <- 27
 }
 
 R_est_names <- paste0(virus_group,"_",R_est_type)
