@@ -402,16 +402,48 @@ for (rpt in if (het_virus) 1:3 else 1)
 
   # Special computation for standard error in sum of short and long term
   # immunity coefficients for i3/i4 model, using Newey-West covariance
-  # matrix of estimates.
+  # matrix of estimates. Also computes standard error for the difference
+  # in seasonal effect between week 20 and week 50.
 
   if (immune_type %in% c("i3","i4"))
-  { v <- NeweyWest (model, adjust=TRUE)
+  { 
+    v <- NeweyWest (model, adjust=TRUE)
+    mc <- summary(model)$coefficients[,1]
+
     for (virus in virus_group)
-    { wv <- paste0(virus,c("_same","_samelt"))
+    { 
+      wv <- paste0(virus,c("_same","_samelt"))
       vv <- v[wv,wv]
       cat("Sum of",wv[1],"and",wv[2],":",
-           round(sum(summary(model)$coefficients[wv,1]),5),
-           "NW std err",round(sqrt(sum(vv)),5),
+           round(sum(mc[wv]),5),
+           "NW std err", round(sqrt(sum(vv)),5),
+           "\n")
+    }
+
+    if (season_type=="s2" && seffect_type=="e3")
+    {
+      tn <- ncol(trend_spline)
+      wv <- (tn+1):(tn+12)
+      vv <- v[wv,wv]
+      yrs <- 20/52
+      sincos20 <- c (sin(1*2*pi*yrs), cos(1*2*pi*yrs),
+                     sin(2*2*pi*yrs), cos(2*2*pi*yrs),
+                     sin(3*2*pi*yrs), cos(3*2*pi*yrs),
+                     sin(4*2*pi*yrs), cos(4*2*pi*yrs),
+                     sin(5*2*pi*yrs), cos(5*2*pi*yrs),
+                     sin(6*2*pi*yrs), cos(6*2*pi*yrs))
+      yrs <- 50/52
+      sincos50 <- c (sin(1*2*pi*yrs), cos(1*2*pi*yrs),
+                     sin(2*2*pi*yrs), cos(2*2*pi*yrs),
+                     sin(3*2*pi*yrs), cos(3*2*pi*yrs),
+                     sin(4*2*pi*yrs), cos(4*2*pi*yrs),
+                     sin(5*2*pi*yrs), cos(5*2*pi*yrs),
+                     sin(6*2*pi*yrs), cos(6*2*pi*yrs))
+
+      cat("\nSeasonality for week50 - week20",":",
+           round (as.vector ((sincos50-sincos20) %*% mc[wv]), 5),
+           "NW std err", round (sqrt (as.vector ((sincos50-sincos20) %*% vv %*%
+                                                 (sincos50-sincos20))), 5), 
            "\n")
     }
   }
