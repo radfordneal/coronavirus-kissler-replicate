@@ -3,9 +3,11 @@
 .RHistory
 .RData
 *.out
+*.model
 *.RData
 proxy/*.pdf
 proxy/*.csv
 R-est/*.pdf
 R-est/*.csv
 R-model/*.pdf
+reg-sim/*.pdf

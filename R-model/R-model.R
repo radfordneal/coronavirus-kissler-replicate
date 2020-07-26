@@ -24,7 +24,10 @@
 #
 # Produces various plots that are written to the file with name
 # R-model-<R-estimates>-<R-estimate-type>[-<sn>][-<in>][-<en>][-het].pdf.  
-# Information on the model fit is written to standard output.
+# Information on the model fit is written to standard output. The 
+# models themselves are written to files with names of the form
+# R-model-<R-estimates>-<R-estimate-type>[-<sn>][-<in>][-<en>][-het]-<g>.model,
+# where <g> is the virus group, either "alpha" or "beta".
 #
 # The e1 seasonal effect model uses a spline, as in the regression model
 # of Kissler, et al.  The e2 seasonal effect model uses a single sine 
@@ -126,17 +129,16 @@ stopifnot(length(R_estimates)==1)
 cat("imm_decay:\n"); print(imm_decay); cat("\n")
 cat("ltimm_decay:\n"); print(ltimm_decay); cat("\n")
 
+file_base <- paste0 ("R-model-",R_estimates,"-",R_est_type,
+                     if (season_type!="s1") paste0("-",season_type),
+                     if (immune_type!="i1") paste0("-",immune_type),
+                     if (seffect_type!="e1") paste0("-",seffect_type),
+                     if (het_virus) "-het")
 
 # PLOT SETUP.
 
-pdf (paste0 ("R-model-",R_estimates,"-",R_est_type,
-             if (season_type!="s1") paste0("-",season_type),
-             if (immune_type!="i1") paste0("-",immune_type),
-             if (seffect_type!="e1") paste0("-",seffect_type),
-             if (het_virus) "-het",
-             ".pdf"),
-     height=8,width=6)
-par(mar=c(1.5,2.3,3,0.5),mgp=c(1.4,0.3,0),tcl=-0.22)
+pdf (paste0 (file_base,".pdf"), height=8, width=6)
+par(mar=c(1.5,2.3,3,0.5), mgp=c(1.4,0.3,0), tcl=-0.22)
 yrcols <- c("red","green","blue","orange","darkcyan","darkmagenta")
 
 
@@ -160,7 +162,9 @@ source("../util/util.R")
 
 # ----- DO EVERYTHING FOR BOTH ALPHACORONAVIRUSES AND BETACORONAVIRUSES -----
 
-for (virus_group in virus_groups) {
+for (g in seq_along(virus_groups)) {
+
+virus_group <- virus_groups[[g]]
 
 
 # CREATE A DATA FRAME WITH ONLY THE SELECTED R ESTIMATES, FOR FLU SEASON ONLY.
@@ -600,6 +604,11 @@ for (virus in virus_group)
     plot_components(s,virus,logarithmic=TRUE)
   }
 }
+
+# Save the model parameters to a file.
+
+saveRDS (model, version=2,
+         file = paste0(file_base,"-",names(virus_groups)[g],".model"))
 
 
 # DO SIMULATIONS FOR SUITABLE MODELS.  Done only if the model is for Rt, 
