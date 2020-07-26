@@ -160,6 +160,11 @@ week  <- R_est$week   # Number of each week in its year
 source("../util/util.R")
 
 
+# INCLUDE FUNCTIONS THAT COMPUTE SEASONAL EFFECTS AND LONG-TERM TREND.
+
+source("steffect.R")
+
+
 # ----- DO EVERYTHING FOR BOTH ALPHACORONAVIRUSES AND BETACORONAVIRUSES -----
 
 for (g in seq_along(virus_groups)) {
@@ -368,10 +373,8 @@ seasonal_spline <- ( if (season_type=="s1")
 
 # Spline for slow trend over the years.
 
-trend_spline <- 
-  bs (model_df$yrs, Boundary=range(model_df$yrs)+c(-3.5,3.5)/365.24,
-      knots = c ((2/3)*min(model_df$yrs) + (1/3)*max(model_df$yrs),
-                 (1/3)*min(model_df$yrs) + (2/3)*max(model_df$yrs)))
+trend_spline <- make_trend_spline (
+  if (season_type=="s1") model_df$yrs else R_est$yrs, model_df$yrs)
 
 # Fit model, perhaps repeatedly, each time adjusting weights based on previous 
 # fit to account for heterskedasticity w.r.t. virus.
@@ -470,25 +473,6 @@ for (rpt in if (het_virus) 1:3 else 1)
 
   var_ratio_2over1 <- mean(virus_residuals[[2]]^2,na.rm=TRUE) /
                       mean(virus_residuals[[1]]^2,na.rm=TRUE)
-}
-
-
-# FUNCTIONS TO COMPUTE VALUE OF SEASONAL EFFECT FOR e2 and e3 MODELS.
-
-seffect_e2 <- function (yrs)
-{ mc <- coef(model)
-  sin(2*pi*yrs)*mc[1] + cos(2*pi*yrs)*mc[2]
-}
-
-seffect_e3 <- function (yrs)
-{ mc <- coef(model)
-  tn <- ncol(trend_spline)
-  ( sin(1*2*pi*yrs)*mc[tn+1] + cos(1*2*pi*yrs)*mc[tn+2]
-    + sin(2*2*pi*yrs)*mc[tn+3] + cos(2*2*pi*yrs)*mc[tn+4]
-    + sin(3*2*pi*yrs)*mc[tn+5] + cos(3*2*pi*yrs)*mc[tn+6]
-    + sin(4*2*pi*yrs)*mc[tn+7] + cos(4*2*pi*yrs)*mc[tn+8]
-    + sin(5*2*pi*yrs)*mc[tn+9] + cos(5*2*pi*yrs)*mc[tn+10]
-    + sin(6*2*pi*yrs)*mc[tn+11] + cos(6*2*pi*yrs)*mc[tn+12] )
 }
 
 
@@ -605,10 +589,11 @@ for (virus in virus_group)
   }
 }
 
-# Save the model parameters to a file.
+# Save the model parameters and decay values to a file.
 
-saveRDS (model, version=2,
-         file = paste0(file_base,"-",names(virus_groups)[g],".model"))
+saveRDS (list(model=model,imm_decay=imm_decay,ltimm_decay=ltimm_decay),
+         file = paste0(file_base,"-",names(virus_groups)[g],".model"),
+         version=2)
 
 
 # DO SIMULATIONS FOR SUITABLE MODELS.  Done only if the model is for Rt, 

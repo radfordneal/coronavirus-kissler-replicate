@@ -1,0 +1,34 @@
+#!/bin/bash
+
+export LANG=en_CA.UTF-8
+
+if [ x$R == x ]; then R=R; fi
+
+for R_estim in proxyAXss-filter proxyDss-filter proxyDn proxyEn-daily
+do
+    $R --save --no-restore --args $R_estim i2 e2 \
+       <reg-sim.R >&reg-sim-$R_estim-i2-e2.out
+    # cp .RData reg-sim-$R_estim-i2-e3.RData
+    $R --save --no-restore --args $R_estim i2 e3 \
+       <reg-sim.R >&reg-sim-$R_estim-i2-e3.out
+    # cp .RData reg-sim-$R_estim-i2-e3.RData
+    $R --save --no-restore --args $R_estim i2 e3 het \
+       <reg-sim.R >&reg-sim-$R_estim-i2-e3-het.out
+    # cp .RData reg-sim-$R_estim-i2-e3-het.RData
+    $R --save --no-restore --args $R_estim i3 e3 \
+       <reg-sim.R >&reg-sim-$R_estim-i3-e3.out
+    # cp .RData reg-sim-$R_estim-i3-e3.RData
+    $R --save --no-restore --args $R_estim i4 e3 \
+       <reg-sim.R >&reg-sim-$R_estim-i4-e3.out
+    # cp .RData reg-sim-$R_estim-i4-e3.RData
+    $R --save --no-restore --args $R_estim i4 e3 het \
+       <reg-sim.R >&reg-sim-$R_estim-i4-e3-het.out
+    # cp .RData reg-sim-$R_estim-i4-e3-het.RData
+    $R --save --no-restore --args $R_estim i4 e2 \
+       <reg-sim.R >&reg-sim-$R_estim-i4-e2.out
+    # cp .RData reg-sim-$R_estim-i4-e2.RData
+    $R --save --no-restore --args $R_estim i4 e2 het \
+       <reg-sim.R >&reg-sim-$R_estim-i4-e2-het.out
+    # cp .RData reg-sim-$R_estim-i4-e2-het.RData
+done
+

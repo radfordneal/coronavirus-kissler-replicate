@@ -14,7 +14,7 @@ do
        <R-model.R >&R-model-$R_estim-$R_est_type-het.out
     # cp .RData R-model-$R_estim-$R_est_type-het.RData
     $R --save --no-restore --args $R_estim $R_est_type s2 i2 e2 \
-       <R-model.R >&R-model-$R_estim-$R_est_type-s2-i2-e3.out
+       <R-model.R >&R-model-$R_estim-$R_est_type-s2-i2-e2.out
     # cp .RData R-model-$R_estim-$R_est_type-s2-i2-e3.RData
     $R --save --no-restore --args $R_estim $R_est_type s2 i2 e3 \
        <R-model.R >&R-model-$R_estim-$R_est_type-s2-i2-e3.out

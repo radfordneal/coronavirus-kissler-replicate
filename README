@@ -29,6 +29,9 @@ The following directories contain R scripts and shell scripts to run them:
   R-model  Script to fit regression models to R estimates.  For some 
            models, a simulation based on the model is also run.
 
+  reg-sim  Script to simulate data from regression models fit with the
+           script in R-model.
+
   util     Contains utility routines used by the scripts above.
 
 The scripts all create .pdf files with various plots.  There are "run"
