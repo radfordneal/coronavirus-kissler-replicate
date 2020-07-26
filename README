@@ -26,8 +26,7 @@ The following directories contain R scripts and shell scripts to run them:
            with the results written to files named from the proxy and
            estimation method used.
 
-  R-model  Script to fit regression models to R estimates.  For some 
-           models, a simulation based on the model is also run.
+  R-model  Script to fit regression models to R estimates.
 
   reg-sim  Script to simulate data from regression models fit with the
            script in R-model.
@@ -59,6 +58,6 @@ substantially are run with the run-alt shell file.  The code implements
 additional methods that can be run with suitable command-line options.
 
 The scripts were tested with R-3.6.3 (see r-project.org).  They also work
-with pqR-2019-02-19 (see pqR-project.org), which runs them faster.
+with pqR-2020-07-23 (see pqR-project.org), which runs them faster.
 
 This code is released under GPL v2 or later.

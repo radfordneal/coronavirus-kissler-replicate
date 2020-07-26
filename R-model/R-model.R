@@ -19,8 +19,6 @@
 #   - Long-term immune decay constants for i3/i4 model (defaults in code).
 #     For example: ltdecay:NL63=0.91,E229=0.92,OC43=0.93,HKU1=0.94
 #     May override just a subst of the values
-#   - Whether simulations are run (when possible) - nosim for "no", default
-#     is "yes"
 #
 # Produces various plots that are written to the file with name
 # R-model-<R-estimates>-<R-estimate-type>[-<sn>][-<in>][-<en>][-het].pdf.  
@@ -89,8 +87,6 @@ seffect_type <- getarg (c("e1","e2","e3"), "e1")
 season_type <- getarg (c("s1","s2"), "s1")
 
 het_virus <- getarg ("het") == "het"
-
-run_sims <- getarg ("nosim") != "nosim"
 
 # The default values below were found using the "search" and
 # "search-lt" scripts, with proxyDss-filter proxies.
@@ -594,174 +590,6 @@ for (virus in virus_group)
 saveRDS (list(model=model,imm_decay=imm_decay,ltimm_decay=ltimm_decay),
          file = paste0(file_base,"-",names(virus_groups)[g],".model"),
          version=2)
-
-
-# DO SIMULATIONS FOR SUITABLE MODELS.  Done only if the model is for Rt, 
-# and season type is s2, immune type is i2, i3, or i4, and seasonal effect 
-# type is e2 or e3. Can be disabled (for speed) with nosim.
-#
-# The simulation is done multiple times for the five seasons, using the
-# trend spline and seasonal effects.  Initial values for the history of
-# incidence proxy values are taken from the end of one of the five seasons
-# in the preceding simulation (and set somewhat arbitrarily for the first
-# simulation).  Some randomness is introduced into the initial values, 
-# and in the daily values generated.
-#
-# Simulations are done day-by-day (not week-by-week).  So that the
-# simulated values are comparable to the weekly incidence proxies,
-# they are multiplied by 7 when plotted.
-
-if (!run_sims || R_est_type!="Rt" || immune_type=="i1" || seffect_type=="e1")
-{ next
-}
-
-set.seed(1)
-
-nsims_warmup <- 10   # Number of initial simulations to "warm up"
-nsims_plotted <- 15  # Number of subsequent simulations that are plotted
-nsims <- nsims_warmup + nsims_plotted  # Total number of simulations
-
-mc <- coef(model)
-
-yrsd <- rep(R_est$yrs,each=7) + (0:6)/365.24 - 3.5/365.24
-
-proxy1 <- R_est[,paste0(virus_group[1],"_proxy")]
-proxy2 <- R_est[,paste0(virus_group[2],"_proxy")]
-
-daily_decay <- imm_decay ^ (1/7)
-ltdaily_decay <- ltimm_decay ^ (1/7)
-
-# Generation interval distribution used by Kissler, et al.
-
-SARS_shape <- 2.35
-SARS_scale <- 9.48
-
-SARS_gen_interval <-
-  dweibull (1:ceiling(qweibull(0.99, shape=SARS_shape, scale=SARS_scale)),
-            shape=SARS_shape, scale=SARS_scale)
-
-gen_interval <- SARS_gen_interval # / sum(SARS_gen_interval)
-rev_gen_interval <- rev(gen_interval)
-
-# Pre-compute trend and seasonal effects for all days.
-
-tn <- ncol(trend_spline)
-tseff <- 
-( if (seffect_type=="e2")
-    seffect_e2(yrsd) 
-  else 
-    seffect_e3(yrsd) + as.vector(predict (trend_spline,yrsd) %*% mc[1:tn])
-)
-
-# Initial levels for exponentially-decaying past incidence.
-
-q <- c (quantile(proxy1,0.1), quantile(proxy2,0.1))
-t <- q / (1-imm_decay[virus_group])
-tlt <- q / (1-ltimm_decay[virus_group])
-past <- list (rep(q[1],length(gen_interval)), rep(q[2],length(gen_interval)))
-
-# Do the simulations.
-
-p <- numeric(2)
-
-ylim <-  max (proxy1, proxy2)
-
-sim <- rep (list(numeric(7*length(start))), 2)
-sims <- list()
-
-sv_past <- NULL
-
-wsave <- sample(rep(1:5,length=nsims))
-
-for (w in 1:nsims) 
-{
-  # Do one simulation, for all years.
-
-  Rt_offset_sd <- 0.05                     # AR(1) process that modifies
-  Rt_offset_alpha <- 0.9                   #   modelled Rt values
-  Rt_offset <- rnorm(1,0,Rt_offset_sd)
-
-  Rt_iid_noise_sd <- 0.05                  # Extra iid noise in Rt
-
-  for (i in 1:(7*length(start)))
-  {
-    for (j in 1:2)
-    { virus <- virus_group[j]
-      log_Rt <- tseff[i] + mc[paste0(virus,"_same")] * t[j]
-      if (immune_type!="i4")
-      { log_Rt <- log_Rt + mc[paste0(virus,"_other")] * t [if (j==1) 2 else 1]
-      }
-      if (immune_type=="i3" || immune_type=="i4")
-      { log_Rt <- log_Rt + mc[paste0(virus,"_samelt")] * tlt[j] +
-                           mc[paste0(virus,"_otherlt")] * tlt[if(j==1) 2 else 1]
-      }
-      log_Rt <- log_Rt + mc[paste0(virus,"_overall")]
-      inf <- sum (past[[j]]*rev_gen_interval)
-      Rt_offset <- Rt_offset_alpha*Rt_offset +            
-                   sqrt(1-Rt_offset_alpha^2) * rnorm(1,0,Rt_offset_sd)
-      p[j] <- exp (log_Rt + Rt_offset + rnorm(1,0,Rt_iid_noise_sd)) * inf
-      past[[j]] <- c (past[[j]][-1], p[j])
-      sim[[j]][i] <- p[j]
-
-      t[j] <- p[j] + t[j]*daily_decay[virus]
-      tlt[j] <- p[j] + tlt[j]*ltdaily_decay[virus]
-    }
-
-    if ((i+5) %% 365 == 0)
-    { wsave[w] <- wsave[w] - 1
-      if (wsave[w] == 0)
-      { sv_past <- past
-        sv_t <- t
-        sv_tlt <- tlt
-      }
-    }
-  }
-
-  # Save simulation for later plotting, if past warm-up.
-
-  if (w > nsims_warmup)
-  { sims <- c(sims,list(sim))
-    ylim <- max (ylim, 7*sim[[1]], 7*sim[[2]], na.rm=TRUE)
-  }
-
-  # Set up initial state for next simulation. Randomized a bit.
-
-  n <- exp(rnorm(2,0,0.2))
-  for (j in 1:2) 
-  { past[[j]] <- sv_past[[j]] * n[j]
-  }
-  t <- sv_t * n
-  tlt <- sv_tlt * n
-
-}
-
-# Plot the observed incidence, then saved simulations.
-
-par(mfrow=c(4,1))
-
-plot (start, rep(0,length(start)),
-      ylim=c(0,1.02*ylim), yaxs="i", type="n", ylab="Incidence proxy")
-
-lines (start, proxy1, col="blue")
-lines (start, proxy2, col="red")
-
-title (paste 
- ("Observed proxies for",virus_group[1],"(blue) and",virus_group[2],"(red)"))
-
-for (k in seq_along(sims))
-{ 
-  sim <- sims[[k]]
-
-  plot (start, rep(0,length(start)),
-        ylim=c(0,1.02*ylim), yaxs="i", type="n", ylab="Simulated incidence")
-
-  weekly <- filter (sim[[1]],rep(1,7)) [seq(4,length(sim[[1]]),by=7)]
-  lines (start, weekly, col="blue")
-  weekly <- filter (sim[[2]],rep(1,7)) [seq(4,length(sim[[2]]),by=7)]
-  lines (start, weekly, col="red")
-
-  if (k==1) title (paste ("Simulations of",virus_group[1],"and",virus_group[2]))
-}
 
 
 # ----- END OF LOOP OVER THE TWO VIRUS GROUPS -----
