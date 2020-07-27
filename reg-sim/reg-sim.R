@@ -131,32 +131,7 @@ print(ltimm_decay[virus_group])
 cat("\n")
 
 
-# The simulation is done multiple times for the five seasons, using the
-# trend spline and seasonal effects.  Initial values for the history of
-# incidence proxy values are taken from the end of one of the five seasons
-# in the preceding simulation (and set somewhat arbitrarily for the first
-# simulation).  Some randomness is introduced into the initial values,
-# and in the daily values generated.
-#
-# Simulations are done day-by-day (not week-by-week).  So that the
-# simulated values are comparable to the weekly incidence proxies,
-# they are multiplied by 7 when plotted.
-
-set.seed(1)
-
-nsims_warmup <- 10   # Number of initial simulations to "warm up"
-nsims_plotted <- 15  # Number of subsequent simulations that are plotted
-nsims <- nsims_warmup + nsims_plotted  # Total number of simulations
-
-mc <- coef(model)
-
-proxy1 <- R_est[,paste0(virus_group[1],"_proxy")]
-proxy2 <- R_est[,paste0(virus_group[2],"_proxy")]
-
-daily_decay <- imm_decay ^ (1/7)
-ltdaily_decay <- ltimm_decay ^ (1/7)
-
-# Generation interval distribution used by Kissler, et al.
+# SET GENERATION INTERVAL DISTRIBUTION USED BY KISSLER, ET AL.
 
 SARS_shape <- 2.35
 SARS_scale <- 9.48
@@ -168,98 +143,137 @@ SARS_gen_interval <-
 gen_interval <- SARS_gen_interval # / sum(SARS_gen_interval)
 rev_gen_interval <- rev(gen_interval)
 
-# Pre-compute trend and seasonal effects for all days.
 
-tn <- ncol(trend_spline)
-tseff <-
-( if (seffect_type=="e2")
-    seffect_e2(yrsd)
-  else
-    seffect_e3(yrsd) + as.vector(predict (trend_spline,yrsd) %*% mc[1:tn])
-)
+# PROXIES FOR VIRUS INCIDENCE.
 
-# Initial levels for exponentially-decaying past incidence.
+proxy1 <- R_est[,paste0(virus_group[1],"_proxy")]
+proxy2 <- R_est[,paste0(virus_group[2],"_proxy")]
 
-q <- c (quantile(proxy1,0.1), quantile(proxy2,0.1))
-t <- q / (1-imm_decay[virus_group])
-tlt <- q / (1-ltimm_decay[virus_group])
-past <- list (rep(q[1],length(gen_interval)), rep(q[2],length(gen_interval)))
 
-# Do the simulations.
+# FUNCTION TO RUN A SIMULATION.
+#
+# Simulations are done day-by-day (not week-by-week).  The simulation
+# is done warmup+1 times for the five seasons, using the trend spline
+# and seasonal effects. The last five seasons are what is returned.
+#
+# Initial values for the history of incidence proxy values are taken
+# from the end of one of the five seasons in the preceding simulation
+# (and set somewhat arbitrarily for the first simulation).  Some
+# randomness is introduced into the initial values, and in the daily
+# values generated.
 
-p <- numeric(2)
+run_sim <- function (warmup=10)
+{
+  mc <- coef(model)
+  daily_decay <- imm_decay ^ (1/7)
+  ltdaily_decay <- ltimm_decay ^ (1/7)
+
+  # Pre-compute trend and seasonal effects for all days.
+  
+  tn <- ncol(trend_spline)
+  tseff <-
+  ( if (seffect_type=="e2")
+      seffect_e2(yrsd)
+    else
+      seffect_e3(yrsd) + as.vector(predict (trend_spline,yrsd) %*% mc[1:tn])
+  )
+
+  # Initial levels for exponentially-decaying past incidence.
+
+  q <- c (quantile(proxy1,0.1), quantile(proxy2,0.1))
+  t <- q / (1-imm_decay[virus_group])
+  tlt <- q / (1-ltimm_decay[virus_group])
+  past <- list (rep(q[1],length(gen_interval)), rep(q[2],length(gen_interval)))
+
+  sim <- rep (list(numeric(7*length(start))), 2)
+  
+  wsave <- sample(rep(1:5,length=warmup+1))
+  sv_past <- NULL
+  p <- numeric(2)
+  
+  for (w in 1:(warmup+1))
+  {
+    # Do one simulation, for all years.
+  
+    Rt_offset_sd <- 0.05                     # AR(1) process that modifies
+    Rt_offset_alpha <- 0.9                   #   modelled Rt values
+    Rt_offset <- rnorm(1,0,Rt_offset_sd)
+  
+    Rt_iid_noise_sd <- 0.05                  # Extra iid noise in Rt
+  
+    for (i in 1:(7*length(start)))           # For all days in all years
+    {
+      for (j in 1:2)
+      { virus <- virus_group[j]
+        log_Rt <- tseff[i] + mc[paste0(virus,"_same")] * t[j]
+        if (immune_type!="i4")
+        { log_Rt <- log_Rt + mc[paste0(virus,"_other")] * t [if (j==1) 2 else 1]
+        }
+        if (immune_type=="i3" || immune_type=="i4")
+        { log_Rt <- log_Rt + 
+                    mc[paste0(virus,"_samelt")] * tlt[j] +
+                    mc[paste0(virus,"_otherlt")] * tlt[if(j==1) 2 else 1]
+        }
+        log_Rt <- log_Rt + mc[paste0(virus,"_overall")]
+        inf <- sum (past[[j]]*rev_gen_interval)
+        Rt_offset <- Rt_offset_alpha*Rt_offset +
+                     sqrt(1-Rt_offset_alpha^2) * rnorm(1,0,Rt_offset_sd)
+        p[j] <- exp (log_Rt + Rt_offset + rnorm(1,0,Rt_iid_noise_sd)) * inf
+        past[[j]] <- c (past[[j]][-1], p[j])
+        sim[[j]][i] <- p[j]
+  
+        t[j] <- p[j] + t[j]*daily_decay[virus]
+        tlt[j] <- p[j] + tlt[j]*ltdaily_decay[virus]
+      }
+  
+      if ((i+5) %% 365 == 0)
+      { wsave[w] <- wsave[w] - 1
+        if (wsave[w] == 0)
+        { sv_past <- past
+          sv_t <- t
+          sv_tlt <- tlt
+        }
+      }
+    }
+  
+    # Set up initial state for next simulation. Randomized a bit.
+  
+    n <- exp(rnorm(2,0,0.2))
+    for (j in 1:2)
+    { past[[j]] <- sv_past[[j]] * n[j]
+    }
+    t <- sv_t * n
+    tlt <- sv_tlt * n
+  }
+  
+  # Return results of final simulation.
+  
+  sim
+}  
+  
+  
+# DO THE SIMULATIONS.
+
+set.seed(1)
+
+warmup <- 10
+n_plotted <- 7
 
 ylim <-  max (proxy1, proxy2)
+wsims <- vector("list",n_plotted)
 
-sim <- rep (list(numeric(7*length(start))), 2)
-sims <- list()
-
-sv_past <- NULL
-
-wsave <- sample(rep(1:5,length=nsims))
-
-for (w in 1:nsims)
+for (i in 1:n_plotted)
 {
-  # Do one simulation, for all years.
-
-  Rt_offset_sd <- 0.05                     # AR(1) process that modifies
-  Rt_offset_alpha <- 0.9                   #   modelled Rt values
-  Rt_offset <- rnorm(1,0,Rt_offset_sd)
-
-  Rt_iid_noise_sd <- 0.05                  # Extra iid noise in Rt
-
-  for (i in 1:(7*length(start)))
-  {
-    for (j in 1:2)
-    { virus <- virus_group[j]
-      log_Rt <- tseff[i] + mc[paste0(virus,"_same")] * t[j]
-      if (immune_type!="i4")
-      { log_Rt <- log_Rt + mc[paste0(virus,"_other")] * t [if (j==1) 2 else 1]
-      }
-      if (immune_type=="i3" || immune_type=="i4")
-      { log_Rt <- log_Rt + mc[paste0(virus,"_samelt")] * tlt[j] +
-                           mc[paste0(virus,"_otherlt")] * tlt[if(j==1) 2 else 1]
-      }
-      log_Rt <- log_Rt + mc[paste0(virus,"_overall")]
-      inf <- sum (past[[j]]*rev_gen_interval)
-      Rt_offset <- Rt_offset_alpha*Rt_offset +
-                   sqrt(1-Rt_offset_alpha^2) * rnorm(1,0,Rt_offset_sd)
-      p[j] <- exp (log_Rt + Rt_offset + rnorm(1,0,Rt_iid_noise_sd)) * inf
-      past[[j]] <- c (past[[j]][-1], p[j])
-      sim[[j]][i] <- p[j]
-
-      t[j] <- p[j] + t[j]*daily_decay[virus]
-      tlt[j] <- p[j] + tlt[j]*ltdaily_decay[virus]
-    }
-
-    if ((i+5) %% 365 == 0)
-    { wsave[w] <- wsave[w] - 1
-      if (wsave[w] == 0)
-      { sv_past <- past
-        sv_t <- t
-        sv_tlt <- tlt
-      }
-    }
-  }
-
-  # Save simulation for later plotting, if past warm-up.
-
-  if (w > nsims_warmup)
-  { sims <- c(sims,list(sim))
-    ylim <- max (ylim, 7*sim[[1]], 7*sim[[2]], na.rm=TRUE)
-  }
-
-  # Set up initial state for next simulation. Randomized a bit.
-
-  n <- exp(rnorm(2,0,0.2))
+  sim <- run_sim (warmup)
+  wsims[[i]] <- vector("list",2)
   for (j in 1:2)
-  { past[[j]] <- sv_past[[j]] * n[j]
+  { wsims[[i]][[j]] <- filter (sim[[j]],rep(1,7)) [seq(4,length(sim[[j]]),by=7)]
+    ylim <- max (ylim, wsims[[i]][[j]], na.rm=TRUE)
   }
-  t <- sv_t * n
-  tlt <- sv_tlt * n
 }
 
-# Plot the observed incidence, then saved simulations.
+
+# PLOT THE OBSERVED INCIDENCE, THEN SAVED SIMULATIONS.
 
 par(mfrow=c(4,1))
 
@@ -272,19 +286,15 @@ lines (start, proxy2, col="red")
 title (paste
  ("Observed proxies for",virus_group[1],"(blue) and",virus_group[2],"(red)"))
 
-for (k in seq_along(sims))
+for (i in 1:n_plotted)
 {
-  sim <- sims[[k]]
-
   plot (start, rep(0,length(start)),
         ylim=c(0,1.02*ylim), yaxs="i", type="n", ylab="Simulated incidence")
 
-  weekly <- filter (sim[[1]],rep(1,7)) [seq(4,length(sim[[1]]),by=7)]
-  lines (start, weekly, col="blue")
-  weekly <- filter (sim[[2]],rep(1,7)) [seq(4,length(sim[[2]]),by=7)]
-  lines (start, weekly, col="red")
+  lines (start, wsims[[i]][[1]], col="blue")
+  lines (start, wsims[[i]][[2]], col="red")
 
-  if (k==1) title (paste ("Simulations of",virus_group[1],"and",virus_group[2]))
+  if (i==1) title (paste ("Simulations of",virus_group[1],"and",virus_group[2]))
 }
 
 # ----- END OF LOOP OVER THE TWO VIRUS GROUPS -----
