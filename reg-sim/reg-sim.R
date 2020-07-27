@@ -146,8 +146,8 @@ rev_gen_interval <- rev(gen_interval)
 
 # PROXIES FOR VIRUS INCIDENCE.
 
-proxy1 <- R_est[,paste0(virus_group[1],"_proxy")]
-proxy2 <- R_est[,paste0(virus_group[2],"_proxy")]
+proxy <- list (R_est[,paste0(virus_group[1],"_proxy")],
+               R_est[,paste0(virus_group[2],"_proxy")])
 
 
 # FUNCTION TO RUN SIMULATIONS.  Returns 'nsims' simulation results, each
@@ -193,7 +193,7 @@ run_sims <- function (nsims, warmup,
   #   past   list of matrices of assumed past incidence values, one matrix
   #          for each virus, dimension length(gen_interval) x nsims
 
-  q <- c (quantile(proxy1,0.1), quantile(proxy2,0.1))
+  q <- c (quantile(proxy[[1]],0.1), quantile(proxy[[2]],0.1))
   t <- matrix (q / (1-imm_decay[virus_group]), nrow=2, ncol=nsims)
   tlt <- matrix (q / (1-ltimm_decay[virus_group]), nrow=2, ncol=nsims)
   past <- list (matrix (q[1], nrow=length(gen_interval), ncol=nsims),
@@ -290,6 +290,27 @@ run_sims <- function (nsims, warmup,
 
   wsims
 }  
+
+
+# COMPUTE THE LOG LIKELIHOOD BASED ON A SET OF SIMULATION RESULTS.
+# The multiple simulations are taken as a Monte Carlo estiamte of the
+# marginal distribution of the observed data given parameters.  Errors
+# are assumed independent with a zero-mean normal distribution, with
+# given standard deviations.  Omits constant terms involving pi.
+
+log_lik <- function (wsims, err_sd)
+{
+  e <- 0
+
+  for (vi in 1:2)
+  { e <- e - 0.5 * colSums ((proxy[[vi]] - wsims[[vi]])^2) / err_sd[vi]^2
+  }
+
+  maxe <- max(e)
+  n <- nrow(wsims[[1]])
+
+  log(mean(exp(e-maxe))) + maxe - n * (log(err_sd[1]) + log(err_sd[2]))
+}
   
   
 # DO THE SIMULATIONS.
@@ -297,9 +318,14 @@ run_sims <- function (nsims, warmup,
 set.seed(1)
 
 warmup <- 10
-n_plotted <- 7
+nsims <- 10000
+n_plotted <- 31
 
-wsims <- run_sims (n_plotted, warmup)
+err_sd <- c(2.5,2.5)
+
+wsims <- run_sims (nsims, warmup)
+
+cat ("Log likelihood:", round(log_lik(wsims,err_sd),1), "\n\n")
 
 
 # PLOT THE OBSERVED INCIDENCE, THEN SAVED SIMULATIONS.  Plots all use the
@@ -307,13 +333,13 @@ wsims <- run_sims (n_plotted, warmup)
 
 par(mfrow=c(4,1))
 
-ylim <-  max (proxy1, proxy2, wsims[[1]], wsims[[2]])
+ylim <-  max (proxy[[1]], proxy[[2]], wsims[[1]], wsims[[2]])
 
 plot (start, rep(0,length(start)),
       ylim=c(0,1.02*ylim), yaxs="i", type="n", ylab="Incidence proxy")
 
-lines (start, proxy1, col="blue")
-lines (start, proxy2, col="red")
+lines (start, proxy[[1]], col="blue")
+lines (start, proxy[[2]], col="red")
 
 title (paste
  ("Observed proxies for",virus_group[1],"(blue) and",virus_group[2],"(red)"))
