@@ -20,27 +20,22 @@
 # Make the spline modelling the slow, long-term trend.
 
 make_trend_spline <- function (yrs, model_yrs)
-{   bs (model_yrs, Boundary=range(yrs)+c(-3.5,3.5)/365.24,
-        knots = c ((2/3)*min(yrs) + (1/3)*max(yrs),
-                   (1/3)*min(yrs) + (2/3)*max(yrs)))
-}
+  bs (model_yrs, Boundary=range(yrs)+c(-3.5,3.5)/365.24,
+      knots = c ((2/3)*min(yrs) + (1/3)*max(yrs),
+                 (1/3)*min(yrs) + (2/3)*max(yrs)))
 
 
-# Compute seasonal effects. These functions refer to the global 'model'
-# and 'trend_spline' function.
+# Compute seasonal effects.  Defaults for these functions refer to the global 
+# 'model' and 'trend_spline' variables.
 
-seffect_e2 <- function (yrs)
-{ mc <- coef(model)
+seffect_e2 <- function (yrs, mc = coef(model))
   sin(2*pi*yrs)*mc[1] + cos(2*pi*yrs)*mc[2]
-}
 
-seffect_e3 <- function (yrs)
-{ mc <- coef(model)
-  tn <- ncol(trend_spline)
+seffect_e3 <- function (yrs, mc = coef(model), tn = ncol(trend_spline))
   ( sin(1*2*pi*yrs)*mc[tn+1] + cos(1*2*pi*yrs)*mc[tn+2]
     + sin(2*2*pi*yrs)*mc[tn+3] + cos(2*2*pi*yrs)*mc[tn+4]
     + sin(3*2*pi*yrs)*mc[tn+5] + cos(3*2*pi*yrs)*mc[tn+6]
     + sin(4*2*pi*yrs)*mc[tn+7] + cos(4*2*pi*yrs)*mc[tn+8]
     + sin(5*2*pi*yrs)*mc[tn+9] + cos(5*2*pi*yrs)*mc[tn+10]
     + sin(6*2*pi*yrs)*mc[tn+11] + cos(6*2*pi*yrs)*mc[tn+12] )
-}
+
