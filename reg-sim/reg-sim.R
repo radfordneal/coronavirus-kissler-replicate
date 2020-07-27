@@ -7,9 +7,9 @@
 #   - Model of "immunity" (required) - i2 (exp decay), i3 (short & long),
 #                           i4 (like i3 but with no short-term cross-immunity)
 #   - Model of seasonal effect (required) - e2 (sine), e3 (Fourier)
-#   - Immune decay constants (defaults in code).
 #   - Whether heteroskedasticity w.r.t. virus is modelled - het for "yes" 
 #     (default "no")
+#   - Immune decay constants (defaults in code).
 #     For example: decay:NL63=0.9,E229=0.8,OC43=0.7,HKU1=0.6
 #     May override just a subst of the values
 #   - Long-term immune decay constants for i3/i4 model (defaults in code).
