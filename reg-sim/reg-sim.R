@@ -292,6 +292,42 @@ run_sims <- function (nsims, warmup,
 }  
 
 
+# FIND POSTERIOR PROBABILITIES OF ALTERNATIVE INFECTION HISTORIES.
+
+pprob <- function (wsims, err_sd)
+{
+  e <- 0
+
+  for (vi in 1:2)
+  { e <- e - 0.5 * colSums ((proxy[[vi]] - wsims[[vi]])^2) / err_sd[vi]^2
+  }
+
+  p <-- exp (e-max(e))
+  p / sum(p)
+}
+
+
+# ESTIMATE ERROR STANDARD DEVIATIONS.
+
+est_err_sd <- function (wsims, init_err_sd)
+{
+  cat("Estimation of error standard deviations\n\n")
+
+  err_sd <- rep (init_err_sd, length=2)
+
+  for (i in 1:10)
+  { pp <- pprob (wsims, err_sd)
+    for (vi in 1:2)
+    { err_sd[vi] <- sqrt (sum (pp * colMeans ((proxy[[vi]] - wsims[[vi]])^2)))
+    }
+    cat ("iter",i,": err_sd",round(err_sd,3),
+                  ": log likelihood",log_lik(wsims,err_sd),"\n")
+  }
+
+  err_sd
+}
+
+
 # COMPUTE THE LOG LIKELIHOOD BASED ON A SET OF SIMULATION RESULTS.
 # The multiple simulations are taken as a Monte Carlo estiamte of the
 # marginal distribution of the observed data given parameters.  Errors
@@ -318,25 +354,33 @@ log_lik <- function (wsims, err_sd)
 set.seed(1)
 
 warmup <- 10
-nsims <- 10000
-n_plotted <- 31
-
-err_sd <- c(2.5,2.5)
+nsims <- 25000
+n_plotted <- 32
 
 wsims <- run_sims (nsims, warmup)
 
+err_sd <- est_err_sd(wsims,c(2.5,2.5))
+
 cat ("Log likelihood:", round(log_lik(wsims,err_sd),1), "\n\n")
 
+pp <- pprob(wsims,err_sd)
+cat ("Highest posterior probabilities:\n")
+print (round(sort(pp,decreasing=TRUE)[1:16],6))
 
-# PLOT THE OBSERVED INCIDENCE, THEN SAVED SIMULATIONS.  Plots all use the
-# same scales.
+wmx <- which.max(pp)
+
+
+# PLOT THE OBSERVED INCIDENCE, THEN BEST FIT SIMULATION, THEN OTHER SIMULATIONS,
+# Plots all use the same scales.
 
 par(mfrow=c(4,1))
 
-ylim <-  max (proxy[[1]], proxy[[2]], wsims[[1]], wsims[[2]])
+yupper <-  max (proxy[[1]], proxy[[2]], wsims[[1]], wsims[[2]])
+ylower <-  min (proxy[[1]], proxy[[2]], wsims[[1]][,wmx], wsims[[2]][,wmx])
 
 plot (start, rep(0,length(start)),
-      ylim=c(0,1.02*ylim), yaxs="i", type="n", ylab="Incidence proxy")
+      ylim=c(0,1.02*yupper), yaxs="i", type="n",
+      ylab="Incidence proxy")
 
 lines (start, proxy[[1]], col="blue")
 lines (start, proxy[[2]], col="red")
@@ -344,15 +388,38 @@ lines (start, proxy[[2]], col="red")
 title (paste
  ("Observed proxies for",virus_group[1],"(blue) and",virus_group[2],"(red)"))
 
-for (s in 1:n_plotted)
+plot (start, rep(0,length(start)),
+      ylim=log(c(0.98*ylower,1.02*yupper)), yaxs="i", type="n",
+      ylab="Log incidence proxy")
+
+lines (start, log(proxy[[1]]), col="blue")
+lines (start, log(proxy[[2]]), col="red")
+
+for (s in 0:n_plotted)
 {
   plot (start, rep(0,length(start)),
-        ylim=c(0,1.02*ylim), yaxs="i", type="n", ylab="Simulated incidence")
+        ylim=c(0,1.02*yupper), yaxs="i", type="n", 
+        ylab="Simulated incidence")
 
-  lines (start, wsims[[1]][,s], col="blue")
-  lines (start, wsims[[2]][,s], col="red")
+  ss <- if (s==0) wmx else s
+  lines (start, wsims[[1]][,ss], col="blue")
+  lines (start, wsims[[2]][,ss], col="red")
 
-  if (s==1) title (paste ("Simulations of",virus_group[1],"and",virus_group[2]))
+  if (s==0) 
+  { 
+    title (paste ("Best fit simulation out of",nsims,
+                  "of",virus_group[1],"and",virus_group[2]))
+
+    plot (start, rep(0,length(start)),
+          ylim=log(c(0.98*ylower,1.02*yupper)), yaxs="i", type="n", 
+          ylab="Log simulated incidence")
+  
+    lines (start, log(wsims[[1]][,wmx]), col="blue")
+    lines (start, log(wsims[[2]][,wmx]), col="red")
+  }
+  if (s==1) 
+  { title (paste ("Other simulations of",virus_group[1],"and",virus_group[2]))
+  }
 }
 
 # ----- END OF LOOP OVER THE TWO VIRUS GROUPS -----
