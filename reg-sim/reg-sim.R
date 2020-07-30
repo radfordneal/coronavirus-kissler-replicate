@@ -146,7 +146,7 @@ SARS_gen_interval <-
             shape=SARS_shape, scale=SARS_scale)
 
 gen_interval <- SARS_gen_interval # / sum(SARS_gen_interval)
-rev_gen_interval <- rev(gen_interval)
+rev_gen_interval2 <- rep(rev(gen_interval),2)
 
 
 # PROXIES FOR VIRUS INCIDENCE.
@@ -203,8 +203,10 @@ run_sims <- function (nsims, warmup,
   q <- c (quantile(proxy[[1]],0.1), quantile(proxy[[2]],0.1))
   t <- matrix (q / (1-imm_decay[virus_group]), nrow=2, ncol=nsims)
   tlt <- matrix (q / (1-ltimm_decay[virus_group]), nrow=2, ncol=nsims)
+
   past <- list (matrix (q[1], nrow=length(gen_interval), ncol=nsims),
                 matrix (q[2], nrow=length(gen_interval), ncol=nsims))
+  past_next <- rep(1,2)
 
   # Space to store simulation results. A list of two matrices, one for each
   # virus, of dimension total number of days x nsims.
@@ -250,11 +252,14 @@ run_sims <- function (nsims, warmup,
                     mc [paste0(virus,"_otherlt")] * tlt [if (vi==1) 2 else 1,]
         }
 
-        inf <- colSums (past[[vi]] * rev_gen_interval)
+        rs <- length(gen_interval) + 2 - past_next[vi]
+        inf <- colSums (past[[vi]] * 
+                        rev_gen_interval2 [rs : (rs+length(gen_interval)-1)])
 
         p[[vi]] <- inf * exp (log_Rt + Rt_offset + rnorm(nsims,0,P$Rt_noise_sd))
 
-        past[[vi]] <- rbind (past[[vi]][-1,], p[[vi]])
+        past[[vi]][past_next[vi],] <- p[[vi]]
+        past_next[vi] <- past_next[vi] %% length(gen_interval) + 1
         sims[[vi]][day,] <- p[[vi]]
   
         t[vi,] <- p[[vi]] + t[vi,]*daily_decay[virus]
@@ -267,6 +272,7 @@ run_sims <- function (nsims, warmup,
       { wsave[w] <- wsave[w] - 1
         if (wsave[w] == 0)
         { sv_past <- past
+          sv_past_next <- past_next
           sv_t <- t
           sv_tlt <- tlt
         }
@@ -279,6 +285,7 @@ run_sims <- function (nsims, warmup,
     for (vi in 1:2)
     { n <- exp(rnorm(nsims,0,0.2))
       past[[vi]] <- sv_past[[vi]] * rep (n, each=nrow(sv_past[[vi]]))
+      past_next <- sv_past_next
       t[vi,] <- sv_t[vi,] * n
       tlt[vi,] <- sv_tlt[vi,] * n
     }
@@ -361,8 +368,8 @@ log_lik <- function (wsims, err_sd)
 
 set.seed(1)
 
-warmup <- 10
-nsims <- 1000
+warmup <- 6
+nsims <- 10000
 n_plotted <- 32
 
 wsims <- run_sims (nsims, warmup)
