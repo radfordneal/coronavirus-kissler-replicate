@@ -15,6 +15,8 @@
 #   - Long-term immune decay constants for i3/i4 model (defaults in code).
 #     For example: ltdecay:NL63=0.91,E229=0.92,OC43=0.93,HKU1=0.94
 #     May override just a subst of the values
+#   - Transformation to apply before comparing observed and simulated
+#     incidence (required) - identify, sqrt, log
 #
 # Produces various plots that are written to the file with name
 # reg-sim-<R-estimates>-<R-estimate-type>-<in>-<en>.pdf.  
@@ -56,6 +58,9 @@ getarg <- function (what)
 
 immune_type <- getarg (c("i2","i3", "i4"))
 seffect_type <- getarg (c("e2","e3"))
+itrans_arg <- getarg (c("identity","sqrt","log"))
+
+itrans <- get(itrans_arg)
 
 het_virus <- sum(args=="het") == 1
 if (het_virus) args <- args [! (args %in% "het")]
@@ -148,6 +153,8 @@ rev_gen_interval <- rev(gen_interval)
 
 proxy <- list (R_est[,paste0(virus_group[1],"_proxy")],
                R_est[,paste0(virus_group[2],"_proxy")])
+
+tproxy <- list (itrans(proxy[[1]]), itrans(proxy[[2]]))
 
 
 # FUNCTION TO RUN SIMULATIONS.  Returns 'nsims' simulation results, each
@@ -299,10 +306,10 @@ pprob <- function (wsims, err_sd)
   e <- 0
 
   for (vi in 1:2)
-  { e <- e - 0.5 * colSums ((proxy[[vi]] - wsims[[vi]])^2) / err_sd[vi]^2
+  { e <- e - 0.5 * colSums ((tproxy[[vi]]-itrans(wsims[[vi]]))^2) / err_sd[vi]^2
   }
 
-  p <-- exp (e-max(e))
+  p <- exp (e-max(e))
   p / sum(p)
 }
 
@@ -315,10 +322,11 @@ est_err_sd <- function (wsims, init_err_sd)
 
   err_sd <- rep (init_err_sd, length=2)
 
-  for (i in 1:10)
+  for (i in 1:6)
   { pp <- pprob (wsims, err_sd)
     for (vi in 1:2)
-    { err_sd[vi] <- sqrt (sum (pp * colMeans ((proxy[[vi]] - wsims[[vi]])^2)))
+    { err_sd[vi] <- 
+        sqrt (sum (pp * colMeans ((tproxy[[vi]]-itrans(wsims[[vi]]))^2)))
     }
     cat ("iter",i,": err_sd",round(err_sd,3),
                   ": log likelihood",log_lik(wsims,err_sd),"\n")
@@ -339,7 +347,7 @@ log_lik <- function (wsims, err_sd)
   e <- 0
 
   for (vi in 1:2)
-  { e <- e - 0.5 * colSums ((proxy[[vi]] - wsims[[vi]])^2) / err_sd[vi]^2
+  { e <- e - 0.5 * colSums ((tproxy[[vi]]-itrans(wsims[[vi]]))^2) / err_sd[vi]^2
   }
 
   maxe <- max(e)
@@ -354,7 +362,7 @@ log_lik <- function (wsims, err_sd)
 set.seed(1)
 
 warmup <- 10
-nsims <- 25000
+nsims <- 1000
 n_plotted <- 32
 
 wsims <- run_sims (nsims, warmup)
@@ -375,8 +383,12 @@ wmx <- which.max(pp)
 
 par(mfrow=c(4,1))
 
-yupper <-  max (proxy[[1]], proxy[[2]], wsims[[1]], wsims[[2]])
-ylower <-  min (proxy[[1]], proxy[[2]], wsims[[1]][,wmx], wsims[[2]][,wmx])
+yupper <-  max (proxy[[1]], proxy[[2]], 
+                wsims[[1]][,c(wmx,1:n_plotted)], 
+                wsims[[2]][,c(wmx,1:n_plotted)])
+ylower <-  min (proxy[[1]], proxy[[2]], exp(-4),
+                wsims[[1]][,wmx],
+                wsims[[2]][,wmx])
 
 plot (start, rep(0,length(start)),
       ylim=c(0,1.02*yupper), yaxs="i", type="n",
@@ -389,11 +401,11 @@ title (paste
  ("Observed proxies for",virus_group[1],"(blue) and",virus_group[2],"(red)"))
 
 plot (start, rep(0,length(start)),
-      ylim=log(c(0.98*ylower,1.02*yupper)), yaxs="i", type="n",
-      ylab="Log incidence proxy")
+      ylim=itrans(c(0.98*ylower,1.02*yupper)), yaxs="i", type="n",
+      ylab="Transformed incidence proxy")
 
-lines (start, log(proxy[[1]]), col="blue")
-lines (start, log(proxy[[2]]), col="red")
+lines (start, tproxy[[1]], col="blue")
+lines (start, tproxy[[2]], col="red")
 
 for (s in 0:n_plotted)
 {
@@ -411,11 +423,11 @@ for (s in 0:n_plotted)
                   "of",virus_group[1],"and",virus_group[2]))
 
     plot (start, rep(0,length(start)),
-          ylim=log(c(0.98*ylower,1.02*yupper)), yaxs="i", type="n", 
-          ylab="Log simulated incidence")
+          ylim=itrans(c(0.98*ylower,1.02*yupper)), yaxs="i", type="n", 
+          ylab="Transformed simulated incidence")
   
-    lines (start, log(wsims[[1]][,wmx]), col="blue")
-    lines (start, log(wsims[[2]][,wmx]), col="red")
+    lines (start, itrans(wsims[[1]][,wmx]), col="blue")
+    lines (start, itrans(wsims[[2]][,wmx]), col="red")
   }
   if (s==1) 
   { title (paste ("Other simulations of",virus_group[1],"and",virus_group[2]))
@@ -429,3 +441,5 @@ for (s in 0:n_plotted)
 # ALL DONE.
 
 dev.off()
+
+proc.time()
