@@ -174,10 +174,9 @@ tproxy <- list (itrans(proxy[[1]]), itrans(proxy[[2]]))
 #
 # 'P' is a list of parameter values affecting the simulation.
 
-run_sims <- function (nsims, warmup, 
-                      P = list(imm_decay = imm_decay, ltimm_decay = ltimm_decay,
-                               mc = coef(model), Rt_noise_sd = 0.05,
-                               Rt_offset_sd = 0.05, Rt_offset_alpha = 0.9))
+run_sims <- function (nsims, warmup, P = list (mc = coef(model), 
+              imm_decay = imm_decay, ltimm_decay = ltimm_decay, 
+              Rt_offset_alpha = 0.9, Rt_offset_sd = 0.05))
 {
   daily_decay <- P$imm_decay ^ (1/7)
   ltdaily_decay <- P$ltimm_decay ^ (1/7)
@@ -257,7 +256,7 @@ run_sims <- function (nsims, warmup,
         inf <- as.vector (rev_gen_interval2 [rs : (rs+length(gen_interval)-1)]
                            %*% past[[vi]])
 
-        p[[vi]] <- inf * exp (log_Rt + Rt_offset + rnorm(nsims,0,P$Rt_noise_sd))
+        p[[vi]] <- inf * exp (log_Rt + Rt_offset)
 
         past[[vi]][past_next[vi],] <- p[[vi]]
         past_next[vi] <- past_next[vi] %% length(gen_interval) + 1
@@ -309,11 +308,12 @@ run_sims <- function (nsims, warmup,
 
 # FIND ERRORS FOR EACH SIMULATION BASED ON AR(1) MODEL.  The error for
 # the first data point for each virus is neglected (effectively
-# treating it as a model parameter). Errors in data points are
-# modelled as an AR(1) process, with AR parameters err_alpha (one for
-# each virus). The err_sd parameters (one for each virus) give the
-# standard deviations of the errors, with err_sd^2 * (1-err_alpha^2)
-# being the variance of the innovations in the AR(1) process.
+# treating it as if it came from a broad, fixed distribution). Errors
+# in other data points are modelled as an AR(1) process, with AR
+# parameters err_alpha (one for each virus). The err_sd parameters
+# (one for each virus) give the standard deviations of the errors,
+# with err_sd^2 * (1-err_alpha^2) being the variance of the
+# innovations in the AR(1) process.
 
 sim_errors <- function (wsims, err_alpha, err_sd)
 {
@@ -399,10 +399,11 @@ log_lik <- function (wsims, err_alpha, err_sd, errors)
 RNGversion("2.15.1")
 set.seed(1)
 
-warmup <- 10
-nsims <- 1000
+warmup <- 8
+nsims <- 100000
 n_plotted <- 32
 
+wsims <- NULL  # free memory
 wsims <- run_sims (nsims, warmup)
 
 em <- est_error_model(wsims)
