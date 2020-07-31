@@ -307,11 +307,12 @@ run_sims <- function (nsims, warmup,
 }  
 
 
-# FIND ERRORS FOR EACH SIMULATION BASED ON AR(1) MODEL.  The error for the 
-# first data point for each virus is neglected (effectively treating it as 
-# a model parameter). Errors in data points are modelled as an AR(1) process,
-# with AR parameters err_alpha (one for each virus). The err_sd parameters
-# give the standard deviations of the errors, with err_sd^2 * (1-err_alpha^2)
+# FIND ERRORS FOR EACH SIMULATION BASED ON AR(1) MODEL.  The error for
+# the first data point for each virus is neglected (effectively
+# treating it as a model parameter). Errors in data points are
+# modelled as an AR(1) process, with AR parameters err_alpha (one for
+# each virus). The err_sd parameters (one for each virus) give the
+# standard deviations of the errors, with err_sd^2 * (1-err_alpha^2)
 # being the variance of the innovations in the AR(1) process.
 
 sim_errors <- function (wsims, err_alpha, err_sd)
@@ -358,10 +359,9 @@ est_error_model <- function (wsims, init_err_alpha=0, init_err_sd=2)
         cov <- sum (pp * colMeans (res[-1,]*res[-tn,]))
         # cat("cov",cov,"\n")
         err_alpha[vi] <- cov/var
-err_alpha[vi] <- 0
         err_sd[vi] <- 
-          sum (pp * colMeans ((res[-1,] - err_alpha[vi] * res[-tn,])^2)) /
-            (1-err_alpha[vi]^2)
+          sqrt (sum (pp * colMeans ((res[-1,] - err_alpha[vi] * res[-tn,])^2))
+                 / (1-err_alpha[vi]^2))
       }
     }
     cat ("  err_alpha",round(err_alpha,6),
@@ -399,7 +399,7 @@ log_lik <- function (wsims, err_alpha, err_sd, errors)
 set.seed(1)
 
 warmup <- 10
-nsims <- 1000
+nsims <- 5000
 n_plotted <- 32
 
 wsims <- run_sims (nsims, warmup)
