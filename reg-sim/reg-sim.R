@@ -254,8 +254,8 @@ run_sims <- function (nsims, warmup,
         }
 
         rs <- length(gen_interval) + 2 - past_next[vi]
-        inf <- colSums (past[[vi]] * 
-                        rev_gen_interval2 [rs : (rs+length(gen_interval)-1)])
+        inf <- as.vector (rev_gen_interval2 [rs : (rs+length(gen_interval)-1)]
+                           %*% past[[vi]])
 
         p[[vi]] <- inf * exp (log_Rt + Rt_offset + rnorm(nsims,0,P$Rt_noise_sd))
 
@@ -396,10 +396,11 @@ log_lik <- function (wsims, err_alpha, err_sd, errors)
   
 # DO THE SIMULATIONS.
 
+RNGversion("2.15.1")
 set.seed(1)
 
 warmup <- 10
-nsims <- 5000
+nsims <- 1000
 n_plotted <- 32
 
 wsims <- run_sims (nsims, warmup)
