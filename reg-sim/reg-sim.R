@@ -208,8 +208,8 @@ run_sims <- function (nsims, warmup, P = list (mc = coef(model),
   t <- matrix (q / (1-imm_decay[virus_group]), nrow=2, ncol=nsims)
   tlt <- matrix (q / (1-ltimm_decay[virus_group]), nrow=2, ncol=nsims)
 
-  past <- list (matrix (q[1], nrow=length(gen_interval), ncol=nsims),
-                matrix (q[2], nrow=length(gen_interval), ncol=nsims))
+  past <- list (matrix (q[1], nsims, length(gen_interval)),
+                matrix (q[2], nsims, length(gen_interval)))
   past_next <- rep(1,2)
 
   # Space to store simulation results. A list of two matrices, one for each
@@ -257,8 +257,8 @@ run_sims <- function (nsims, warmup, P = list (mc = coef(model),
         }
 
         rs <- length(gen_interval) + 2 - past_next[vi]
-        inf <- as.vector (rev_gen_interval2 [rs : (rs+length(gen_interval)-1)]
-                           %*% past[[vi]])
+        inf <- as.vector (past[[vi]] %*% 
+                          rev_gen_interval2 [rs : (rs+length(gen_interval)-1)])
 
         p[[vi]] <- inf * exp (log_Rt + Rt_offset)
 
@@ -266,7 +266,7 @@ run_sims <- function (nsims, warmup, P = list (mc = coef(model),
         { wsims[[vi]][,ceiling(day/7)] <- wsims[[vi]][,ceiling(day/7)] + p[[vi]]
         }
 
-        past[[vi]][past_next[vi],] <- p[[vi]]
+        past[[vi]][,past_next[vi]] <- p[[vi]]
         past_next[vi] <- past_next[vi] %% length(gen_interval) + 1
   
         t[vi,] <- p[[vi]] + t[vi,]*daily_decay[virus]
@@ -291,7 +291,7 @@ run_sims <- function (nsims, warmup, P = list (mc = coef(model),
   
     for (vi in 1:2)
     { n <- exp(rnorm(nsims,0,0.2))
-      past[[vi]] <- sv_past[[vi]] * rep (n, each=nrow(sv_past[[vi]]))
+      past[[vi]] <- sv_past[[vi]] * n
       past_next <- sv_past_next
       t[vi,] <- sv_t[vi,] * n
       tlt[vi,] <- sv_tlt[vi,] * n
