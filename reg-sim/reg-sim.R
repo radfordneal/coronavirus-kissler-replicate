@@ -1,5 +1,5 @@
-# Code simulate data according to a model fit to estimated Rt values, read
-# from the R-model directory.
+# Code to simulate viral incidence according to a model fit to estimated Rt
+# values, read from the R-model directory.
 #
 # Options are specified by arguments in the R command after --args:
 #
@@ -234,7 +234,7 @@ run_sims <- function (nsims, warmup, P = list (mc = coef(model),
     for (day in 1:(7*length(start)))
     {
       Rt_offset <- P$Rt_offset_alpha * Rt_offset +
-                   sqrt(1-P$Rt_offset_alpha^2) * rnorm(nsims,0,P$Rt_offset_sd)
+                   P$Rt_offset_sd * sqrt(1-P$Rt_offset_alpha^2) * rnorm(nsims)
 
       for (vi in 1:2)
       { 
