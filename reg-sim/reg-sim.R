@@ -215,7 +215,7 @@ run_sims <- function (nsims, warmup, P = list (mc = coef(model),
   # Space to store simulation results. A list of two matrices, one for each
   # virus, of dimension total number of weeks x nsims.
 
-  wsims <- rep (list(matrix(0,length(start),nsims)), times=2)
+  wsims <- rep (list(matrix(0,nsims,length(start))), times=2)
 
   # Stuff for saving a state for use to initialize the next simulation.
   
@@ -263,7 +263,7 @@ run_sims <- function (nsims, warmup, P = list (mc = coef(model),
         p[[vi]] <- inf * exp (log_Rt + Rt_offset)
 
         if (w > warmup)
-        { wsims[[vi]][ceiling(day/7),] <- wsims[[vi]][ceiling(day/7),] + p[[vi]]
+        { wsims[[vi]][,ceiling(day/7)] <- wsims[[vi]][,ceiling(day/7)] + p[[vi]]
         }
 
         past[[vi]][past_next[vi],] <- p[[vi]]
@@ -298,8 +298,10 @@ run_sims <- function (nsims, warmup, P = list (mc = coef(model),
     }
   }
 
-  # Return weekly values.
+  # Return weekly values.  Transpose from the orientation that is fasted
+  # for the above code, to what is convenient later.
 
+  for (vi in 1:2) wsims[[vi]] <- t(wsims[[vi]])
   wsims
 }  
 
@@ -398,7 +400,7 @@ RNGversion("2.15.1")
 set.seed(1)
 
 warmup <- 8
-nsims <- 1000
+nsims <- 10000
 n_plotted <- 32
 
 wsims <- NULL  # free memory
