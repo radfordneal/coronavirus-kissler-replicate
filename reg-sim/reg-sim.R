@@ -164,7 +164,8 @@ tproxy <- list (itrans(proxy[[1]]), itrans(proxy[[2]]))
 #
 # Simulations are done day-by-day (not week-by-week), using the trend spline
 # and seasonal effects, and the long and short term immunity based on previous
-# incidence.
+# incidence. However, the results are weekly values, summed over the days in
+# each week.
 #
 # Initial values for the history of incidence are taken from the end
 # of one of the seasons in the preceding five-year simulation (and set
@@ -173,6 +174,9 @@ tproxy <- list (itrans(proxy[[1]]), itrans(proxy[[2]]))
 # Rt values, differently for each simulation.
 #
 # 'P' is a list of parameter values affecting the simulation.
+#
+# The returned value is a list of, for each virus, a matrix with
+# dimensions number of weeks x nsims.
 
 run_sims <- function (nsims, warmup, P = list (mc = coef(model), 
               imm_decay = imm_decay, ltimm_decay = ltimm_decay, 
@@ -209,9 +213,9 @@ run_sims <- function (nsims, warmup, P = list (mc = coef(model),
   past_next <- rep(1,2)
 
   # Space to store simulation results. A list of two matrices, one for each
-  # virus, of dimension total number of days x nsims.
+  # virus, of dimension total number of weeks x nsims.
 
-  sims <- rep (list (matrix (0, nrow=7*length(start), ncol=nsims)), times=2)
+  wsims <- rep (list(matrix(0,length(start),nsims)), times=2)
 
   # Stuff for saving a state for use to initialize the next simulation.
   
@@ -258,9 +262,12 @@ run_sims <- function (nsims, warmup, P = list (mc = coef(model),
 
         p[[vi]] <- inf * exp (log_Rt + Rt_offset)
 
+        if (w > warmup)
+        { wsims[[vi]][ceiling(day/7),] <- wsims[[vi]][ceiling(day/7),] + p[[vi]]
+        }
+
         past[[vi]][past_next[vi],] <- p[[vi]]
         past_next[vi] <- past_next[vi] %% length(gen_interval) + 1
-        sims[[vi]][day,] <- p[[vi]]
   
         t[vi,] <- p[[vi]] + t[vi,]*daily_decay[virus]
         tlt[vi,] <- p[[vi]] + tlt[vi,]*ltdaily_decay[virus]
@@ -290,17 +297,8 @@ run_sims <- function (nsims, warmup, P = list (mc = coef(model),
       tlt[vi,] <- sv_tlt[vi,] * n
     }
   }
-  
-  # Return results of final simulations, cnverted to weekly values. The
-  # returned value is a list of, for each virus, a matrix with dimensions
-  # number of weeks x nsims.
-  
-  w <- seq (4, 7*length(start), by=7)
-  wsims <- vector("list",2)
-  for (vi in 1:2)
-  { wsims[[vi]] <- matrix(NA,length(w),nsims)
-    for (s in 1:nsims) wsims[[vi]][,s] <- filter (sims[[vi]][,s], rep(1,7)) [w]
-  }
+
+  # Return weekly values.
 
   wsims
 }  
@@ -400,7 +398,7 @@ RNGversion("2.15.1")
 set.seed(1)
 
 warmup <- 8
-nsims <- 100000
+nsims <- 1000
 n_plotted <- 32
 
 wsims <- NULL  # free memory
