@@ -75,7 +75,8 @@ file_base <- paste0 (R_estimates,"-Rt-s2-",immune_type,"-",seffect_type,
 
 # PLOT SETUP.
 
-pdf (paste0 ("reg-sim-",gsub("Rt-s2-","",file_base),".pdf"), height=8, width=6)
+pdf (paste0 ("reg-sim-",gsub("Rt-s2-","",file_base),"-",itrans_arg,".pdf"),
+     height=8, width=6)
 par(mar=c(1.5,2.3,3,0.5), mgp=c(1.4,0.3,0), tcl=-0.22)
 yrcols <- c("red","green","blue","orange","darkcyan","darkmagenta")
 
@@ -306,61 +307,90 @@ run_sims <- function (nsims, warmup,
 }  
 
 
-# FIND POSTERIOR PROBABILITIES OF ALTERNATIVE INFECTION HISTORIES.
+# FIND ERRORS FOR EACH SIMULATION BASED ON AR(1) MODEL.  The error for the 
+# first data point for each virus is neglected (effectively treating it as 
+# a model parameter). Errors in data points are modelled as an AR(1) process,
+# with AR parameters err_alpha (one for each virus). The err_sd parameters
+# give the standard deviations of the errors, with err_sd^2 * (1-err_alpha^2)
+# being the variance of the innovations in the AR(1) process.
 
-pprob <- function (wsims, err_sd)
+sim_errors <- function (wsims, err_alpha, err_sd)
 {
   e <- 0
-
   for (vi in 1:2)
-  { e <- e - 0.5 * colSums ((tproxy[[vi]]-itrans(wsims[[vi]]))^2) / err_sd[vi]^2
+  { tn <- length(tproxy[[vi]])
+    res <- tproxy[[vi]] - itrans(wsims[[vi]])
+    esq <- (res[-1,] - err_alpha[vi] * res[-tn,])^2
+    ivar <- err_sd[vi]^2 * (1-err_alpha[vi]^2)
+    e <- e + colSums(esq) / ivar
   }
+  e
+}
 
-  p <- exp (e-max(e))
+
+# FIND POSTERIOR PROBABILITIES OF ALTERNATIVE INFECTION HISTORIES.
+
+pprob <- function (errors)
+{
+  p <- exp (-0.5*(errors-min(errors)))
   p / sum(p)
 }
 
 
-# ESTIMATE ERROR STANDARD DEVIATIONS.
+# ESTIMATE ERROR ALPHAS AND STANDARD DEVIATIONS.
 
-est_err_sd <- function (wsims, init_err_sd)
+est_error_model <- function (wsims, init_err_alpha=0, init_err_sd=2)
 {
-  cat("Estimation of error standard deviations\n\n")
+  cat("Estimation of error model\n\n")
 
+  err_alpha <- rep (init_err_alpha, length=2)
   err_sd <- rep (init_err_sd, length=2)
 
-  for (i in 1:6)
-  { pp <- pprob (wsims, err_sd)
-    for (vi in 1:2)
-    { err_sd[vi] <- 
-        sqrt (sum (pp * colMeans ((tproxy[[vi]]-itrans(wsims[[vi]]))^2)))
+  for (i in 0:6)
+  { cat ("iter",i,"\n")
+    if (i>0)
+    { pp <- pprob (sim_errors (wsims, err_alpha, err_sd))
+      for (vi in 1:2)
+      { tn <- length(tproxy[[vi]])
+        res <- tproxy[[vi]] - itrans(wsims[[vi]])
+        var <- sum (pp * colMeans (res[-1,]^2))
+        # cat("var",var,"\n")
+        cov <- sum (pp * colMeans (res[-1,]*res[-tn,]))
+        # cat("cov",cov,"\n")
+        err_alpha[vi] <- cov/var
+err_alpha[vi] <- 0
+        err_sd[vi] <- 
+          sum (pp * colMeans ((res[-1,] - err_alpha[vi] * res[-tn,])^2)) /
+            (1-err_alpha[vi]^2)
+      }
     }
-    cat ("iter",i,": err_sd",round(err_sd,3),
-                  ": log likelihood",log_lik(wsims,err_sd),"\n")
+    cat ("  err_alpha",round(err_alpha,6),
+         ": err_sd",round(err_sd,3),
+         ": log likelihood",log_lik(wsims,err_alpha,err_sd),"\n")
   }
 
-  err_sd
+  list (err_alpha=err_alpha, err_sd=err_sd)
 }
 
 
 # COMPUTE THE LOG LIKELIHOOD BASED ON A SET OF SIMULATION RESULTS.
 # The multiple simulations are taken as a Monte Carlo estiamte of the
-# marginal distribution of the observed data given parameters.  Errors
-# are assumed independent with a zero-mean normal distribution, with
-# given standard deviations.  Omits constant terms involving pi.
+# distribution of the infection histories for given parameters.  The
+# likelihood is average of the probability of the observed infection
+# proxies given these histories, using the AR(1) error model. Constant 
+# terms involving pi are omitted.
 
-log_lik <- function (wsims, err_sd)
+log_lik <- function (wsims, err_alpha, err_sd, errors)
 {
-  e <- 0
-
-  for (vi in 1:2)
-  { e <- e - 0.5 * colSums ((tproxy[[vi]]-itrans(wsims[[vi]]))^2) / err_sd[vi]^2
+  if (missing(errors))
+  { errors <- sim_errors (wsims, err_alpha, err_sd)
   }
 
-  maxe <- max(e)
+  mine <- min(errors)
   n <- nrow(wsims[[1]])
 
-  log(mean(exp(e-maxe))) + maxe - n * (log(err_sd[1]) + log(err_sd[2]))
+  ( log(mean(exp(-0.5*(errors-mine)))) - 0.5*mine 
+      - (n-1) * sum(log(err_sd*sqrt(1-err_alpha^2))) )
 }
   
   
@@ -368,17 +398,19 @@ log_lik <- function (wsims, err_sd)
 
 set.seed(1)
 
-warmup <- 6
-nsims <- 10000
+warmup <- 10
+nsims <- 1000
 n_plotted <- 32
 
 wsims <- run_sims (nsims, warmup)
 
-err_sd <- est_err_sd(wsims,c(2.5,2.5))
+em <- est_error_model(wsims)
+err_alpha <- em$err_alpha
+err_sd <-em$err_sd
 
-cat ("Log likelihood:", round(log_lik(wsims,err_sd),1), "\n\n")
+cat ("Log likelihood:", round(log_lik(wsims,err_alpha,err_sd),1), "\n\n")
 
-pp <- pprob(wsims,err_sd)
+pp <- pprob(sim_errors(wsims,err_alpha,err_sd))
 cat ("Highest posterior probabilities:\n")
 print (round(sort(pp,decreasing=TRUE)[1:16],6))
 
@@ -409,7 +441,7 @@ title (paste
 
 plot (start, rep(0,length(start)),
       ylim=itrans(c(0.98*ylower,1.02*yupper)), yaxs="i", type="n",
-      ylab="Transformed incidence proxy")
+      ylab=paste(if (itrans_arg!="identity") itrans_arg, "incidence proxy"))
 
 lines (start, tproxy[[1]], col="blue")
 lines (start, tproxy[[2]], col="red")
@@ -430,8 +462,8 @@ for (s in 0:n_plotted)
                   "of",virus_group[1],"and",virus_group[2]))
 
     plot (start, rep(0,length(start)),
-          ylim=itrans(c(0.98*ylower,1.02*yupper)), yaxs="i", type="n", 
-          ylab="Transformed simulated incidence")
+      ylim=itrans(c(0.98*ylower,1.02*yupper)), yaxs="i", type="n", 
+      ylab=paste(if (itrans_arg!="identity") itrans_arg, "simulated incidence"))
   
     lines (start, itrans(wsims[[1]][,wmx]), col="blue")
     lines (start, itrans(wsims[[2]][,wmx]), col="red")
