@@ -325,12 +325,14 @@ sim_errors <- function (twsims, err_alpha, err_sd)
 {
   e <- 0
   for (vi in 1:2)
-  { tn <- length(tproxy[[vi]])
-    res <- twsims[[vi]]
-    for (j in 1:ncol(res)) res[,j] <- tproxy[[vi]][j] - res[,j]
-    esq <- (res[,-1] - err_alpha[vi] * res[,-tn])^2
+  { tp <- tproxy[[vi]]
+    tv <- twsims[[vi]]
+    ev <- 0
+    for (j in 2:ncol(tv))
+    { ev <- ev + ((tp[j]-tv[,j]) - err_alpha[vi] * (tp[j-1]-tv[,j-1]))^2
+    }
     ivar <- err_sd[vi]^2 * (1-err_alpha[vi]^2)
-    e <- e + rowSums(esq) / ivar
+    e <- e + ev / ivar
   }
   e
 }
@@ -359,20 +361,24 @@ est_error_model <- function (twsims, init_err_alpha=0, init_err_sd=2)
     if (i>0)
     { pp <- pprob (sim_errors (twsims, err_alpha, err_sd))
       for (vi in 1:2)
-      { tn <- length(tproxy[[vi]])
-        res <- twsims[[vi]]
-        for (j in 1:ncol(res)) res[,j] <- tproxy[[vi]][j] - res[,j]
-        resx1 <- res[,-1]
-        resxn <- res[,-tn]
-        var <- sum (pp * rowMeans (resx1^2))
+      { tp <- tproxy[[vi]]
+        tv <- twsims[[vi]]
+        var <- 0
+        cov <- 0
+        for (j in 2:ncol(tv))
+        { var <- var + (tp[j-1]-tv[,j-1])^2
+          cov <- cov + (tp[j]-tv[,j]) * (tp[j-1]-tv[,j-1])
+        }
+        var <- sum(pp*var) / (ncol(tv)-1)
+        cov <- sum(pp*cov) / (ncol(tv)-1)
         # cat("var",var,"\n")
-        cov <- sum (pp * rowMeans (resx1*resxn))
         # cat("cov",cov,"\n")
         err_alpha[vi] <- cov/var
-        err_sd[vi] <- 
-          sqrt (sum (pp * rowMeans ((resx1 - err_alpha[vi] * resxn)^2))
-                 / (1-err_alpha[vi]^2))
-        res <- resx1 <- resn <- NULL  # free memory
+        esd <- 0
+        for (j in 2:ncol(tv))
+        { esd <- esd + ((tp[j]-tv[,j]) - err_alpha[vi]*(tp[j-1]-tv[,j-1]))^2
+        }
+        err_sd[vi] <- sqrt (sum(pp*esd) / (1-err_alpha[vi]^2) / (ncol(tv)-1))
       }
     }
     cat ("  err_alpha",round(err_alpha,6),
