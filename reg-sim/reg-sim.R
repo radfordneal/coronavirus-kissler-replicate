@@ -226,6 +226,8 @@ run_sims <- function (nsims, warmup, P = list (mc = coef(model),
   
   for (w in 1:(warmup+1))
   {
+    # cat("w =",w,"\n")
+
     # Do next simulations of a five-year period.
   
     Rt_offset <- rnorm(nsims,0,P$Rt_offset_sd) # initialize AR(1) process that
@@ -282,6 +284,7 @@ run_sims <- function (nsims, warmup, P = list (mc = coef(model),
           sv_past_next <- past_next
           sv_t <- t
           sv_tlt <- tlt
+          # cat("Saved day",day,"\n")
         }
       }
     }
@@ -290,12 +293,15 @@ run_sims <- function (nsims, warmup, P = list (mc = coef(model),
     # separately for each simulation.
   
     for (vi in 1:2)
-    { n <- exp(rnorm(nsims,0,0.2))
+    { # cat("start initializing from saved\n")
+      n <- exp(rnorm(nsims,0,0.2))
       past[[vi]] <- sv_past[[vi]] * n
       past_next <- sv_past_next
       t[vi,] <- sv_t[vi,] * n
       tlt[vi,] <- sv_tlt[vi,] * n
     }
+
+    sv_past <- sv_t <- sv_tlt <- NULL  # free memory
   }
 
   # Return weekly values.  Transpose from the orientation that is fasted
@@ -315,12 +321,12 @@ run_sims <- function (nsims, warmup, P = list (mc = coef(model),
 # with err_sd^2 * (1-err_alpha^2) being the variance of the
 # innovations in the AR(1) process.
 
-sim_errors <- function (wsims, err_alpha, err_sd)
+sim_errors <- function (twsims, err_alpha, err_sd)
 {
   e <- 0
   for (vi in 1:2)
   { tn <- length(tproxy[[vi]])
-    res <- tproxy[[vi]] - itrans(wsims[[vi]])
+    res <- tproxy[[vi]] - twsims[[vi]]
     esq <- (res[-1,] - err_alpha[vi] * res[-tn,])^2
     ivar <- err_sd[vi]^2 * (1-err_alpha[vi]^2)
     e <- e + colSums(esq) / ivar
@@ -340,7 +346,7 @@ pprob <- function (errors)
 
 # ESTIMATE ERROR ALPHAS AND STANDARD DEVIATIONS.
 
-est_error_model <- function (wsims, init_err_alpha=0, init_err_sd=2)
+est_error_model <- function (twsims, init_err_alpha=0, init_err_sd=2)
 {
   cat("Estimation of error model\n\n")
 
@@ -350,23 +356,26 @@ est_error_model <- function (wsims, init_err_alpha=0, init_err_sd=2)
   for (i in 0:6)
   { cat ("iter",i,"\n")
     if (i>0)
-    { pp <- pprob (sim_errors (wsims, err_alpha, err_sd))
+    { pp <- pprob (sim_errors (twsims, err_alpha, err_sd))
       for (vi in 1:2)
       { tn <- length(tproxy[[vi]])
-        res <- tproxy[[vi]] - itrans(wsims[[vi]])
-        var <- sum (pp * colMeans (res[-1,]^2))
+        res <- tproxy[[vi]] - twsims[[vi]]
+        resx1 <- res[-1,]
+        resxn <- res[-tn,]
+        var <- sum (pp * colMeans (resx1^2))
         # cat("var",var,"\n")
-        cov <- sum (pp * colMeans (res[-1,]*res[-tn,]))
+        cov <- sum (pp * colMeans (resx1*resxn))
         # cat("cov",cov,"\n")
         err_alpha[vi] <- cov/var
         err_sd[vi] <- 
-          sqrt (sum (pp * colMeans ((res[-1,] - err_alpha[vi] * res[-tn,])^2))
+          sqrt (sum (pp * colMeans ((resx1 - err_alpha[vi] * resxn)^2))
                  / (1-err_alpha[vi]^2))
+        res <- resx1 <- resn <- NULL  # free memory
       }
     }
     cat ("  err_alpha",round(err_alpha,6),
          ": err_sd",round(err_sd,3),
-         ": log likelihood",log_lik(wsims,err_alpha,err_sd),"\n")
+         ": log likelihood",log_lik(twsims,err_alpha,err_sd),"\n")
   }
 
   list (err_alpha=err_alpha, err_sd=err_sd)
@@ -380,14 +389,14 @@ est_error_model <- function (wsims, init_err_alpha=0, init_err_sd=2)
 # proxies given these histories, using the AR(1) error model. Constant 
 # terms involving pi are omitted.
 
-log_lik <- function (wsims, err_alpha, err_sd, errors)
+log_lik <- function (twsims, err_alpha, err_sd, errors)
 {
   if (missing(errors))
-  { errors <- sim_errors (wsims, err_alpha, err_sd)
+  { errors <- sim_errors (twsims, err_alpha, err_sd)
   }
 
   mine <- min(errors)
-  n <- nrow(wsims[[1]])
+  n <- nrow(twsims[[1]])
 
   ( log(mean(exp(-0.5*(errors-mine)))) - 0.5*mine 
       - (n-1) * sum(log(err_sd*sqrt(1-err_alpha^2))) )
@@ -403,16 +412,21 @@ warmup <- 8
 nsims <- 10000
 n_plotted <- 32
 
+# Rprofmemt (nelem=2*nsims+1)
+
 wsims <- NULL  # free memory
 wsims <- run_sims (nsims, warmup)
 
-em <- est_error_model(wsims)
+twsims <- vector("list",2)
+for (vi in 1:2) twsims[[vi]] <- itrans(wsims[[vi]])
+
+em <- est_error_model(twsims)
 err_alpha <- em$err_alpha
 err_sd <-em$err_sd
 
-cat ("Log likelihood:", round(log_lik(wsims,err_alpha,err_sd),1), "\n\n")
+cat ("Log likelihood:", round(log_lik(twsims,err_alpha,err_sd),1), "\n\n")
 
-pp <- pprob(sim_errors(wsims,err_alpha,err_sd))
+pp <- pprob(sim_errors(twsims,err_alpha,err_sd))
 cat ("Highest posterior probabilities:\n")
 print (round(sort(pp,decreasing=TRUE)[1:16],6))
 
@@ -467,8 +481,8 @@ for (s in 0:n_plotted)
       ylim=itrans(c(0.98*ylower,1.02*yupper)), yaxs="i", type="n", 
       ylab=paste(if (itrans_arg!="identity") itrans_arg, "simulated incidence"))
   
-    lines (start, itrans(wsims[[1]][,wmx]), col="blue")
-    lines (start, itrans(wsims[[2]][,wmx]), col="red")
+    lines (start, twsims[[1]][,wmx], col="blue")
+    lines (start, twsims[[2]][,wmx], col="red")
   }
   if (s==1) 
   { title (paste ("Other simulations of",virus_group[1],"and",virus_group[2]))
