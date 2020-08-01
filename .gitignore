@@ -1,7 +1,8 @@
 .DS_Store
 .Rapp.history
-.RHistory
+.Rhistory
 .RData
+perf.data*
 *.out
 *.model
 *.RData
