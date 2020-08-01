@@ -9,17 +9,11 @@
 #   - Model of seasonal effect (required) - e2 (sine), e3 (Fourier)
 #   - Whether heteroskedasticity w.r.t. virus is modelled - het for "yes" 
 #     (default "no")
-#   - Immune decay constants (defaults in code).
-#     For example: decay:NL63=0.9,E229=0.8,OC43=0.7,HKU1=0.6
-#     May override just a subst of the values
-#   - Long-term immune decay constants for i3/i4 model (defaults in code).
-#     For example: ltdecay:NL63=0.91,E229=0.92,OC43=0.93,HKU1=0.94
-#     May override just a subst of the values
 #   - Transformation to apply before comparing observed and simulated
 #     incidence (required) - identify, sqrt, log
 #
 # Produces various plots that are written to the file with name
-# reg-sim-<R-estimates>-<R-estimate-type>-<in>-<en>.pdf.  
+# reg-sim-<R-estimates>-<in>-<en>-<trans>.pdf.  
 #
 # Copyright 2020 by Radford M. Neal
 # 
