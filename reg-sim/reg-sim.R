@@ -66,6 +66,11 @@ stopifnot(length(R_estimates)==1)
 file_base <- paste0 (R_estimates,"-Rt-s2-",immune_type,"-",seffect_type,
                      if (het_virus) "-het")
 
+nsims <- 10000
+warmup <- 6
+keep <- 20
+n_plotted <- 32
+
 
 # PLOT SETUP.
 
@@ -152,9 +157,9 @@ proxy <- list (R_est[,paste0(virus_group[1],"_proxy")],
 tproxy <- list (itrans(proxy[[1]]), itrans(proxy[[2]]))
 
 
-# FUNCTION TO RUN SIMULATIONS.  Returns 'nsims' simulation results, each
-# found by a series of five-year simulations with 'warmup' simulations before 
-# the final one that is returned.
+# FUNCTION TO RUN SIMULATIONS.  Returns nsims*keep simulation results,
+# found by nsims series of five-year simulations, with 'warmup' simulations
+# done before 'keep' simulations that are used.
 #
 # Simulations are done day-by-day (not week-by-week), using the trend spline
 # and seasonal effects, and the long and short term immunity based on previous
@@ -170,9 +175,9 @@ tproxy <- list (itrans(proxy[[1]]), itrans(proxy[[2]]))
 # 'P' is a list of parameter values affecting the simulation.
 #
 # The returned value is a list of, for each virus, a matrix with
-# dimensions number of weeks x nsims.
+# dimensions number of weeks x nsims*keep.
 
-run_sims <- function (nsims, warmup, P = list (mc = coef(model), 
+run_sims <- function (nsims, warmup, keep, P = list (mc = coef(model), 
               imm_decay = imm_decay, ltimm_decay = ltimm_decay, 
               Rt_offset_alpha = 0.9, Rt_offset_sd = 0.05))
 {
@@ -207,18 +212,18 @@ run_sims <- function (nsims, warmup, P = list (mc = coef(model),
   past_next <- rep(1,2)
 
   # Space to store simulation results. A list of two matrices, one for each
-  # virus, of dimension total number of weeks x nsims.
+  # virus, of dimension total number of weeks x nsims*keep.
 
-  wsims <- rep (list(matrix(0,nsims,length(start))), times=2)
+  wsims <- rep (list (matrix (0, nsims*keep, length(start))), times=2)
 
   # Stuff for saving a state for use to initialize the next simulation.
   
-  wsave <- sample(rep(1:5,length=warmup+1))
+  wsave <- sample(rep(1:5,length=warmup+keep))
   sv_past <- NULL
 
   p <- vector("list",2)
   
-  for (w in 1:(warmup+1))
+  for (w in 1:(warmup+keep))
   {
     # cat("w =",w,"\n")
 
@@ -226,7 +231,9 @@ run_sims <- function (nsims, warmup, P = list (mc = coef(model),
   
     Rt_offset <- rnorm(nsims,0,P$Rt_offset_sd) # initialize AR(1) process that
                                                #   modifies modelled Rt values
-  
+
+    k <- (nsims * (w-warmup-1) + 1) : (nsims * (w-warmup))
+
     for (day in 1:(7*length(start)))
     {
       Rt_offset <- P$Rt_offset_alpha * Rt_offset +
@@ -259,7 +266,8 @@ run_sims <- function (nsims, warmup, P = list (mc = coef(model),
         p[[vi]] <- inf * exp (log_Rt + Rt_offset)
 
         if (w > warmup)
-        { wsims[[vi]][,ceiling(day/7)] <- wsims[[vi]][,ceiling(day/7)] + p[[vi]]
+        { wsims[[vi]][k,ceiling(day/7)] <- 
+            wsims[[vi]][k,ceiling(day/7)] + p[[vi]]
         }
 
         past[[vi]][,past_next[vi]] <- p[[vi]]
@@ -402,14 +410,10 @@ log_lik <- function (twsims, err_alpha, err_sd, errors)
 RNGversion("2.15.1")
 set.seed(1)
 
-warmup <- 8
-nsims <- 10000
-n_plotted <- 32
-
 # Rprofmemt (nelem=2*nsims+1)
 
 wsims <- NULL  # free memory
-wsims <- run_sims (nsims, warmup)
+wsims <- run_sims (nsims, warmup, keep)
 
 twsims <- vector("list",2)
 for (vi in 1:2) twsims[[vi]] <- itrans(wsims[[vi]])
@@ -418,11 +422,13 @@ em <- est_error_model(twsims)
 err_alpha <- em$err_alpha
 err_sd <-em$err_sd
 
-cat ("Log likelihood:", round(log_lik(twsims,err_alpha,err_sd),1), "\n\n")
-
 pp <- pprob(sim_errors(twsims,err_alpha,err_sd))
-cat ("Highest posterior probabilities:\n")
+
+cat ("\nHighest posterior probabilities:\n")
 print (round(sort(pp,decreasing=TRUE)[1:16],6))
+
+cat ("\nLog likelihood,",length(pp),"simulations:", 
+      round(log_lik(twsims,err_alpha,err_sd),1), "\n")
 
 wmx <- which.max(pp)
 
@@ -468,8 +474,8 @@ for (s in 0:n_plotted)
 
   if (s==0) 
   { 
-    title (paste ("Best fit simulation out of",nsims,
-                  "of",virus_group[1],"and",virus_group[2]))
+    title (paste ("Best fit simulation out of",nsims,"x",keep,
+                  "for",virus_group[1],"and",virus_group[2]))
 
     plot (start, rep(0,length(start)),
       ylim=itrans(c(0.98*ylower,1.02*yupper)), yaxs="i", type="n", 
