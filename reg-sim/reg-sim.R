@@ -66,7 +66,7 @@ stopifnot(length(R_estimates)==1)
 file_base <- paste0 (R_estimates,"-Rt-s2-",immune_type,"-",seffect_type,
                      if (het_virus) "-het")
 
-nsims <- 10000
+nsims <- 5000
 warmup <- 6
 keep <- 20
 n_plotted <- 32
@@ -175,7 +175,7 @@ tproxy <- list (itrans(proxy[[1]]), itrans(proxy[[2]]))
 # 'P' is a list of parameter values affecting the simulation.
 #
 # The returned value is a list of, for each virus, a matrix with
-# dimensions number of weeks x nsims*keep.
+# dimensions nsims*keep x number of weeks.
 
 run_sims <- function (nsims, warmup, keep, P = list (mc = coef(model), 
               imm_decay = imm_decay, ltimm_decay = ltimm_decay, 
@@ -306,10 +306,8 @@ run_sims <- function (nsims, warmup, keep, P = list (mc = coef(model),
     sv_past <- sv_t <- sv_tlt <- NULL  # free memory
   }
 
-  # Return weekly values.  Transpose from the orientation that is fasted
-  # for the above code, to what is convenient later.
+  # Return weekly values.
 
-  for (vi in 1:2) wsims[[vi]] <- t(wsims[[vi]])
   wsims
 }  
 
@@ -328,10 +326,11 @@ sim_errors <- function (twsims, err_alpha, err_sd)
   e <- 0
   for (vi in 1:2)
   { tn <- length(tproxy[[vi]])
-    res <- tproxy[[vi]] - twsims[[vi]]
-    esq <- (res[-1,] - err_alpha[vi] * res[-tn,])^2
+    res <- twsims[[vi]]
+    for (j in 1:ncol(res)) res[,j] <- tproxy[[vi]][j] - res[,j]
+    esq <- (res[,-1] - err_alpha[vi] * res[,-tn])^2
     ivar <- err_sd[vi]^2 * (1-err_alpha[vi]^2)
-    e <- e + colSums(esq) / ivar
+    e <- e + rowSums(esq) / ivar
   }
   e
 }
@@ -361,16 +360,17 @@ est_error_model <- function (twsims, init_err_alpha=0, init_err_sd=2)
     { pp <- pprob (sim_errors (twsims, err_alpha, err_sd))
       for (vi in 1:2)
       { tn <- length(tproxy[[vi]])
-        res <- tproxy[[vi]] - twsims[[vi]]
-        resx1 <- res[-1,]
-        resxn <- res[-tn,]
-        var <- sum (pp * colMeans (resx1^2))
+        res <- twsims[[vi]]
+        for (j in 1:ncol(res)) res[,j] <- tproxy[[vi]][j] - res[,j]
+        resx1 <- res[,-1]
+        resxn <- res[,-tn]
+        var <- sum (pp * rowMeans (resx1^2))
         # cat("var",var,"\n")
-        cov <- sum (pp * colMeans (resx1*resxn))
+        cov <- sum (pp * rowMeans (resx1*resxn))
         # cat("cov",cov,"\n")
         err_alpha[vi] <- cov/var
         err_sd[vi] <- 
-          sqrt (sum (pp * colMeans ((resx1 - err_alpha[vi] * resxn)^2))
+          sqrt (sum (pp * rowMeans ((resx1 - err_alpha[vi] * resxn)^2))
                  / (1-err_alpha[vi]^2))
         res <- resx1 <- resn <- NULL  # free memory
       }
@@ -398,7 +398,7 @@ log_lik <- function (twsims, err_alpha, err_sd, errors)
   }
 
   mine <- min(errors)
-  n <- nrow(twsims[[1]])
+  n <- ncol(twsims[[1]])
 
   ( log(mean(exp(-0.5*(errors-mine)))) - 0.5*mine 
       - (n-1) * sum(log(err_sd*sqrt(1-err_alpha^2))) )
@@ -412,7 +412,7 @@ set.seed(1)
 
 # Rprofmemt (nelem=2*nsims+1)
 
-wsims <- NULL  # free memory
+wsims <- twsims <- NULL  # free memory
 wsims <- run_sims (nsims, warmup, keep)
 
 twsims <- vector("list",2)
@@ -439,11 +439,11 @@ wmx <- which.max(pp)
 par(mfrow=c(4,1))
 
 yupper <-  max (proxy[[1]], proxy[[2]], 
-                wsims[[1]][,c(wmx,1:n_plotted)], 
-                wsims[[2]][,c(wmx,1:n_plotted)])
+                wsims[[1]][c(wmx,1:n_plotted),], 
+                wsims[[2]][c(wmx,1:n_plotted),])
 ylower <-  min (proxy[[1]], proxy[[2]], exp(-4),
-                wsims[[1]][,wmx],
-                wsims[[2]][,wmx])
+                wsims[[1]][wmx,],
+                wsims[[2]][wmx,])
 
 plot (start, rep(0,length(start)),
       ylim=c(0,1.02*yupper), yaxs="i", type="n",
@@ -469,8 +469,8 @@ for (s in 0:n_plotted)
         ylab="Simulated incidence")
 
   ss <- if (s==0) wmx else s
-  lines (start, wsims[[1]][,ss], col="blue")
-  lines (start, wsims[[2]][,ss], col="red")
+  lines (start, wsims[[1]][ss,], col="blue")
+  lines (start, wsims[[2]][ss,], col="red")
 
   if (s==0) 
   { 
@@ -481,8 +481,8 @@ for (s in 0:n_plotted)
       ylim=itrans(c(0.98*ylower,1.02*yupper)), yaxs="i", type="n", 
       ylab=paste(if (itrans_arg!="identity") itrans_arg, "simulated incidence"))
   
-    lines (start, twsims[[1]][,wmx], col="blue")
-    lines (start, twsims[[2]][,wmx], col="red")
+    lines (start, twsims[[1]][wmx,], col="blue")
+    lines (start, twsims[[2]][wmx,], col="red")
   }
   if (s==1) 
   { title (paste ("Other simulations of",virus_group[1],"and",virus_group[2]))
