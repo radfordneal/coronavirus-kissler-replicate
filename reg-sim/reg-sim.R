@@ -328,8 +328,11 @@ sim_errors <- function (twsims, err_alpha, err_sd)
   { tp <- tproxy[[vi]]
     tv <- twsims[[vi]]
     ev <- 0
+    res0 <- tp[1] - tv[,1]
     for (j in 2:ncol(tv))
-    { ev <- ev + ((tp[j]-tv[,j]) - err_alpha[vi] * (tp[j-1]-tv[,j-1]))^2
+    { res1 <- tp[j] - tv[,j]
+      ev <- ev + (res1 - err_alpha[vi]*res0)^2
+      res0 <- res1
     }
     ivar <- err_sd[vi]^2 * (1-err_alpha[vi]^2)
     e <- e + ev / ivar
@@ -365,9 +368,12 @@ est_error_model <- function (twsims, init_err_alpha=0, init_err_sd=2)
         tv <- twsims[[vi]]
         var <- 0
         cov <- 0
+        res0 <- tp[1] - tv[,1]
         for (j in 2:ncol(tv))
-        { var <- var + (tp[j-1]-tv[,j-1])^2
-          cov <- cov + (tp[j]-tv[,j]) * (tp[j-1]-tv[,j-1])
+        { var <- var + res0^2
+          res1 <- tp[j] - tv[,j]
+          cov <- cov + res1*res0
+          res0 <- res1
         }
         var <- sum(pp*var) / (ncol(tv)-1)
         cov <- sum(pp*cov) / (ncol(tv)-1)
@@ -416,7 +422,9 @@ log_lik <- function (twsims, err_alpha, err_sd, errors)
 RNGversion("2.15.1")
 set.seed(1)
 
-# Rprofmemt (nelem=2*nsims+1)
+print(gc())
+
+# Rprofmemt (nelem=2*nsims*keep+1)
 
 wsims <- twsims <- NULL  # free memory
 wsims <- run_sims (nsims, warmup, keep)
@@ -437,6 +445,8 @@ cat ("\nLog likelihood,",length(pp),"simulations:",
       round(log_lik(twsims,err_alpha,err_sd),1), "\n")
 
 wmx <- which.max(pp)
+
+print(gc())
 
 
 # PLOT THE OBSERVED INCIDENCE, THEN BEST FIT SIMULATION, THEN OTHER SIMULATIONS,
