@@ -198,14 +198,18 @@ run_sims <- function (nsims, warmup, keep, P = list (mc = coef(model),
   # Initial levels for exponentially-decaying past incidence.  Set on the
   # assumption that incidence was low before the start.
   #
-  #   t      matrix of short-term exponetial sums for each virus, 2 x nsims
-  #   lt     matrix of long-term exponetial sums for each virus, 2 x nsims
+  #   t      list of short-term exponetial sums for each virus
+  #   tlt    list of long-term exponetial sums for each virus
   #   past   list of matrices of assumed past incidence values, one matrix
-  #          for each virus, dimension length(gen_interval) x nsims
+  #          for each virus, dimension nsims x length(gen_interval)
 
   q <- c (quantile(proxy[[1]],0.1), quantile(proxy[[2]],0.1))
+
   t <- matrix (q / (1-imm_decay[virus_group]), nsims, 2, byrow=TRUE)
   tlt <- matrix (q / (1-ltimm_decay[virus_group]), nsims, 2, byrow=TRUE)
+
+  t <- list (t[,1], t[,2])        # gives faster access
+  tlt <- list (tlt[,1], tlt[,2])
 
   past <- list (matrix (q[1], nsims, length(gen_interval)),
                 matrix (q[2], nsims, length(gen_interval)))
@@ -220,8 +224,6 @@ run_sims <- function (nsims, warmup, keep, P = list (mc = coef(model),
   
   wsave <- sample(rep(1:5,length=warmup+keep))
   sv_past <- NULL
-
-  p <- vector("list",2)
   
   for (w in 1:(warmup+keep))
   {
@@ -248,33 +250,33 @@ run_sims <- function (nsims, warmup, keep, P = list (mc = coef(model),
 
         log_Rt <- tseff[day] +
                   mc [paste0(virus,"_overall")] +
-                  mc [paste0(virus,"_same")] * t [,vi]
+                  mc [paste0(virus,"_same")] * t [[vi]]
         if (immune_type!="i4")
         { log_Rt <- log_Rt + 
-                    mc [paste0(virus,"_other")] * t [, if (vi==1) 2 else 1]
+                    mc [paste0(virus,"_other")] * t [[if (vi==1) 2 else 1]]
         }
         if (immune_type=="i3" || immune_type=="i4")
         { log_Rt <- log_Rt + 
-                    mc [paste0(virus,"_samelt")] * tlt [,vi] +
-                    mc [paste0(virus,"_otherlt")] * tlt [, if (vi==1) 2 else 1]
+                    mc [paste0(virus,"_samelt")] * tlt [[vi]] +
+                    mc [paste0(virus,"_otherlt")] * tlt [[if (vi==1) 2 else 1]]
         }
 
         rs <- length(gen_interval) + 2 - past_next[vi]
         inf <- as.vector (past[[vi]] %*% 
                           rev_gen_interval2 [rs : (rs+length(gen_interval)-1)])
 
-        p[[vi]] <- inf * exp (log_Rt + Rt_offset)
+        p <- inf * exp (log_Rt + Rt_offset)
 
         if (w > warmup)
         { wk <- ceiling(day/7)
-          wsims[[vi]][k,wk] <- wsims[[vi]][k,wk] + p[[vi]]
+          wsims[[vi]][k,wk] <- wsims[[vi]][k,wk] + p
         }
 
-        past[[vi]][,past_next[vi]] <- p[[vi]]
+        past[[vi]][,past_next[vi]] <- p
         past_next[vi] <- past_next[vi] %% length(gen_interval) + 1
   
-        t[,vi] <- p[[vi]] + t[,vi]*daily_decay[virus]
-        tlt[,vi] <- p[[vi]] + tlt[,vi]*ltdaily_decay[virus]
+        t[[vi]] <- p + t[[vi]] * daily_decay[virus]
+        tlt[[vi]] <- p + tlt[[vi]] * ltdaily_decay[virus]
       }
 
       # Save end of one of the years to initialize next five-year simulation.
@@ -299,8 +301,8 @@ run_sims <- function (nsims, warmup, keep, P = list (mc = coef(model),
       n <- exp(rnorm(nsims,0,0.2))
       past[[vi]] <- sv_past[[vi]] * n
       past_next <- sv_past_next
-      t[,vi] <- sv_t[,vi] * n
-      tlt[,vi] <- sv_tlt[,vi] * n
+      t[[vi]] <- sv_t[[vi]] * n
+      tlt[[vi]] <- sv_tlt[[vi]] * n
     }
 
     sv_past <- sv_t <- sv_tlt <- NULL  # free memory
