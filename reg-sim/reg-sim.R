@@ -424,12 +424,21 @@ log_lik <- function (twsims, err_alpha, err_sd, errors)
 RNGversion("2.15.1")
 set.seed(1)
 
-print(gc())
+cat ("\nRunning simulations\n\n")
 
 # Rprofmemt (nelem=2*nsims*keep+1)
 
 wsims <- twsims <- NULL  # free memory
+
+print(proc.time())
+print(gc())
+
+cat("\n")
+
 wsims <- run_sims (nsims, warmup, keep)
+
+print(proc.time())
+print(gc())
 
 twsims <- vector("list",2)
 for (vi in 1:2) twsims[[vi]] <- itrans(wsims[[vi]])
@@ -448,6 +457,7 @@ cat ("\nLog likelihood,",length(pp),"simulations:",
 
 wmx <- which.max(pp)
 
+print(proc.time())
 print(gc())
 
 
@@ -515,4 +525,5 @@ for (s in 0:n_plotted)
 
 dev.off()
 
-proc.time()
+print(proc.time())
+
