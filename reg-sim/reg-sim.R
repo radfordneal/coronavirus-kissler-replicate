@@ -34,7 +34,7 @@
 
 library(splines)
 
-options(warn=1)
+options(warn=2)
 
 
 # ESTABLISH WHICH PARAMETERS TO USE, LOOKING AT R'S ARGUMENTS.
@@ -69,6 +69,7 @@ file_base <- paste0 (R_estimates,"-Rt-s2-",immune_type,"-",seffect_type,
 nsims <- 5000
 warmup <- 6
 keep <- 20
+sub <- 10
 n_plotted <- 32
 
 
@@ -158,8 +159,11 @@ tproxy <- list (itrans(proxy[[1]]), itrans(proxy[[2]]))
 
 
 # FUNCTION TO RUN SIMULATIONS.  Returns nsims*keep simulation results,
-# found by nsims series of five-year simulations, with 'warmup' simulations
-# done before 'keep' simulations that are used.
+# found by 'nsims' series of five-year simulations, with 'warmup' simulations
+# done before 'keep' simulations that are used.  If 'subset' is non-null,
+# the random number generation for the 'nsims' simulations is done as if 
+# 'full' simulations were being done, with 'nsims' simulations being taken 
+# from the subset of these defined by the indexes in 'subset'.
 #
 # Simulations are done day-by-day (not week-by-week), using the trend spline
 # and seasonal effects, and the long and short term immunity based on previous
@@ -177,10 +181,15 @@ tproxy <- list (itrans(proxy[[1]]), itrans(proxy[[2]]))
 # The returned value is a list of, for each virus, a matrix with
 # dimensions nsims*keep x number of weeks.
 
-run_sims <- function (nsims, warmup, keep, P = list (mc = coef(model), 
-              imm_decay = imm_decay, ltimm_decay = ltimm_decay, 
-              Rt_offset_alpha = 0.9, Rt_offset_sd = 0.05))
+run_sims <- function (nsims, warmup, keep, full=nsims, subset=NULL,
+              P = list (mc = coef(model), imm_decay = imm_decay, 
+                        ltimm_decay = ltimm_decay, Rt_offset_alpha = 0.9,
+                        Rt_offset_sd = 0.05))
 {
+  stopifnot (nsims == if (is.null(subset)) full else length(subset))
+
+  set.seed(seed)
+
   daily_decay <- P$imm_decay ^ (1/7)
   ltdaily_decay <- P$ltimm_decay ^ (1/7)
   mc <- P$mc
@@ -231,15 +240,19 @@ run_sims <- function (nsims, warmup, keep, P = list (mc = coef(model),
 
     # Do next simulations of a five-year period.
   
-    Rt_offset <- rnorm(nsims,0,P$Rt_offset_sd) # initialize AR(1) process that
-                                               #   modifies modelled Rt values
+    Rt_offset <- rnorm(full,0,P$Rt_offset_sd) # initialize AR(1) process that
+                                              #   modifies modelled Rt values
+    if (!is.null(subset))
+    { Rt_offset <- Rt_offset[subset]
+    }
 
     k <- (nsims * (w-warmup-1) + 1) : (nsims * (w-warmup))
 
     for (day in 1:(7*length(start)))
     {
       Rt_offset <- P$Rt_offset_alpha * Rt_offset +
-                   P$Rt_offset_sd * sqrt(1-P$Rt_offset_alpha^2) * rnorm(nsims)
+                   P$Rt_offset_sd * sqrt(1-P$Rt_offset_alpha^2) * 
+                     if (is.null(subset)) rnorm(nsims) else rnorm(full)[subset]
 
       for (vi in 1:2)
       { 
@@ -298,7 +311,10 @@ run_sims <- function (nsims, warmup, keep, P = list (mc = coef(model),
   
     for (vi in 1:2)
     { # cat("start initializing from saved\n")
-      n <- exp(rnorm(nsims,0,0.2))
+      n <- exp(rnorm(full,0,0.2))
+      if (!is.null(subset))
+      { n <- n[subset]
+      }
       past[[vi]] <- sv_past[[vi]] * n
       past_next <- sv_past_next
       t[[vi]] <- sv_t[[vi]] * n
@@ -356,7 +372,7 @@ pprob <- function (errors)
 
 est_error_model <- function (twsims, init_err_alpha=0, init_err_sd=2)
 {
-  cat("Estimation of error model\n\n")
+  cat("\nEstimation of error model\n\n")
 
   err_alpha <- rep (init_err_alpha, length=2)
   err_sd <- rep (init_err_sd, length=2)
@@ -399,22 +415,23 @@ est_error_model <- function (twsims, init_err_alpha=0, init_err_sd=2)
 
 
 # COMPUTE THE LOG LIKELIHOOD BASED ON A SET OF SIMULATION RESULTS.
-# The multiple simulations are taken as a Monte Carlo estiamte of the
-# distribution of the infection histories for given parameters.  The
-# likelihood is average of the probability of the observed infection
-# proxies given these histories, using the AR(1) error model. Constant 
-# terms involving pi are omitted.
+# The multiple simulations are taken as a Monte Carlo estimate of the
+# distribution of the infection histories for given parameters, with
+# the simulations assumed to all those with non-negligible posterior
+# probability out of 'full' total.  The likelihood is the average of the
+# probability of the observed infection proxies given these histories, 
+# using the AR(1) error model. Constant terms involving pi are omitted.
 
-log_lik <- function (twsims, err_alpha, err_sd, errors)
+log_lik <- function (twsims, err_alpha, err_sd, errors, full=length(errors))
 {
   if (missing(errors))
   { errors <- sim_errors (twsims, err_alpha, err_sd)
   }
 
-  mine <- min(errors)
   n <- ncol(twsims[[1]])
+  mine <- min(errors)
 
-  ( log(mean(exp(-0.5*(errors-mine)))) - 0.5*mine 
+  ( log (sum(exp(-0.5*(errors-mine))) / full) - 0.5*mine 
       - (n-1) * sum(log(err_sd*sqrt(1-err_alpha^2))) )
 }
   
@@ -422,13 +439,13 @@ log_lik <- function (twsims, err_alpha, err_sd, errors)
 # DO THE SIMULATIONS.
 
 RNGversion("2.15.1")
-set.seed(1)
+seed <- 1
 
-cat ("\nRunning simulations\n\n")
+cat ("Running simulations\n\n")
 
 # Rprofmemt (nelem=2*nsims*keep+1)
 
-wsims <- twsims <- NULL  # free memory
+wsims <- twsims <- wsims_subset <- twsims_subset <- NULL  # free memory
 
 print(proc.time())
 print(gc())
@@ -447,7 +464,10 @@ em <- est_error_model(twsims)
 err_alpha <- em$err_alpha
 err_sd <-em$err_sd
 
-pp <- pprob(sim_errors(twsims,err_alpha,err_sd))
+errors <- sim_errors(twsims,err_alpha,err_sd)
+pp <- pprob(errors)
+# print(errors)
+# print(pp)
 
 cat ("\nHighest posterior probabilities:\n")
 print (round(sort(pp,decreasing=TRUE)[1:16],6))
@@ -456,6 +476,41 @@ cat ("\nLog likelihood,",length(pp),"simulations:",
       round(log_lik(twsims,err_alpha,err_sd),1), "\n")
 
 wmx <- which.max(pp)
+
+cat ("\nRunning subset simulation\n\n")
+
+# print(sort(pp,decreasing=TRUE)[1:sub])
+# print(order(pp,decreasing=TRUE)[1:sub])
+
+high <- unique ((order(pp,decreasing=TRUE)[1:sub]-1) %% nsims + 1)
+subn <- length(high)
+
+# print(high)
+
+print(proc.time())
+print(gc())
+
+cat("\n")
+
+wsims_subset <- run_sims (subn, warmup, keep, nsims, high)
+
+print(proc.time())
+print(gc())
+
+twsims_subset <- vector("list",2)
+for (vi in 1:2) twsims_subset[[vi]] <- itrans(wsims_subset[[vi]])
+
+# print(rep(high,each=keep)+(0:(keep-1))*nsims)
+# print(pp[rep(high,each=keep)+(0:(keep-1))*nsims])
+
+cat("\n")
+
+errors_subset <- sim_errors(twsims_subset,err_alpha,err_sd)
+# print(errors_subset)
+# print(pprob(errors_subset))
+
+cat ("Log likelihood based on subset of",subn,"simulations:", 
+      round(log_lik(twsims_subset,err_alpha,err_sd,full=nsims*keep),1), "\n\n")
 
 print(proc.time())
 print(gc())
