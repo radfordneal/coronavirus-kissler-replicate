@@ -193,8 +193,30 @@ run_sims <- function (nsims, warmup, keep, full=nsims, subset=NULL, cache=NULL,
   stopifnot (nsims == if (is.null(subset)) full else length(subset))
 
   set.seed(seed)
-
-  randn <- function () if (is.null(subset)) rnorm(full) else rnorm(full)[subset]
+  
+  if (is.null(cache))          # just generate random numbers, no cache
+  { randn <- function () 
+    { if (is.null(subset)) rnorm(full) else rnorm(full)[subset]
+    }
+  }
+  else if (is.null(cache$rn))  # generate random numbers, save them in cache
+  { cache$rn <- list()
+    next_rn <- 1
+    randn <- function () 
+    { r <- if (is.null(subset)) rnorm(full) else rnorm(full)[subset]
+      cache$rn[[next_rn]] <- r
+      next_rn <<- next_rn + 1
+      r
+    }
+  }
+  else                         # take random numbers from cache
+  { next_rn <- 1
+    randn <- function () 
+    { r <- cache$rn[[next_rn]]
+      next_rn <<- next_rn + 1
+      r
+    }
+  }
 
   daily_decay <- P$imm_decay ^ (1/7)
   ltdaily_decay <- P$ltimm_decay ^ (1/7)
@@ -268,7 +290,7 @@ run_sims <- function (nsims, warmup, keep, full=nsims, subset=NULL, cache=NULL,
                   mc [paste0(virus,"_same")] * t [[vi]]
         if (immune_type!="i4")
         { log_Rt <- log_Rt + 
-                    mc [paste0(virus,"_other")] * t [[if (vi==1) 2 else 1]]
+                   mc [paste0(virus,"_other")] * t [[if (vi==1) 2 else 1]]
         }
         if (immune_type=="i3" || immune_type=="i4")
         { log_Rt <- log_Rt + 
@@ -491,10 +513,26 @@ print(gc())
 
 cat("\n")
 
-wsims_subset <- run_sims (subn, warmup, keep, nsims, high)
+cache <- new.env()
+wsims_subset <- run_sims (subn, warmup, keep, 
+                          full=nsims, subset=high, cache=cache)
+print(proc.time())
+print(gc())
+
+cat ("\nRunning subset simulation a second time\n\n")
 
 print(proc.time())
 print(gc())
+
+cat("\n")
+
+wsims_subset2 <- run_sims (subn, warmup, keep, 
+                           full=nsims, subset=high, cache=cache)
+print(proc.time())
+print(gc())
+
+stopifnot(identical(wsims_subset,wsims_subset2))
+wsims_subset2 <- NULL
 
 twsims_subset <- vector("list",2)
 for (vi in 1:2) twsims_subset[[vi]] <- itrans(wsims_subset[[vi]])
