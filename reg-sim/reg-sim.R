@@ -178,10 +178,14 @@ tproxy <- list (itrans(proxy[[1]]), itrans(proxy[[2]]))
 #
 # 'P' is a list of parameter values affecting the simulation.
 #
+# The 'cache' argument may be set to an environment, in which the random
+# numbers used are save, or from which they are taken if they are already
+# there.
+#
 # The returned value is a list of, for each virus, a matrix with
 # dimensions nsims*keep x number of weeks.
 
-run_sims <- function (nsims, warmup, keep, full=nsims, subset=NULL,
+run_sims <- function (nsims, warmup, keep, full=nsims, subset=NULL, cache=NULL,
               P = list (mc = coef(model), imm_decay = imm_decay, 
                         ltimm_decay = ltimm_decay, Rt_offset_alpha = 0.9,
                         Rt_offset_sd = 0.05))
@@ -189,6 +193,8 @@ run_sims <- function (nsims, warmup, keep, full=nsims, subset=NULL,
   stopifnot (nsims == if (is.null(subset)) full else length(subset))
 
   set.seed(seed)
+
+  randn <- function () if (is.null(subset)) rnorm(full) else rnorm(full)[subset]
 
   daily_decay <- P$imm_decay ^ (1/7)
   ltdaily_decay <- P$ltimm_decay ^ (1/7)
@@ -239,20 +245,16 @@ run_sims <- function (nsims, warmup, keep, full=nsims, subset=NULL,
     # cat("w =",w,"\n")
 
     # Do next simulations of a five-year period.
-  
-    Rt_offset <- rnorm(full,0,P$Rt_offset_sd) # initialize AR(1) process that
-                                              #   modifies modelled Rt values
-    if (!is.null(subset))
-    { Rt_offset <- Rt_offset[subset]
-    }
 
+    Rt_offset <- P$Rt_offset_sd * randn()  # initialize AR(1) process that
+                                           #   modifies modelled Rt values
+                                            
     k <- (nsims * (w-warmup-1) + 1) : (nsims * (w-warmup))
 
     for (day in 1:(7*length(start)))
     {
       Rt_offset <- P$Rt_offset_alpha * Rt_offset +
-                   P$Rt_offset_sd * sqrt(1-P$Rt_offset_alpha^2) * 
-                     if (is.null(subset)) rnorm(nsims) else rnorm(full)[subset]
+                   P$Rt_offset_sd * sqrt(1-P$Rt_offset_alpha^2) * randn()
 
       for (vi in 1:2)
       { 
@@ -311,10 +313,7 @@ run_sims <- function (nsims, warmup, keep, full=nsims, subset=NULL,
   
     for (vi in 1:2)
     { # cat("start initializing from saved\n")
-      n <- exp(rnorm(full,0,0.2))
-      if (!is.null(subset))
-      { n <- n[subset]
-      }
+      n <- exp(0.2*randn())
       past[[vi]] <- sv_past[[vi]] * n
       past_next <- sv_past_next
       t[[vi]] <- sv_t[[vi]] * n
