@@ -424,7 +424,8 @@ pprob <- function (errors)
 }
 
 
-# ESTIMATE ERROR ALPHAS AND STANDARD DEVIATIONS.
+# ESTIMATE ERROR ALPHAS AND STANDARD DEVIATIONS.  Assumes that there
+# are nsims*keep histories in total.
 
 est_error_model <- function (twsims, init_err_alpha=0, init_err_sd=2,
                              verbose=FALSE)
@@ -465,7 +466,9 @@ est_error_model <- function (twsims, init_err_alpha=0, init_err_sd=2,
     if (verbose)
     { cat ("  err_alpha",round(err_alpha,6),
            ": err_sd",round(err_sd,3),
-           ": log likelihood",log_lik(twsims,err_alpha,err_sd),"\n")
+           ": log likelihood",
+                round (log_lik (twsims, err_alpha, err_sd, full=nsims*keep), 3),
+           "\n")
     }
   }
 
@@ -497,10 +500,10 @@ log_lik <- function (twsims, err_alpha, err_sd, errors, full=length(errors))
 
 # COMPUTE PROFILE LOG LIKELIHOOD, ESTIMATING ERROR MODEL PARAMETERS.
 
-profile_log_lik <- function (twsims)
+profile_log_lik <- function (twsims, ...)
 {
   est <- est_error_model (twsims)
-  log_lik (twsims, est$err_alpha, est$err_sd)
+  log_lik (twsims, est$err_alpha, est$err_sd, ...)
 }
   
   
@@ -533,8 +536,8 @@ pp <- pprob(errors)
 cat ("\nHighest posterior probabilities:\n")
 print (round(sort(pp,decreasing=TRUE)[1:16],6))
 
-cat ("\nLog likelihood,",length(pp),"simulations:", 
-      round(log_lik(twsims,err_alpha,err_sd),1), "\n")
+ll <- log_lik(twsims,err_alpha,err_sd)
+cat ("\nLog likelihood,",length(pp),"simulations:", round(ll,3), "\n")
 
 wmx <- which.max(pp)
 
@@ -575,7 +578,7 @@ errors_subset <- sim_errors(twsims_subset,err_alpha,err_sd)
 # print(pprob(errors_subset))
 
 cat ("Log likelihood based on subset of",subn,"simulations:", 
-      round(log_lik(twsims_subset,err_alpha,err_sd,full=nsims*keep),1), "\n\n")
+      round(log_lik(twsims_subset,err_alpha,err_sd,full=nsims*keep),3), "\n\n")
 
 cat("GC after post-simulation work:\n")
 print(gc())
@@ -589,9 +592,12 @@ cat("\nESTIMATING MODEL PARAMETERS\n\n")
 opt <- function (log_Rt_offset_sd) 
 { P <- P_init
   P$Rt_offset_sd <- exp(log_Rt_offset_sd)
-  -profile_log_lik (itrans_wsims (run_sims 
-   (subn, warmup, keep, full=nsims, subset=high, P=P, cache=cache, info=FALSE)))
+  -profile_log_lik (full=nsims*keep, itrans_wsims (run_sims (subn, warmup, keep,
+    full=nsims*keep, subset=high, P=P, cache=cache, info=FALSE)))
 }
+
+cat("Debug:\n")
+print(opt(log(P_init$Rt_offset_sd)))
 
 P_new <- P_init
 P_new$Rt_offset_sd <- 
@@ -616,7 +622,8 @@ cat ("\nHighest posterior probabilities:\n")
 print (round(sort(pp_new,decreasing=TRUE)[1:16],6))
 
 cat ("\nLog likelihood based on subset of",subn,"simulations:", 
-      round(log_lik(twsims_new_subset,err_alpha,err_sd,full=nsims*keep),1),"\n")
+      round (log_lik (twsims_new_subset, em_new$err_alpha, em_new$err_sd,
+                      full=nsims*keep), 3), "\n")
 
 
 # PLOTS FOR THIS VIRUS GROUP.  Corresponding plots use the same scales.
@@ -647,11 +654,6 @@ plot (start, rep(0,length(start)),
 lines (start, tproxy[[1]], col="blue")
 lines (start, tproxy[[2]], col="red")
 
-plot (sort(pp,decreasing=TRUE)[1:20],pch=20,xlab="",ylab="posterior prob")
-title ("Posterior probabilities of most likely paths")
-plot (log10(sort(pp,decreasing=TRUE)[1:20]),pch=20,xlab="",
-      ylab="log10 of posterior prob")
-
 for (s in 0:n_plotted)
 {
   plot (start, rep(0,length(start)),
@@ -673,6 +675,14 @@ for (s in 0:n_plotted)
   
     lines (start, twsims[[1]][wmx,], col="blue")
     lines (start, twsims[[2]][wmx,], col="red")
+
+    plot (sort(pp,decreasing=TRUE)[1:20],pch=20,xlab="",
+          ylab="posterior prob")
+    title (paste (
+      "Posterior probabilities of most likely histories, log likelihood", 
+       round(ll,3)))
+    plot (log10(sort(pp,decreasing=TRUE)[1:20]),pch=20,xlab="",
+          ylab="log10 of posterior prob")
   }
   if (s==1) 
   { title (paste ("Other simulations of",virus_group[1],"and",virus_group[2]))
