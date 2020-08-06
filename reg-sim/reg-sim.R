@@ -506,7 +506,14 @@ profile_log_lik <- function (twsims, ...)
   log_lik (twsims, est$err_alpha, est$err_sd, ...)
 }
   
-  
+
+# FREE MEMORY.
+
+wsims <- twsims <- NULL 
+wsims_subset <- twsims_subset <- NULL
+wsims_new <- twsims_new <- NULL
+
+
 # DO SIMULATIONS WITH ORIGINAL PARAMETER ESTIMATES (FROM FILE).
 
 RNGversion("2.15.1")
@@ -517,8 +524,6 @@ seed <- 1
 cat ("SIMULATIONS WITH ORIGINAL PARAMETER ESTIMATES\n\n")
 
 start_time <- proc.time()
-
-wsims <- twsims <- wsims_subset <- twsims_subset <- NULL  # free memory
 
 wsims <- run_sims (nsims, warmup, keep, info=TRUE)
 
@@ -536,8 +541,8 @@ pp <- pprob(errors)
 cat ("\nHighest posterior probabilities:\n")
 print (round(sort(pp,decreasing=TRUE)[1:16],6))
 
-ll <- log_lik(twsims,err_alpha,err_sd)
-cat ("\nLog likelihood,",length(pp),"simulations:", round(ll,3), "\n")
+ll <- log_lik(twsims,err_alpha,err_sd,errors=errors)
+cat ("\nLog likelihood,", length(pp), "simulations:", round(ll,3), "\n")
 
 wmx <- which.max(pp)
 
@@ -578,16 +583,14 @@ errors_subset <- sim_errors(twsims_subset,err_alpha,err_sd)
 # print(pprob(errors_subset))
 
 cat ("Log likelihood based on subset of",subn,"simulations:", 
-      round(log_lik(twsims_subset,err_alpha,err_sd,full=nsims*keep),3), "\n\n")
-
-cat("GC after post-simulation work:\n")
-print(gc())
-cat("Total processing time for this group of viruses:\n")
-print(proc.time()-start_time)
+      round(log_lik(twsims_subset,err_alpha,err_sd,full=nsims*keep),3),
+      "\n\n")
 
 # ESTIMATE MODEL PARAMETERS.
 
 cat("\nESTIMATING MODEL PARAMETERS\n\n")
+
+start_time_est <- proc.time()
 
 opt <- function (log_Rt_offset_sd) 
 { P <- P_init
@@ -596,34 +599,45 @@ opt <- function (log_Rt_offset_sd)
     full=nsims*keep, subset=high, P=P, cache=cache, info=FALSE)))
 }
 
-cat("Debug:\n")
-print(opt(log(P_init$Rt_offset_sd)))
-
 P_new <- P_init
 P_new$Rt_offset_sd <- 
   exp (nlm (opt, log(P_init$Rt_offset_sd), iterlim=8, print.level=2) $ estimate)
 
-cat("New parameters:\n\n")
+cat("Processing time for estimation:\n")
+print(proc.time()-start_time_est)
+
+cat("\nNew parameters:\n\n")
 print_model_parameters(P_new)
 
-wsims_new_subset <- run_sims (subn, warmup, keep, full=nsims, subset=high, 
-                              P=P_new, cache=cache, info=TRUE)
+# DO SIMULATIONS WITH NEW PARAMETERS.
 
-twsims_new_subset <- itrans_wsims (wsims_new_subset)
+cat ("SIMULATIONS WITH NEW PARAMETER ESTIMATES\n\n")
 
-em_new <- est_error_model(twsims_new_subset,verbose=TRUE)
+wsims_new <- run_sims (nsims, warmup, keep, P=P_new, info=TRUE)
 
-errors_new <- sim_errors(twsims_new_subset,em_new$err_alpha,em_new$err_sd)
+twsims_new <- itrans_wsims (wsims_new)
+
+em_new <- est_error_model(twsims_new,verbose=TRUE)
+
+errors_new <- sim_errors(twsims_new,em_new$err_alpha,em_new$err_sd)
 pp_new <- pprob(errors_new)
 # print(errors_new)
 # print(pp_new)
 
+wmx_new <- which.max(pp_new)
+
 cat ("\nHighest posterior probabilities:\n")
 print (round(sort(pp_new,decreasing=TRUE)[1:16],6))
 
-cat ("\nLog likelihood based on subset of",subn,"simulations:", 
-      round (log_lik (twsims_new_subset, em_new$err_alpha, em_new$err_sd,
-                      full=nsims*keep), 3), "\n")
+ll_new <- log_lik (twsims_new, em_new$err_alpha, em_new$err_sd)
+
+cat ("\nLog likelihood for new parameters,", length(pp_new), "simulations",
+      round(ll,3), "\n")
+
+cat("GC after post-simulation work:\n")
+print(gc())
+cat("Total processing time for this group of viruses:\n")
+print(proc.time()-start_time)
 
 
 # PLOTS FOR THIS VIRUS GROUP.  Corresponding plots use the same scales.
@@ -632,10 +646,16 @@ par(mfrow=c(4,1))
 
 yupper <-  max (proxy[[1]], proxy[[2]], 
                 wsims[[1]][c(wmx,1:n_plotted),], 
-                wsims[[2]][c(wmx,1:n_plotted),])
+                wsims[[2]][c(wmx,1:n_plotted),],
+                wsims_new[[1]][wmx_new,],
+                wsims_new[[2]][wmx_new,])
 ylower <-  min (proxy[[1]], proxy[[2]], exp(-4),
                 wsims[[1]][wmx,],
-                wsims[[2]][wmx,])
+                wsims[[2]][wmx,],
+                wsims_new[[1]][wmx_new,],
+                wsims_new[[2]][wmx_new,])
+
+# Observed proxies.
 
 plot (start, rep(0,length(start)),
       ylim=c(0,1.02*yupper), yaxs="i", type="n",
@@ -653,6 +673,8 @@ plot (start, rep(0,length(start)),
 
 lines (start, tproxy[[1]], col="blue")
 lines (start, tproxy[[2]], col="red")
+
+# Best fit and other simulations.
 
 for (s in 0:n_plotted)
 {
@@ -689,6 +711,52 @@ for (s in 0:n_plotted)
   }
 }
 
+# Observed proxies, again.
+
+plot (start, rep(0,length(start)),
+      ylim=c(0,1.02*yupper), yaxs="i", type="n",
+      ylab="Incidence proxy")
+
+lines (start, proxy[[1]], col="blue")
+lines (start, proxy[[2]], col="red")
+
+title (paste
+ ("Observed proxies for",virus_group[1],"(blue) and",virus_group[2],"(red)"))
+
+plot (start, rep(0,length(start)),
+      ylim=itrans(c(0.98*ylower,1.02*yupper)), yaxs="i", type="n",
+      ylab=paste(if (itrans_arg!="identity") itrans_arg, "incidence proxy"))
+
+lines (start, tproxy[[1]], col="blue")
+lines (start, tproxy[[2]], col="red")
+
+# Best fit simulation with new parameters.
+
+plot (start, rep(0,length(start)),
+      ylim=c(0,1.02*yupper), yaxs="i", type="n", 
+      ylab="Simulated incidence")
+
+lines (start, wsims_new[[1]][wmx_new,], col="blue")
+lines (start, wsims_new[[2]][wmx_new,], col="red")
+
+title (paste ("Best fit simulation with new parameters for",
+              virus_group[1],"and",virus_group[2]))
+
+plot (start, rep(0,length(start)),
+  ylim=itrans(c(0.98*ylower,1.02*yupper)), yaxs="i", type="n", 
+  ylab=paste(if (itrans_arg!="identity") itrans_arg, "simulated incidence"))
+  
+lines (start, twsims_new[[1]][wmx_new,], col="blue")
+lines (start, twsims_new[[2]][wmx_new,], col="red")
+
+plot (sort(pp_new,decreasing=TRUE)[1:20],pch=20,xlab="",
+      ylab="posterior prob")
+title (paste (
+  "Posterior probabilities of most likely histories, log likelihood", 
+   round(ll_new,3)))
+plot (log10(sort(pp_new,decreasing=TRUE)[1:20]),pch=20,xlab="",
+      ylab="log10 of posterior prob")
+
 # ----- END OF LOOP OVER THE TWO VIRUS GROUPS -----
 
 }
@@ -698,4 +766,3 @@ for (s in 0:n_plotted)
 dev.off()
 
 print(proc.time())
-
