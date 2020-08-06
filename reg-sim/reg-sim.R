@@ -34,7 +34,7 @@
 
 library(splines)
 
-options(warn=2)
+options(warn=1)
 
 
 # ESTABLISH WHICH PARAMETERS TO USE, LOOKING AT R'S ARGUMENTS.
@@ -70,7 +70,7 @@ nsims <- 5000
 warmup <- 6
 keep <- 20
 sub <- 10
-n_plotted <- 32
+n_plotted <- 30
 
 
 # PLOT SETUP.
@@ -121,20 +121,32 @@ for (g in seq_along (virus_groups)) {
 r <- readRDS (paste0("../R-model/R-model-",file_base,"-",
                      names(virus_groups)[g],".model"))
 
-model <- r$model
-imm_decay <- r$imm_decay
-ltimm_decay <- r$ltimm_decay
+print_model_parameters <- function (P)
+{ cat("Coefficients:\n")
+  print(t(t(P$mc)))
+  cat("\n")
+  cat("Immune decay:\n")
+  print(P$imm_decay)
+  cat("\n")
+  cat("Long-term immune decay:\n")
+  print(P$ltimm_decay)
+  cat("\n")
+  cat("Offset model:\n")
+  print (c(Rt_offset_alpha=P$Rt_offset_alpha, Rt_offset_sd=P$Rt_offset_sd))
+  cat("\n")
+}
 
-cat("\nMODEL FOR GROUP",names(virus_groups)[g],":",virus_group,"\n\n")
-cat("Coefficients:\n\n")
-print(as.matrix(coef(model)))
-cat("\n")
-cat("Immune decay:\n")
-print(imm_decay[virus_group])
-cat("\n")
-cat("Long-term immune decay:\n")
-print(ltimm_decay[virus_group])
-cat("\n")
+model <- r$model
+imm_decay <- r$imm_decay[virus_group]
+ltimm_decay <- r$ltimm_decay[virus_group]
+
+P_init <- list (mc = coef(model), imm_decay = imm_decay, 
+                ltimm_decay = ltimm_decay, Rt_offset_alpha = 0.9,
+                Rt_offset_sd = 0.05)
+
+cat("\n\nMODEL FOR GROUP",names(virus_groups)[g],":",virus_group,"\n\n")
+
+print_model_parameters (P_init)
 
 
 # SET GENERATION INTERVAL DISTRIBUTION USED BY KISSLER, ET AL.
@@ -182,15 +194,22 @@ tproxy <- list (itrans(proxy[[1]]), itrans(proxy[[2]]))
 # numbers used are save, or from which they are taken if they are already
 # there.
 #
+# If the 'info' argument is TRUE, processor time and gc information is 
+# printed.
+#
 # The returned value is a list of, for each virus, a matrix with
 # dimensions nsims*keep x number of weeks.
 
-run_sims <- function (nsims, warmup, keep, full=nsims, subset=NULL, cache=NULL,
-              P = list (mc = coef(model), imm_decay = imm_decay, 
-                        ltimm_decay = ltimm_decay, Rt_offset_alpha = 0.9,
-                        Rt_offset_sd = 0.05))
+run_sims <- function (nsims, warmup, keep, full=nsims, subset=NULL, 
+                      cache=NULL, info=FALSE, P=P_init)
 {
   stopifnot (nsims == if (is.null(subset)) full else length(subset))
+
+  if (info)
+  { start_time <- proc.time()
+    cat("GC before simulations:\n")
+    print(gc())
+  }
 
   set.seed(seed)
   
@@ -345,10 +364,26 @@ run_sims <- function (nsims, warmup, keep, full=nsims, subset=NULL, cache=NULL,
     sv_past <- sv_t <- sv_tlt <- NULL  # free memory
   }
 
+  if (info)
+  { cat("GC after simulations:\n")
+    print(gc())
+    cat("Time for simulations:\n")
+    print (proc.time()-start_time)
+  }
+
   # Return weekly values.
 
   wsims
 }  
+
+
+# TRANSFORM SIMULATED VALUES.
+
+itrans_wsims <- function (wsims)
+{ twsims <- vector("list",2)
+  for (vi in 1:2) twsims[[vi]] <- itrans(wsims[[vi]])
+  twsims
+}
 
 
 # FIND ERRORS FOR EACH SIMULATION BASED ON AR(1) MODEL.  The error for
@@ -391,15 +426,16 @@ pprob <- function (errors)
 
 # ESTIMATE ERROR ALPHAS AND STANDARD DEVIATIONS.
 
-est_error_model <- function (twsims, init_err_alpha=0, init_err_sd=2)
+est_error_model <- function (twsims, init_err_alpha=0, init_err_sd=2,
+                             verbose=FALSE)
 {
-  cat("\nEstimation of error model\n\n")
+  if (verbose) cat("\nEstimation of error model\n\n")
 
   err_alpha <- rep (init_err_alpha, length=2)
   err_sd <- rep (init_err_sd, length=2)
 
   for (i in 0:6)
-  { cat ("iter",i,"\n")
+  { if (verbose) cat ("iter",i,"\n")
     if (i>0)
     { pp <- pprob (sim_errors (twsims, err_alpha, err_sd))
       for (vi in 1:2)
@@ -426,9 +462,11 @@ est_error_model <- function (twsims, init_err_alpha=0, init_err_sd=2)
         err_sd[vi] <- sqrt (sum(pp*esd) / (1-err_alpha[vi]^2) / (ncol(tv)-1))
       }
     }
-    cat ("  err_alpha",round(err_alpha,6),
-         ": err_sd",round(err_sd,3),
-         ": log likelihood",log_lik(twsims,err_alpha,err_sd),"\n")
+    if (verbose)
+    { cat ("  err_alpha",round(err_alpha,6),
+           ": err_sd",round(err_sd,3),
+           ": log likelihood",log_lik(twsims,err_alpha,err_sd),"\n")
+    }
   }
 
   list (err_alpha=err_alpha, err_sd=err_sd)
@@ -455,33 +493,35 @@ log_lik <- function (twsims, err_alpha, err_sd, errors, full=length(errors))
   ( log (sum(exp(-0.5*(errors-mine))) / full) - 0.5*mine 
       - (n-1) * sum(log(err_sd*sqrt(1-err_alpha^2))) )
 }
+
+
+# COMPUTE PROFILE LOG LIKELIHOOD, ESTIMATING ERROR MODEL PARAMETERS.
+
+profile_log_lik <- function (twsims)
+{
+  est <- est_error_model (twsims)
+  log_lik (twsims, est$err_alpha, est$err_sd)
+}
   
   
-# DO THE SIMULATIONS.
+# DO SIMULATIONS WITH ORIGINAL PARAMETER ESTIMATES (FROM FILE).
 
 RNGversion("2.15.1")
 seed <- 1
 
-cat ("Running simulations\n\n")
-
 # Rprofmemt (nelem=2*nsims*keep+1)
+
+cat ("SIMULATIONS WITH ORIGINAL PARAMETER ESTIMATES\n\n")
+
+start_time <- proc.time()
 
 wsims <- twsims <- wsims_subset <- twsims_subset <- NULL  # free memory
 
-print(proc.time())
-print(gc())
+wsims <- run_sims (nsims, warmup, keep, info=TRUE)
 
-cat("\n")
+twsims <- itrans_wsims (wsims)
 
-wsims <- run_sims (nsims, warmup, keep)
-
-print(proc.time())
-print(gc())
-
-twsims <- vector("list",2)
-for (vi in 1:2) twsims[[vi]] <- itrans(wsims[[vi]])
-
-em <- est_error_model(twsims)
+em <- est_error_model(twsims,verbose=TRUE)
 err_alpha <- em$err_alpha
 err_sd <-em$err_sd
 
@@ -508,34 +548,22 @@ subn <- length(high)
 
 # print(high)
 
-print(proc.time())
-print(gc())
-
-cat("\n")
-
 cache <- new.env()
-wsims_subset <- run_sims (subn, warmup, keep, 
-                          full=nsims, subset=high, cache=cache)
-print(proc.time())
-print(gc())
+wsims_subset <- run_sims (subn, warmup, keep, full=nsims, subset=high, 
+                          cache=cache, info=TRUE)
 
-cat ("\nRunning subset simulation a second time\n\n")
-
-print(proc.time())
-print(gc())
-
-cat("\n")
-
-wsims_subset2 <- run_sims (subn, warmup, keep, 
-                           full=nsims, subset=high, cache=cache)
-print(proc.time())
-print(gc())
-
-stopifnot(identical(wsims_subset,wsims_subset2))
-wsims_subset2 <- NULL
-
-twsims_subset <- vector("list",2)
-for (vi in 1:2) twsims_subset[[vi]] <- itrans(wsims_subset[[vi]])
+if (FALSE)  # enable to check that caching works
+{
+  cat ("\nRunning subset simulation a second time\n\n")
+  
+  wsims_subset2 <- run_sims (subn, warmup, keep, full=nsims, subset=high, 
+                             cache=cache, info=TRUE)
+  
+  stopifnot(identical(wsims_subset,wsims_subset2))
+  wsims_subset2 <- NULL
+}
+  
+twsims_subset <- itrans_wsims (wsims_subset)
 
 # print(rep(high,each=keep)+(0:(keep-1))*nsims)
 # print(pp[rep(high,each=keep)+(0:(keep-1))*nsims])
@@ -549,12 +577,49 @@ errors_subset <- sim_errors(twsims_subset,err_alpha,err_sd)
 cat ("Log likelihood based on subset of",subn,"simulations:", 
       round(log_lik(twsims_subset,err_alpha,err_sd,full=nsims*keep),1), "\n\n")
 
-print(proc.time())
+cat("GC after post-simulation work:\n")
 print(gc())
+cat("Total processing time for this group of viruses:\n")
+print(proc.time()-start_time)
+
+# ESTIMATE MODEL PARAMETERS.
+
+cat("\nESTIMATING MODEL PARAMETERS\n\n")
+
+opt <- function (log_Rt_offset_sd) 
+{ P <- P_init
+  P$Rt_offset_sd <- exp(log_Rt_offset_sd)
+  -profile_log_lik (itrans_wsims (run_sims 
+   (subn, warmup, keep, full=nsims, subset=high, P=P, cache=cache, info=FALSE)))
+}
+
+P_new <- P_init
+P_new$Rt_offset_sd <- 
+  exp (nlm (opt, log(P_init$Rt_offset_sd), iterlim=8, print.level=2) $ estimate)
+
+cat("New parameters:\n\n")
+print_model_parameters(P_new)
+
+wsims_new_subset <- run_sims (subn, warmup, keep, full=nsims, subset=high, 
+                              P=P_new, cache=cache, info=TRUE)
+
+twsims_new_subset <- itrans_wsims (wsims_new_subset)
+
+em_new <- est_error_model(twsims_new_subset,verbose=TRUE)
+
+errors_new <- sim_errors(twsims_new_subset,em_new$err_alpha,em_new$err_sd)
+pp_new <- pprob(errors_new)
+# print(errors_new)
+# print(pp_new)
+
+cat ("\nHighest posterior probabilities:\n")
+print (round(sort(pp_new,decreasing=TRUE)[1:16],6))
+
+cat ("\nLog likelihood based on subset of",subn,"simulations:", 
+      round(log_lik(twsims_new_subset,err_alpha,err_sd,full=nsims*keep),1),"\n")
 
 
-# PLOT THE OBSERVED INCIDENCE, THEN BEST FIT SIMULATION, THEN OTHER SIMULATIONS,
-# Plots all use the same scales.
+# PLOTS FOR THIS VIRUS GROUP.  Corresponding plots use the same scales.
 
 par(mfrow=c(4,1))
 
@@ -581,6 +646,11 @@ plot (start, rep(0,length(start)),
 
 lines (start, tproxy[[1]], col="blue")
 lines (start, tproxy[[2]], col="red")
+
+plot (sort(pp,decreasing=TRUE)[1:20],pch=20,xlab="",ylab="posterior prob")
+title ("Posterior probabilities of most likely paths")
+plot (log10(sort(pp,decreasing=TRUE)[1:20]),pch=20,xlab="",
+      ylab="log10 of posterior prob")
 
 for (s in 0:n_plotted)
 {
