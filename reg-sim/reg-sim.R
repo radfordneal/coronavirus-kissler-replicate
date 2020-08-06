@@ -66,9 +66,9 @@ stopifnot(length(R_estimates)==1)
 file_base <- paste0 (R_estimates,"-Rt-s2-",immune_type,"-",seffect_type,
                      if (het_virus) "-het")
 
-nsims <- 5000
+nsims <- 10000
 warmup <- 6
-keep <- 20
+keep <- 30
 sub <- 10
 n_plotted <- 30
 
@@ -592,17 +592,25 @@ cat("\nESTIMATING MODEL PARAMETERS\n\n")
 
 start_time_est <- proc.time()
 
-opt <- function (log_Rt_offset_sd) 
-{ P <- P_init
-  P$Rt_offset_sd <- exp(log_Rt_offset_sd)
+N_evals <- 0
+
+opt <- function (x)
+{ N_evals <<- N_evals + 1
+  P <- P_init
+  P$Rt_offset_sd <- exp(x[1])
+  P$Rt_offset_alpha <- tanh(x[2])
   -profile_log_lik (full=nsims*keep, itrans_wsims (run_sims (subn, warmup, keep,
     full=nsims*keep, subset=high, P=P, cache=cache, info=FALSE)))
 }
 
 P_new <- P_init
-P_new$Rt_offset_sd <- 
-  exp (nlm (opt, log(P_init$Rt_offset_sd), iterlim=8, print.level=2) $ estimate)
+estim <- nlm (opt, c (log(P_init$Rt_offset_sd), atanh(P_init$Rt_offset_alpha)),
+              fscale=-ll, stepmax=0.1, steptol=1e-30, gradtol=1e-10, iterlim=50,
+              print.level=2) $ estimate
+P_new$Rt_offset_sd <- exp(estim[1])
+P_new$Rt_offset_alpha <- tanh(estim[2])
 
+cat("Number of function evaluations:",N_evals,"\n")
 cat("Processing time for estimation:\n")
 print(proc.time()-start_time_est)
 
@@ -632,7 +640,7 @@ print (round(sort(pp_new,decreasing=TRUE)[1:16],6))
 ll_new <- log_lik (twsims_new, em_new$err_alpha, em_new$err_sd)
 
 cat ("\nLog likelihood for new parameters,", length(pp_new), "simulations",
-      round(ll,3), "\n")
+      round(ll_new,3), "\n")
 
 cat("GC after post-simulation work:\n")
 print(gc())
@@ -703,7 +711,7 @@ for (s in 0:n_plotted)
     title (paste (
       "Posterior probabilities of most likely histories, log likelihood", 
        round(ll,3)))
-    plot (log10(sort(pp,decreasing=TRUE)[1:20]),pch=20,xlab="",
+    plot (log10(sort(pp,decreasing=TRUE)[1:20]),pch=20,xlab="",ylim=c(-30,0),
           ylab="log10 of posterior prob")
   }
   if (s==1) 
@@ -754,7 +762,7 @@ plot (sort(pp_new,decreasing=TRUE)[1:20],pch=20,xlab="",
 title (paste (
   "Posterior probabilities of most likely histories, log likelihood", 
    round(ll_new,3)))
-plot (log10(sort(pp_new,decreasing=TRUE)[1:20]),pch=20,xlab="",
+plot (log10(sort(pp_new,decreasing=TRUE)[1:20]),pch=20,xlab="",ylim=c(-30,0),
       ylab="log10 of posterior prob")
 
 # ----- END OF LOOP OVER THE TWO VIRUS GROUPS -----
