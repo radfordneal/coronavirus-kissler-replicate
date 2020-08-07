@@ -66,10 +66,10 @@ stopifnot(length(R_estimates)==1)
 file_base <- paste0 (R_estimates,"-Rt-s2-",immune_type,"-",seffect_type,
                      if (het_virus) "-het")
 
-nsims <- 5000
+nsims <- 1000
 warmup <- 6
 keep <- 20
-sub <- 10
+sub <- 20
 n_plotted <- 30
 
 
@@ -427,13 +427,18 @@ pprob <- function (errors)
 # ESTIMATE ERROR ALPHAS AND STANDARD DEVIATIONS.  Assumes that there
 # are nsims*keep histories in total.
 
-est_error_model <- function (twsims, init_err_alpha=0, init_err_sd=2,
+est_error_model <- function (twsims, init_err_alpha=0.9, init_err_sd=1.0,
                              verbose=FALSE)
 {
   if (verbose) cat("\nEstimation of error model\n\n")
 
   err_alpha <- rep (init_err_alpha, length=2)
   err_sd <- rep (init_err_sd, length=2)
+
+  if (FALSE)  # can set to TRUE to disable estimation of error model
+  { if (verbose) cat("Using initial values\n")
+    return (list (err_alpha=err_alpha, err_sd=err_sd))
+  }
 
   for (i in 0:6)
   { if (verbose) cat ("iter",i,"\n")
@@ -597,7 +602,7 @@ if (TRUE)
 { source("estimate-nlm.R")
 }
 else
-{ source("estimate-grad.R")
+{ source("estimate-nlm-autodiff.R")
 }
 
 cat("Processing time for estimation:\n")

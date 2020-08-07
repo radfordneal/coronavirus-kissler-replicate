@@ -25,11 +25,13 @@ opt <- function (x)
   # P$Rt_offset_sd <- exp(x[1])
   # P$Rt_offset_alpha <- tanh(x[2])
 
-  P$mc[] <- x  # keeps names
-  P$mc[18:23] <- x[18:23] / 100
+  # P$mc[] <- x  # keeps names
+  # P$mc[18:23] <- x[18:23] / 100
+
+  P$mc[18] <- x / 100
 
   # cat("OPT CALLED, with\n  ",round(P$mc,3),"\n")
-  # cat("diff from P_init is\n  ",round(P$mc-P_init$mc,3),"\n")
+  # cat("diff from P_init is\n  ",P$mc-P_init$mc,"\n")
 
   ws <- run_sims (subn, warmup, keep,
                   full=nsims*keep, subset=high, P=P, cache=cache, info=FALSE)
@@ -43,17 +45,22 @@ opt <- function (x)
 # x_init <- c (log(P_init$Rt_offset_sd),
 #              atanh(P_init$Rt_offset_alpha))
 
-x_init <- P_init$mc
-x_init[18:23] <- P_init$mc[18:23] * 100
+# x_init <- P_init$mc
+# x_init[18:23] <- P_init$mc[18:23] * 100
+
+x_init <- P_init$mc[18] * 100
 
 if (FALSE)  # can enable for debugging
 { cat("Initial parameter vector:\n")
   print(x_init)
   cat("Initial opt value:",round(opt(x_init),3),"\n")
-  if (FALSE)
+  if (TRUE)
   { cat("With 0.01 changes:\n")
     for (i in 1:length(x_init)) 
     { print(round(opt(x_init+0.01*((1:length(x_init))==i)),3))
+    }
+    for (i in 1:length(x_init)) 
+    { print(round(opt(x_init-0.01*((1:length(x_init))==i)),3))
     }
   }
   N_evals <- 0
@@ -61,13 +68,15 @@ if (FALSE)  # can enable for debugging
 
 P_new <- P_init
 x_new <- nlm (opt, x_init,
-           fscale=-ll, stepmax=0.05, steptol=1e-30, gradtol=1e-30, iterlim=50,
+           fscale=-500, stepmax=0.2, steptol=1e-30, gradtol=1e-30, iterlim=50,
            print.level=2) $ estimate
 
 # P_new$Rt_offset_sd <- exp(estim[1])
 # P_new$Rt_offset_alpha <- tanh(estim[2])
 
-P_new$mc[] <- x_new  # keeps names
-P_new$mc[18:23] <- x_new[18:23] / 100
+# P_new$mc[] <- x_new  # keeps names
+# P_new$mc[18:23] <- x_new[18:23] / 100
+
+P_new$mc[18] <- x_new / 100
 
 cat("Number of function evaluations:",N_evals,"\n")
