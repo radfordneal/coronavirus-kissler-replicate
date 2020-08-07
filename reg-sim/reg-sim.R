@@ -66,9 +66,9 @@ stopifnot(length(R_estimates)==1)
 file_base <- paste0 (R_estimates,"-Rt-s2-",immune_type,"-",seffect_type,
                      if (het_virus) "-het")
 
-nsims <- 10000
+nsims <- 5000
 warmup <- 6
-keep <- 30
+keep <- 20
 sub <- 10
 n_plotted <- 30
 
@@ -322,7 +322,7 @@ run_sims <- function (nsims, warmup, keep, full=nsims, subset=NULL,
                           rev_gen_interval2 [rs : (rs+length(gen_interval)-1)])
 
         p <- inf * exp (log_Rt + Rt_offset)
-
+if (any(is.na(p))) stop("x")
         if (w > warmup)
         { wk <- ceiling(day/7)
           wsims[[vi]][k,wk] <- wsims[[vi]][k,wk] + p
@@ -464,11 +464,12 @@ est_error_model <- function (twsims, init_err_alpha=0, init_err_sd=2,
       }
     }
     if (verbose)
-    { cat ("  err_alpha",round(err_alpha,6),
+    { ll <- log_lik (twsims, err_alpha, err_sd, full=nsims*keep)
+      cat ("  err_alpha",round(err_alpha,6),
            ": err_sd",round(err_sd,3),
-           ": log likelihood",
-                round (log_lik (twsims, err_alpha, err_sd, full=nsims*keep), 3),
+           ": log likelihood",round(ll,3),
            "\n")
+      if (is.na(ll)) stop("log likelihood is NA")
     }
   }
 
@@ -502,7 +503,7 @@ log_lik <- function (twsims, err_alpha, err_sd, errors, full=length(errors))
 
 profile_log_lik <- function (twsims, ...)
 {
-  est <- est_error_model (twsims)
+  est <- est_error_model (twsims, verbose=FALSE)
   log_lik (twsims, est$err_alpha, est$err_sd, ...)
 }
   
@@ -592,25 +593,13 @@ cat("\nESTIMATING MODEL PARAMETERS\n\n")
 
 start_time_est <- proc.time()
 
-N_evals <- 0
-
-opt <- function (x)
-{ N_evals <<- N_evals + 1
-  P <- P_init
-  P$Rt_offset_sd <- exp(x[1])
-  P$Rt_offset_alpha <- tanh(x[2])
-  -profile_log_lik (full=nsims*keep, itrans_wsims (run_sims (subn, warmup, keep,
-    full=nsims*keep, subset=high, P=P, cache=cache, info=FALSE)))
+if (TRUE)
+{ source("estimate-nlm.R")
+}
+else
+{ source("estimate-grad.R")
 }
 
-P_new <- P_init
-estim <- nlm (opt, c (log(P_init$Rt_offset_sd), atanh(P_init$Rt_offset_alpha)),
-              fscale=-ll, stepmax=0.1, steptol=1e-30, gradtol=1e-10, iterlim=50,
-              print.level=2) $ estimate
-P_new$Rt_offset_sd <- exp(estim[1])
-P_new$Rt_offset_alpha <- tanh(estim[2])
-
-cat("Number of function evaluations:",N_evals,"\n")
 cat("Processing time for estimation:\n")
 print(proc.time()-start_time_est)
 
