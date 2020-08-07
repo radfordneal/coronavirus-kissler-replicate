@@ -61,13 +61,13 @@ if (FALSE)  # can enable for debugging
 
 P_new <- P_init
 x_new <- nlm (opt, x_init,
-           fscale=-ll, stepmax=0.01, steptol=1e-30, gradtol=1e-30, iterlim=25,
+           fscale=-ll, stepmax=0.05, steptol=1e-30, gradtol=1e-30, iterlim=50,
            print.level=2) $ estimate
 
 # P_new$Rt_offset_sd <- exp(estim[1])
 # P_new$Rt_offset_alpha <- tanh(estim[2])
 
-P_new$mc <- x_new
+P_new$mc[] <- x_new  # keeps names
 P_new$mc[18:23] <- x_new[18:23] / 100
 
 cat("Number of function evaluations:",N_evals,"\n")
