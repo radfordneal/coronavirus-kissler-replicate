@@ -68,7 +68,7 @@ file_base <- paste0 (R_estimates,"-Rt-s2-",immune_type,"-",seffect_type,
 
 nsims <- 100000
 sub <- 10
-n_plotted <- 30
+n_plotted <- 32
 
 
 # PLOT SETUP.
@@ -242,8 +242,22 @@ run_sims <- function (nsims, full=nsims, subset=NULL,
   ltdaily_decay <- P$ltimm_decay ^ (1/7)
   mc <- P$mc
 
-  # Pre-compute matrices to generate bivariate normals for initial values
-  # of the exponential averages.
+  # Pre-compute trend and seasonal effects for all days.
+  
+  tn <- ncol(trend_spline)
+  tseff <-
+  ( if (seffect_type=="e2")
+      seffect_e2(yrsd,mc)
+    else
+      seffect_e3(yrsd,mc) + as.vector (predict(trend_spline,yrsd) %*% mc[1:tn])
+  )
+
+  # Initial levels for exponentially-decaying averages and past incidence.
+  #
+  #   t      list of short-term exponetial sums for each virus
+  #   tlt    list of long-term exponetial sums for each virus
+  #   past   list of matrices of assumed past incidence values, one matrix
+  #          for each virus, dimension nsims x length(gen_interval)
 
   expave1 <- log(expave(proxy[[1]],P$imm_decay[1]))
   expave1lt <- log(expave(proxy[[1]],P$ltimm_decay[1]))
@@ -264,28 +278,13 @@ run_sims <- function (nsims, full=nsims, subset=NULL,
     cat("\n")
   }
 
-  # Pre-compute trend and seasonal effects for all days.
-  
-  tn <- ncol(trend_spline)
-  tseff <-
-  ( if (seffect_type=="e2")
-      seffect_e2(yrsd,mc)
-    else
-      seffect_e3(yrsd,mc) + as.vector (predict(trend_spline,yrsd) %*% mc[1:tn])
-  )
-
-  # Initial levels for exponentially-decaying averages and past incidence.
-  #
-  #   t      list of short-term exponetial sums for each virus
-  #   tlt    list of long-term exponetial sums for each virus
-  #   past   list of matrices of assumed past incidence values, one matrix
-  #          for each virus, dimension nsims x length(gen_interval)
-
   n1 <- exp (rep(mu1,each=nsims) + cbind(randn(),randn()) %*% chol1)
   n2 <- exp (rep(mu2,each=nsims) + cbind(randn(),randn()) %*% chol2)
 
   t <- list (n1[,1], n2[,1])
   tlt <- list (n1[,2], n2[,2])
+
+  sv_t <<- list(t); sv_tlt <<- list(tlt)  # for later plots
 
   # cat("initial exponential averages:\n")
   # print(t)
@@ -350,6 +349,11 @@ run_sims <- function (nsims, full=nsims, subset=NULL,
 
       t[[vi]] <- p + t[[vi]] * daily_decay[virus]
       tlt[[vi]] <- p + tlt[[vi]] * ltdaily_decay[virus]
+    }
+
+    if (wk %% 52 == 0 && day %% 7 == 1)
+    { sv_t <<- c(sv_t,list(t))
+      sv_tlt <<- c(sv_tlt,list(tlt))
     }
   }
 
@@ -700,7 +704,7 @@ for (s in 0:n_plotted)
   lines (start, wsims[[1]][ss,], col="blue")
   lines (start, wsims[[2]][ss,], col="red")
 
-  if (s==0) 
+  if (s==0)  # the best-fit simulation
   { 
     title (paste ("Best fit simulation out of",nsims,
                   "for",virus_group[1],"and",virus_group[2]))
@@ -712,13 +716,16 @@ for (s in 0:n_plotted)
     lines (start, twsims[[1]][wmx,], col="blue")
     lines (start, twsims[[2]][wmx,], col="red")
 
+    par(mfrow=c(4,2))
+
     plot (sort(pp,decreasing=TRUE)[1:20],pch=20,xlab="",
           ylab="posterior prob")
-    title (paste (
-      "Posterior probabilities of most likely histories, log likelihood", 
-       round(ll,3)))
+    title ("Posterior prob. of most-likely histories")
     plot (log10(sort(pp,decreasing=TRUE)[1:20]),pch=20,xlab="",ylim=c(-30,0),
           ylab="log10 of posterior prob")
+    title (paste ("Log likelihood based on sum:", round(ll,3)))
+
+    par(mfrow=c(4,1))
   }
   if (s==1) 
   { title (paste ("Other simulations of",virus_group[1],"and",virus_group[2]))
@@ -763,13 +770,33 @@ plot (start, rep(0,length(start)),
 lines (start, twsims_new[[1]][wmx_new,], col="blue")
 lines (start, twsims_new[[2]][wmx_new,], col="red")
 
+par(mfrow=c(4,2))
+
 plot (sort(pp_new,decreasing=TRUE)[1:20],pch=20,xlab="",
       ylab="posterior prob")
-title (paste (
-  "Posterior probabilities of most likely histories, log likelihood", 
-   round(ll_new,3)))
+title ("Posterior prob. of most-likely histories")
 plot (log10(sort(pp_new,decreasing=TRUE)[1:20]),pch=20,xlab="",ylim=c(-30,0),
       ylab="log10 of posterior prob")
+title (paste ("Log likelihood based on sum:", round(ll_new,3)))
+
+# Plot exponential averages at starts of seasons for first 500 simulations.
+# Best-fit simulation is larger, in red.
+
+first <- c(1:min(500,nsims),wmx_new)
+
+for (i in 1:6)
+{ for (vi in 1:2)
+  { plot (pmax(-4,log(sv_t[[i]][[vi]][first])), 
+          pmax(3,log(sv_tlt[[i]][[vi]][first])), 
+          xlab="log short-term average", ylab="log long-term average", 
+          xlim=c(-4,6), ylim=c(3,7),
+          pch = ifelse (first==wmx_new, "O", "."), 
+          col = 1+(first==wmx_new))
+    title (paste (virus_group[vi],"year",i-1))
+  }
+}
+
+par(mfrow=c(4,1))    
 
 # ----- END OF LOOP OVER THE TWO VIRUS GROUPS -----
 
