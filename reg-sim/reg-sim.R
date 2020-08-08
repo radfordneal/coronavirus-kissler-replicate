@@ -322,7 +322,8 @@ run_sims <- function (nsims, warmup, keep, full=nsims, subset=NULL,
                           rev_gen_interval2 [rs : (rs+length(gen_interval)-1)])
 
         p <- inf * exp (log_Rt + Rt_offset)
-if (any(is.na(p))) stop("x")
+        if (any(is.na(p))) stop("NA in prevalence")
+
         if (w > warmup)
         { wk <- ceiling(day/7)
           wsims[[vi]][k,wk] <- wsims[[vi]][k,wk] + p
@@ -511,7 +512,29 @@ profile_log_lik <- function (twsims, ...)
   est <- est_error_model (twsims, verbose=FALSE)
   log_lik (twsims, est$err_alpha, est$err_sd, ...)
 }
-  
+
+
+# FIND EXPONENTIAL AVERAGES OF AN INCIDENCE PROXY AT THE END OF EACH SEASON.
+
+expave <- function (proxy_values, decay)
+{
+  s <- mean(proxy_values) / (1-decay)
+  r <- numeric()
+  for (i in 1:length(proxy_values))
+  { if (i %% 52 == 0) 
+    { r <- c(r,s)
+    }
+    s <- proxy_values[i] + s * decay
+  }
+  r
+}
+
+cat("Exponential averages of proxies with original decay settings:\n")
+print (rbind (imm=expave(proxy[[1]],P_init$imm_decay[1]),
+              ltimm=expave(proxy[[1]],P_init$ltimm_decay[1])))
+print (rbind (imm=expave(proxy[[2]],P_init$imm_decay[2]),
+              ltimm=expave(proxy[[2]],P_init$ltimm_decay[2])))
+cat("\n")
 
 # FREE MEMORY.
 
@@ -527,7 +550,7 @@ seed <- 1
 
 # Rprofmemt (nelem=2*nsims*keep+1)
 
-cat ("SIMULATIONS WITH ORIGINAL PARAMETER ESTIMATES\n\n")
+cat ("\nSIMULATIONS WITH ORIGINAL PARAMETER ESTIMATES\n\n")
 
 start_time <- proc.time()
 
@@ -592,6 +615,7 @@ cat ("Log likelihood based on subset of",subn,"simulations:",
       round(log_lik(twsims_subset,err_alpha,err_sd,full=nsims*keep),3),
       "\n\n")
 
+
 # ESTIMATE MODEL PARAMETERS.
 
 cat("\nESTIMATING MODEL PARAMETERS\n\n")
@@ -610,6 +634,7 @@ print(proc.time()-start_time_est)
 
 cat("\nNew parameters:\n\n")
 print_model_parameters(P_new)
+
 
 # DO SIMULATIONS WITH NEW PARAMETERS.
 
