@@ -66,10 +66,11 @@ stopifnot(length(R_estimates)==1)
 file_base <- paste0 (R_estimates,"-Rt-s2-",immune_type,"-",seffect_type,
                      if (het_virus) "-het")
 
-nsims <- 100000
-sub <- 10
-n_plotted <- 32
+nsims <- 200000       # Number of simulations in full set
+sub <- 50             # Number of simulations in subset
+n_plotted <- 32       # Number of simulations to plot
 
+Min_inf <- 0.003      # Minimum infectivity
 
 # PLOT SETUP.
 
@@ -338,7 +339,7 @@ run_sims <- function (nsims, full=nsims, subset=NULL,
       inf <- as.vector (past[[vi]] %*% 
                         rev_gen_interval2 [rs : (rs+length(gen_interval)-1)])
 
-      p <- inf * exp (log_Rt + Rt_offset)
+      p <- pmax(Min_inf,inf) * exp (log_Rt + Rt_offset)
       if (any(is.na(p))) stop("NA in prevalence")
 
       wk <- ceiling(day/7)
@@ -786,10 +787,10 @@ first <- c(1:min(500,nsims),wmx_new)
 
 for (i in 1:6)
 { for (vi in 1:2)
-  { plot (pmax(-4,log(sv_t[[i]][[vi]][first])), 
+  { plot (pmax(-3,log(sv_t[[i]][[vi]][first])), 
           pmax(3,log(sv_tlt[[i]][[vi]][first])), 
           xlab="log short-term average", ylab="log long-term average", 
-          xlim=c(-4,6), ylim=c(3,7),
+          xlim=c(-3,6), ylim=c(3,7),
           pch = ifelse (first==wmx_new, "O", "."), 
           col = 1+(first==wmx_new))
     title (paste (virus_group[vi],"year",i-1))
