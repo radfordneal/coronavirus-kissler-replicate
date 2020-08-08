@@ -66,10 +66,8 @@ stopifnot(length(R_estimates)==1)
 file_base <- paste0 (R_estimates,"-Rt-s2-",immune_type,"-",seffect_type,
                      if (het_virus) "-het")
 
-nsims <- 1000
-warmup <- 6
-keep <- 20
-sub <- 20
+nsims <- 100000
+sub <- 10
 n_plotted <- 30
 
 
@@ -170,37 +168,40 @@ proxy <- list (R_est[,paste0(virus_group[1],"_proxy")],
 tproxy <- list (itrans(proxy[[1]]), itrans(proxy[[2]]))
 
 
-# FUNCTION TO RUN SIMULATIONS.  Returns nsims*keep simulation results,
-# found by 'nsims' series of five-year simulations, with 'warmup' simulations
-# done before 'keep' simulations that are used.  If 'subset' is non-null,
-# the random number generation for the 'nsims' simulations is done as if 
-# 'full' simulations were being done, with 'nsims' simulations being taken 
-# from the subset of these defined by the indexes in 'subset'.
+# FUNCTION TO RUN SIMULATIONS.  Returns 'nsims' simulation results,
+# from 'nsims' five-year simulations.  If 'subset' is non-null, the
+# random number generation for the 'nsims' simulations is done as if
+# 'full' simulations were being done, with 'nsims' simulations being
+# taken from the subset of these defined by the indexes in 'subset'.
+#
+# 'P' is a list of parameter values affecting the simulation.
 #
 # Simulations are done day-by-day (not week-by-week), using the trend spline
 # and seasonal effects, and the long and short term immunity based on previous
 # incidence. However, the results are weekly values, summed over the days in
 # each week.
 #
-# Initial values for the history of incidence are taken from the end
-# of one of the seasons in the preceding five-year simulation (and set
-# somewhat arbitrarily for the first five-year simulation), the same
-# one for all simulations done. Some randomness is introduced into the
-# Rt values, differently for each simulation.
+# Initial values for the exponential averages of past incidence are 
+# generated randomly from vivariate normal distributions found from
+# the observed proxies (in conjunction with current parameter values).
+# The initial history of past incidence (used with the generation interval 
+# distribution) is constant, with value determined from the short-term
+# exponential average.
 #
-# 'P' is a list of parameter values affecting the simulation.
+# Randomness is introduced into the Rt values, differently for each 
+# according to the 'Rt_offset_alpha' and 'Rt_offset_sd parameters'.
 #
 # The 'cache' argument may be set to an environment, in which the random
-# numbers used are save, or from which they are taken if they are already
+# numbers used are saved, or from which they are taken if they are already
 # there.
 #
 # If the 'info' argument is TRUE, processor time and gc information is 
 # printed.
 #
 # The returned value is a list of, for each virus, a matrix with
-# dimensions nsims*keep x number of weeks.
+# dimensions nsims x number of weeks.
 
-run_sims <- function (nsims, warmup, keep, full=nsims, subset=NULL, 
+run_sims <- function (nsims, full=nsims, subset=NULL, 
                       cache=NULL, info=FALSE, P=P_init)
 {
   stopifnot (nsims == if (is.null(subset)) full else length(subset))
@@ -241,6 +242,28 @@ run_sims <- function (nsims, warmup, keep, full=nsims, subset=NULL,
   ltdaily_decay <- P$ltimm_decay ^ (1/7)
   mc <- P$mc
 
+  # Pre-compute matrices to generate bivariate normals for initial values
+  # of the exponential averages.
+
+  expave1 <- log(expave(proxy[[1]],P$imm_decay[1]))
+  expave1lt <- log(expave(proxy[[1]],P$ltimm_decay[1]))
+  expave2 <- log(expave(proxy[[2]],P$imm_decay[2]))
+  expave2lt <- log(expave(proxy[[2]],P$ltimm_decay[2]))
+
+  chol1 <- chol(cov(cbind(expave1,expave1lt)))
+  chol2 <- chol(cov(cbind(expave2,expave2lt)))
+
+  mu1 <- c(mean(expave1),mean(expave1lt))
+  mu2 <- c(mean(expave2),mean(expave2lt))
+
+  if (TRUE && nsims==full)
+  { cat("\nInitial log expave distributions:\n")
+    print(mu1); print(mu2)
+    print(cov(cbind(expave1,expave1lt))); print(cov(cbind(expave2,expave2lt)))
+    print(chol1); print(chol2);
+    cat("\n")
+  }
+
   # Pre-compute trend and seasonal effects for all days.
   
   tn <- ncol(trend_spline)
@@ -251,118 +274,83 @@ run_sims <- function (nsims, warmup, keep, full=nsims, subset=NULL,
       seffect_e3(yrsd,mc) + as.vector (predict(trend_spline,yrsd) %*% mc[1:tn])
   )
 
-  # Initial levels for exponentially-decaying past incidence.  Set on the
-  # assumption that incidence was low before the start.
+  # Initial levels for exponentially-decaying averages and past incidence.
   #
   #   t      list of short-term exponetial sums for each virus
   #   tlt    list of long-term exponetial sums for each virus
   #   past   list of matrices of assumed past incidence values, one matrix
   #          for each virus, dimension nsims x length(gen_interval)
 
-  q <- c (quantile(proxy[[1]],0.1), quantile(proxy[[2]],0.1))
+  n1 <- exp (rep(mu1,each=nsims) + cbind(randn(),randn()) %*% chol1)
+  n2 <- exp (rep(mu2,each=nsims) + cbind(randn(),randn()) %*% chol2)
 
-  t <- matrix (q / (1-imm_decay[virus_group]), nsims, 2, byrow=TRUE)
-  tlt <- matrix (q / (1-ltimm_decay[virus_group]), nsims, 2, byrow=TRUE)
+  t <- list (n1[,1], n2[,1])
+  tlt <- list (n1[,2], n2[,2])
 
-  t <- list (t[,1], t[,2])        # gives faster access
-  tlt <- list (tlt[,1], tlt[,2])
+  # cat("initial exponential averages:\n")
+  # print(t)
+  # print(tlt)
 
-  past <- list (matrix (q[1], nsims, length(gen_interval)),
-                matrix (q[2], nsims, length(gen_interval)))
+  past <- 
+    list (matrix (t[[1]]*(1-daily_decay[1]), nsims, length(gen_interval)),
+          matrix (t[[2]]*(1-ltdaily_decay[2]), nsims, length(gen_interval)))
+
   past_next <- rep(1,2)
 
+  # cat("initial past history:\n")
+  # print(past)
+
   # Space to store simulation results. A list of two matrices, one for each
-  # virus, of dimension total number of weeks x nsims*keep.
+  # virus, of dimension total nsims x number of weeks.
 
-  wsims <- rep (list (matrix (0, nsims*keep, length(start))), times=2)
+  wsims <- rep (list (matrix (0, nsims, length(start))), times=2)
 
-  # Stuff for saving a state for use to initialize the next simulation.
-  
-  wsave <- sample(rep(1:5,length=warmup+keep))
-  sv_past <- NULL
-  
-  for (w in 1:(warmup+keep))
+  Rt_offset <- P$Rt_offset_sd * randn()  # initialize AR(1) process that
+                                         #   modifies modelled Rt values
+
+  # Simulate for all days, for all simulations, adding to weekly results.
+
+  for (day in 1:(7*length(start)))
   {
-    # cat("w =",w,"\n")
+    Rt_offset <- P$Rt_offset_alpha * Rt_offset +
+                 P$Rt_offset_sd * sqrt(1-P$Rt_offset_alpha^2) * randn()
 
-    # Do next simulations of a five-year period.
-
-    Rt_offset <- P$Rt_offset_sd * randn()  # initialize AR(1) process that
-                                           #   modifies modelled Rt values
-                                            
-    k <- (nsims * (w-warmup-1) + 1) : (nsims * (w-warmup))
-
-    for (day in 1:(7*length(start)))
-    {
-      Rt_offset <- P$Rt_offset_alpha * Rt_offset +
-                   P$Rt_offset_sd * sqrt(1-P$Rt_offset_alpha^2) * randn()
-
-      for (vi in 1:2)
-      { 
-        virus <- virus_group[vi]
-
-        # Compute vector of nsims log R values based on trend, seasonality, 
-        # and immunity due to past infections.
-
-        log_Rt <- tseff[day] +
-                  mc [paste0(virus,"_overall")] +
-                  mc [paste0(virus,"_same")] * t [[vi]]
-        if (immune_type!="i4")
-        { log_Rt <- log_Rt + 
-                   mc [paste0(virus,"_other")] * t [[if (vi==1) 2 else 1]]
-        }
-        if (immune_type=="i3" || immune_type=="i4")
-        { log_Rt <- log_Rt + 
-                    mc [paste0(virus,"_samelt")] * tlt [[vi]] +
-                    mc [paste0(virus,"_otherlt")] * tlt [[if (vi==1) 2 else 1]]
-        }
-
-        rs <- length(gen_interval) + 2 - past_next[vi]
-        inf <- as.vector (past[[vi]] %*% 
-                          rev_gen_interval2 [rs : (rs+length(gen_interval)-1)])
-
-        p <- inf * exp (log_Rt + Rt_offset)
-        if (any(is.na(p))) stop("NA in prevalence")
-
-        if (w > warmup)
-        { wk <- ceiling(day/7)
-          wsims[[vi]][k,wk] <- wsims[[vi]][k,wk] + p
-        }
-
-        past[[vi]][,past_next[vi]] <- p
-        past_next[vi] <- past_next[vi] %% length(gen_interval) + 1
-  
-        t[[vi]] <- p + t[[vi]] * daily_decay[virus]
-        tlt[[vi]] <- p + tlt[[vi]] * ltdaily_decay[virus]
-      }
-
-      # Save end of one of the years to initialize next five-year simulation.
-
-      if ((day+5) %% 365 == 0)
-      { wsave[w] <- wsave[w] - 1
-        if (wsave[w] == 0)
-        { sv_past <- past
-          sv_past_next <- past_next
-          sv_t <- t
-          sv_tlt <- tlt
-          # cat("Saved day",day,"\n")
-        }
-      }
-    }
-  
-    # Set up initial state for next five-year simulations. Randomized a bit,
-    # separately for each simulation.
-  
     for (vi in 1:2)
-    { # cat("start initializing from saved\n")
-      n <- exp(0.2*randn())
-      past[[vi]] <- sv_past[[vi]] * n
-      past_next <- sv_past_next
-      t[[vi]] <- sv_t[[vi]] * n
-      tlt[[vi]] <- sv_tlt[[vi]] * n
-    }
+    { 
+      virus <- virus_group[vi]
 
-    sv_past <- sv_t <- sv_tlt <- NULL  # free memory
+      # Compute vector of nsims log R values based on trend, seasonality, 
+      # and immunity due to past infections.
+
+      log_Rt <- tseff[day] +
+                mc [paste0(virus,"_overall")] +
+                mc [paste0(virus,"_same")] * t [[vi]]
+      if (immune_type!="i4")
+      { log_Rt <- log_Rt + 
+                 mc [paste0(virus,"_other")] * t [[if (vi==1) 2 else 1]]
+      }
+      if (immune_type=="i3" || immune_type=="i4")
+      { log_Rt <- log_Rt + 
+                  mc [paste0(virus,"_samelt")] * tlt [[vi]] +
+                  mc [paste0(virus,"_otherlt")] * tlt [[if (vi==1) 2 else 1]]
+      }
+
+      rs <- length(gen_interval) + 2 - past_next[vi]
+      inf <- as.vector (past[[vi]] %*% 
+                        rev_gen_interval2 [rs : (rs+length(gen_interval)-1)])
+
+      p <- inf * exp (log_Rt + Rt_offset)
+      if (any(is.na(p))) stop("NA in prevalence")
+
+      wk <- ceiling(day/7)
+      wsims[[vi]][,wk] <- wsims[[vi]][,wk] + p
+
+      past[[vi]][,past_next[vi]] <- p
+      past_next[vi] <- past_next[vi] %% length(gen_interval) + 1
+
+      t[[vi]] <- p + t[[vi]] * daily_decay[virus]
+      tlt[[vi]] <- p + tlt[[vi]] * ltdaily_decay[virus]
+    }
   }
 
   if (info)
@@ -426,7 +414,7 @@ pprob <- function (errors)
 
 
 # ESTIMATE ERROR ALPHAS AND STANDARD DEVIATIONS.  Assumes that there
-# are nsims*keep histories in total.
+# are nsims histories in total.
 
 est_error_model <- function (twsims, init_err_alpha=0.9, init_err_sd=1.0,
                              verbose=FALSE)
@@ -470,7 +458,7 @@ est_error_model <- function (twsims, init_err_alpha=0.9, init_err_sd=1.0,
       }
     }
     if (verbose)
-    { ll <- log_lik (twsims, err_alpha, err_sd, full=nsims*keep)
+    { ll <- log_lik (twsims, err_alpha, err_sd, full=nsims)
       cat ("  err_alpha",round(err_alpha,6),
            ": err_sd",round(err_sd,3),
            ": log likelihood",round(ll,3),
@@ -548,13 +536,13 @@ wsims_new <- twsims_new <- NULL
 RNGversion("2.15.1")
 seed <- 1
 
-# Rprofmemt (nelem=2*nsims*keep+1)
+# Rprofmemt (nelem=2*nsims+1)
 
 cat ("\nSIMULATIONS WITH ORIGINAL PARAMETER ESTIMATES\n\n")
 
 start_time <- proc.time()
 
-wsims <- run_sims (nsims, warmup, keep, info=TRUE)
+wsims <- run_sims (nsims, info=TRUE)
 
 twsims <- itrans_wsims (wsims)
 
@@ -586,15 +574,14 @@ subn <- length(high)
 # print(high)
 
 cache <- new.env()
-wsims_subset <- run_sims (subn, warmup, keep, full=nsims, subset=high, 
-                          cache=cache, info=TRUE)
+wsims_subset <- run_sims (subn, full=nsims, subset=high, cache=cache, info=TRUE)
 
-if (FALSE)  # enable to check that caching works
+if (TRUE)  # enable to check that caching works
 {
   cat ("\nRunning subset simulation a second time\n\n")
   
-  wsims_subset2 <- run_sims (subn, warmup, keep, full=nsims, subset=high, 
-                             cache=cache, info=TRUE)
+  wsims_subset2 <- 
+    run_sims (subn, full=nsims, subset=high, cache=cache, info=TRUE)
   
   stopifnot(identical(wsims_subset,wsims_subset2))
   wsims_subset2 <- NULL
@@ -602,8 +589,8 @@ if (FALSE)  # enable to check that caching works
   
 twsims_subset <- itrans_wsims (wsims_subset)
 
-# print(rep(high,each=keep)+(0:(keep-1))*nsims)
-# print(pp[rep(high,each=keep)+(0:(keep-1))*nsims])
+# print(high)
+# print(pp[high])
 
 cat("\n")
 
@@ -612,7 +599,7 @@ errors_subset <- sim_errors(twsims_subset,err_alpha,err_sd)
 # print(pprob(errors_subset))
 
 cat ("Log likelihood based on subset of",subn,"simulations:", 
-      round(log_lik(twsims_subset,err_alpha,err_sd,full=nsims*keep),3),
+      round(log_lik(twsims_subset,err_alpha,err_sd,full=nsims),3),
       "\n\n")
 
 
@@ -640,7 +627,7 @@ print_model_parameters(P_new)
 
 cat ("SIMULATIONS WITH NEW PARAMETER ESTIMATES\n\n")
 
-wsims_new <- run_sims (nsims, warmup, keep, P=P_new, info=TRUE)
+wsims_new <- run_sims (nsims, P=P_new, info=TRUE)
 
 twsims_new <- itrans_wsims (wsims_new)
 
@@ -715,7 +702,7 @@ for (s in 0:n_plotted)
 
   if (s==0) 
   { 
-    title (paste ("Best fit simulation out of",nsims,"x",keep,
+    title (paste ("Best fit simulation out of",nsims,
                   "for",virus_group[1],"and",virus_group[2]))
 
     plot (start, rep(0,length(start)),
