@@ -1,4 +1,5 @@
-# Code for model parameter estimation using nlm, with autodiff (pqR only).
+# Code for model parameter estimation by gradient descent, 
+# using autodiff (pqR only).
 #
 # Copyright 2020 by Radford M. Neal
 # 
@@ -28,9 +29,7 @@ opt <- function (x)
     # P$Rt_offset_sd <- exp(x[1])
     # P$Rt_offset_alpha <- tanh(x[2])
   
-    # P$mc[] <- x  # keeps names
-    # P$mc[18:23] <- x[18:23] / 100
-    P$mc[18] <- x / 100
+    P$mc[18:23] <- x / 100
   
     # cat("OPT CALLED, with\n  ",round(P$mc,3),"\n")
     # cat("diff from P_init is\n  ",P$mc-P_init$mc,"\n")
@@ -48,9 +47,7 @@ opt <- function (x)
 # x_init <- c (log(P_init$Rt_offset_sd),
 #              atanh(P_init$Rt_offset_alpha))
 
-# x_init <- P_init$mc
-# x_init[18:23] <- P_init$mc[18:23] * 100
-x_init <- P_init$mc[18] * 100
+x_init <- P_init$mc[18:23] * 100
 
 if (TRUE)  # can enable for debugging
 { cat("Initial parameter vector:\n")
@@ -58,9 +55,9 @@ if (TRUE)  # can enable for debugging
   opt_value <- opt(x_init)
   cat("Initial opt value:",round(opt_value,3),"\n")
   cat("Gradient of initial opt value:",attr(opt_value,"gradient"),"\n")
-  if (TRUE)
-  { delta <- 1e-13
-    cat("With changes:\n")
+  if (FALSE)
+  { delta <- 1e-7
+    cat("With",delta,"changes:\n")
     for (i in 1:length(x_init)) 
     { print(opt(x_init+delta*((1:length(x_init))==i)))
     }
@@ -68,6 +65,7 @@ if (TRUE)  # can enable for debugging
     { print(opt(x_init-delta*((1:length(x_init))==i)))
     }
   }
+  cat("\n")
   N_evals <- 0
 }
 
@@ -75,16 +73,21 @@ P_new <- P_init
 
 if (FALSE) x_new <- x_init  # for debugging
 else
-{ x_new <- nlm (opt, x_init,
-             fscale=-500, stepmax=0.1, steptol=1e-30, gradtol=1e-30, iterlim=50,
-             check.analyticals=FALSE, print.level=2) $ estimate
+{ eta <- 4e-5
+  alpha <- 0.95
+  x_new <- x_init
+  p <- 0
+  for (iter in 1:100)
+  { o <- opt(x_new)
+    p <- alpha*p - eta * attr(o,"gradient")
+    x_new <- x_new + p
+    cat("iteration",iter,"value",round(o,5),"\n")
+  }
 }
 
 # P_new$Rt_offset_sd <- exp(estim[1])
 # P_new$Rt_offset_alpha <- tanh(estim[2])
 
-# P_new$mc[] <- x_new  # keeps names
-# P_new$mc[18:23] <- x_new[18:23] / 100
-P_new$mc[18] <- x_new / 100
+P_new$mc[18:23] <- x_new / 100
 
 cat("Number of function evaluations:",N_evals,"\n")

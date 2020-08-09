@@ -67,7 +67,7 @@ if (FALSE)  # can enable for debugging
 
 P_new <- P_init
 
-if (TRUE) x_new <- x_init  # for debugging
+if (FALSE) x_new <- x_init  # for debugging
 else
 { x_new <- nlm (opt, x_init,
              fscale=-500, stepmax=0.2, steptol=1e-30, gradtol=1e-30, iterlim=50,

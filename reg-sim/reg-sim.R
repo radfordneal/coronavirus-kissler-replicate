@@ -66,11 +66,11 @@ stopifnot(length(R_estimates)==1)
 file_base <- paste0 (R_estimates,"-Rt-s2-",immune_type,"-",seffect_type,
                      if (het_virus) "-het")
 
-nsims <- 200000       # Number of simulations in full set
-sub <- 50             # Number of simulations in subset
+nsims <- 100000       # Number of simulations in full set
+sub <- 1000           # Number of simulations in subset
 n_plotted <- 32       # Number of simulations to plot
 
-Min_inf <- 0.003      # Minimum infectivity
+Min_inf <- 0.002      # Minimum infectivity
 
 # PLOT SETUP.
 
@@ -429,7 +429,7 @@ est_error_model <- function (twsims, init_err_alpha=0.9, init_err_sd=1.0,
   err_alpha <- rep (init_err_alpha, length=2)
   err_sd <- rep (init_err_sd, length=2)
 
-  if (FALSE)  # can set to TRUE to disable estimation of error model
+  if (TRUE)  # can set to TRUE to disable estimation of error model
   { if (verbose) cat("Using initial values\n")
     return (list (err_alpha=err_alpha, err_sd=err_sd))
   }
@@ -574,7 +574,7 @@ cat ("\nRunning subset simulation\n\n")
 # print(order(pp,decreasing=TRUE)[1:sub])
 
 high <- unique ((order(pp,decreasing=TRUE)[1:sub]-1) %% nsims + 1)
-subn <- length(high)
+subn <- length(high)  # currently alwas equal to sub, but wasn't before...
 
 # print(high)
 
@@ -614,11 +614,14 @@ cat("\nESTIMATING MODEL PARAMETERS\n\n")
 
 start_time_est <- proc.time()
 
-if (TRUE)
+if (FALSE)
 { source("estimate-nlm.R")
 }
-else
+else if (FALSE)
 { source("estimate-nlm-autodiff.R")
+}
+else if (TRUE)
+{ source("estimate-grad-autodiff.R")
 }
 
 cat("Processing time for estimation:\n")
@@ -797,7 +800,17 @@ for (i in 1:6)
   }
 }
 
-par(mfrow=c(4,1))    
+# Plot posterior probabilities of runs before and after parameter change.
+
+par(mfrow=c(1,1))
+
+w <- 1:min(10000,length(pp))
+plot (log(pp[w]), log(pp_new[w]), pch=".", asp=1,
+      col = 1 + (pp[w]>=pp[high[length(high)]]),
+      ylab="log new probability", xlab="log probability")
+abline(0,1,col="green")
+title (paste ("Change in log prob. of simulation runs, log lik. change",
+               round(ll_new-ll,3)))
 
 # ----- END OF LOOP OVER THE TWO VIRUS GROUPS -----
 
