@@ -21,21 +21,25 @@
 
 cat("Number of parameters:",sum(sapply(P_init,length)),"\n")
 
-if (TRUE)  # can be disabled for debugging
+P_new <- P_init
+
+if (TRUE)  # optimization can be disabled for debugging
 { 
   eta <- 0*P_init + 5e-4
-  eta$mc[18:23] <- 5e-5
-  eta$imm_decay <- 1e-6
-  eta$ltimm_decay <- 1e-7
-  eta$Rt_offset_alpha <- 1e-6
-  eta$Rt_offset_sd <- 1e-7
+  eta$mc_viral <- 5e-5
+  eta$imm_decay <- 2e-6
+  eta$ltimm_decay <- 5e-7
+  eta$Rt_offset["alpha"] <- 2e-6
+  eta$Rt_offset["sd"] <- 5e-7
 
-  alpha <- 0.99
+  alpha <- 0.985
 
   p <- 0*P_init
-  P_new <- P_init
 
-  for (iter in 1:100)
+  full_rate <- 15
+  start_momentum <- 20
+
+  for (iter in 1:n_iter)
   { 
     nll <- with gradient (P_new)
     { ws <- run_sims (subn, full=nsims, subset=high, P=P_new, 
@@ -44,8 +48,8 @@ if (TRUE)  # can be disabled for debugging
       - profile_log_lik (tws, full=nsims)
     }
 
-    this_eta <- if (iter<15) 0.2*eta else eta
-    this_alpha <- if (iter<15) 0 else if (iter<30) alpha^2 else alpha
+    this_eta <- if (iter<full_rate) 0.2*eta else eta
+    this_alpha <- if (iter<start_momentum) 0 else alpha
 
     g <- attr(nll,"gradient")
     p <- p - this_eta * g
@@ -65,6 +69,6 @@ if (TRUE)  # can be disabled for debugging
     p <- if (iter<20) 0 else alpha*p
   }
 
-  cat("\nChange in parameter values:\n")
-  print(P_new-P_init)
+  cat("\nChange in parameter values:\n\n")
+  print_model_parameters(P_new-P_init)
 }

@@ -70,6 +70,7 @@ file_base_sim <- paste0("reg-sim-",gsub("Rt-s2-","",file_base),"-",itrans_arg)
 nsims <- 50000        # Number of simulations in full set
 sub <- 2000           # Number of simulations in subset
 n_plotted <- 32       # Number of simulations to plot
+n_iter <- 250         # Number of iterations for optimization
 
 Min_inf <- 0.002      # Minimum infectivity
 
@@ -119,21 +120,29 @@ for (g in seq_along (virus_groups)) {
 
 P_init <- readRDS (paste0("../R-model/R-model-",file_base,"-",
                            names(virus_groups)[g],".model"))
-P_init$Rt_offset_alpha <- 0.9
-P_init$Rt_offset_sd <- 0.05
+
+P_init$Rt_offset <- c (alpha=0.9, sd=0.05)
 
 print_model_parameters <- function (P)
-{ cat("Coefficients:\n")
-  print(t(t(P$mc)))
+{ if (seffect_type=="e3")
+  { cat("Trend:\n")
+    print(t(t(P$mc_trend)))
+    cat("\n")
+  }
+  cat("Seasonality:\n")
+  print(t(t(P$mc_seasonality)))
+  cat("\n")
+  cat("Viral coefficients:\n")
+  print(t(t(P$mc_viral)))
   cat("\n")
   cat("Immune decay:\n")
-  print(P$imm_decay)
+  print(t(t(P$imm_decay)))
   cat("\n")
   cat("Long-term immune decay:\n")
-  print(P$ltimm_decay)
+  print(t(t(P$ltimm_decay)))
   cat("\n")
   cat("Offset model:\n")
-  print (c(Rt_offset_alpha=P$Rt_offset_alpha, Rt_offset_sd=P$Rt_offset_sd))
+  print (t(t(P$Rt_offset)))
   cat("\n")
 }
 
@@ -184,7 +193,7 @@ tproxy <- list (itrans(proxy[[1]]), itrans(proxy[[2]]))
 # exponential average.
 #
 # Randomness is introduced into the Rt values, differently for each 
-# according to the 'Rt_offset_alpha' and 'Rt_offset_sd parameters'.
+# according to the 'Rt_offset' parameters.
 #
 # The 'cache' argument may be set to an environment, in which the random
 # numbers used are saved, or from which they are taken if they are already
@@ -235,16 +244,15 @@ run_sims <- function (nsims, full=nsims, subset=NULL,
 
   daily_decay <- P$imm_decay ^ (1/7)
   ltdaily_decay <- P$ltimm_decay ^ (1/7)
-  mc <- P$mc
 
   # Pre-compute trend and seasonal effects for all days.
   
-  tn <- ncol(trend_spline)
   tseff <-
   ( if (seffect_type=="e2")
-      seffect_e2(yrsd,mc)
+      seffect_e2(yrsd,P$mc_seasonality)
     else
-      seffect_e3(yrsd,mc) + as.vector (predict(trend_spline,yrsd) %*% mc[1:tn])
+      seffect_e3(yrsd,P$mc_seasonality,0) +
+        as.vector (predict(trend_spline,yrsd) %*% P$mc_trend)
   )
 
   # Initial levels for exponentially-decaying averages and past incidence.
@@ -299,15 +307,17 @@ run_sims <- function (nsims, full=nsims, subset=NULL,
 
   wsims <- rep (list (matrix (0, nsims, length(start))), times=2)
 
-  Rt_offset <- P$Rt_offset_sd * randn()  # initialize AR(1) process that
-                                         #   modifies modelled Rt values
+  Rt_offset <- P$Rt_offset["sd"] * randn()  # initialize AR(1) process that
+                                            #   modifies modelled Rt values
 
   # Simulate for all days, for all simulations, adding to weekly results.
 
+  mc <- P$mc_viral
+
   for (day in 1:(7*length(start)))
   {
-    Rt_offset <- P$Rt_offset_alpha * Rt_offset +
-                 P$Rt_offset_sd * sqrt(1-P$Rt_offset_alpha^2) * randn()
+    Rt_offset <- P$Rt_offset["alpha"] * Rt_offset +
+                 P$Rt_offset["sd"] * sqrt(1-P$Rt_offset["alpha"]^2) * randn()
 
     for (vi in 1:2)
     { 
@@ -425,7 +435,7 @@ est_error_model <- function (twsims, init_err_alpha=0.9, init_err_sd=1.0,
 
   if (TRUE)  # can set to TRUE to disable estimation of error model
   { if (verbose) cat("Using initial values\n")
-    return (list (err_alpha=err_alpha, err_sd=err_sd))
+    return (list (alpha=err_alpha, sd=err_sd))
   }
 
   for (i in 0:6)
@@ -466,7 +476,7 @@ est_error_model <- function (twsims, init_err_alpha=0.9, init_err_sd=1.0,
     }
   }
 
-  list (err_alpha=err_alpha, err_sd=err_sd)
+  list (alpha=err_alpha, sd=err_sd)
 }
 
 
@@ -497,7 +507,7 @@ log_lik <- function (twsims, err_alpha, err_sd, errors, full=length(errors))
 profile_log_lik <- function (twsims, ...)
 {
   est <- est_error_model (twsims, verbose=FALSE)
-  log_lik (twsims, est$err_alpha, est$err_sd, ...)
+  log_lik (twsims, est$alpha, est$sd, ...)
 }
 
 
@@ -546,8 +556,8 @@ wsims <- run_sims (nsims, info=TRUE)
 twsims <- itrans_wsims (wsims)
 
 em <- est_error_model(twsims,verbose=TRUE)
-err_alpha <- em$err_alpha
-err_sd <-em$err_sd
+err_alpha <- em$alpha
+err_sd <-em$sd
 
 errors <- sim_errors(twsims,err_alpha,err_sd)
 pp <- pprob(errors)
@@ -573,7 +583,8 @@ subn <- length(high)  # currently alwas equal to sub, but wasn't before...
 # print(high)
 
 cache <- new.env()
-wsims_subset <- run_sims (subn, full=nsims, subset=high, cache=cache, info=TRUE)
+wsims_subset <- run_sims (subn, full=nsims, subset=high, cache=cache, 
+                          info=TRUE)
 
 if (TRUE)  # enable to check that caching works
 {
@@ -635,7 +646,7 @@ twsims_new <- itrans_wsims (wsims_new)
 
 em_new <- est_error_model(twsims_new,verbose=TRUE)
 
-errors_new <- sim_errors(twsims_new,em_new$err_alpha,em_new$err_sd)
+errors_new <- sim_errors(twsims_new,em_new$alpha,em_new$sd)
 pp_new <- pprob(errors_new)
 # print(errors_new)
 # print(pp_new)
@@ -645,7 +656,7 @@ wmx_new <- which.max(pp_new)
 cat ("\nHighest posterior probabilities:\n")
 print (round(sort(pp_new,decreasing=TRUE)[1:16],6))
 
-ll_new <- log_lik (twsims_new, em_new$err_alpha, em_new$err_sd)
+ll_new <- log_lik (twsims_new, em_new$alpha, em_new$sd)
 
 cat ("\nLog likelihood for new parameters,", length(pp_new), "simulations",
       round(ll_new,5), "\n")
@@ -803,8 +814,9 @@ plot (log(pp[w]), log(pp_new[w]), pch=".", asp=1,
       col = 1 + (pp[w]>=pp[high[length(high)]]),
       ylab="log new probability", xlab="log probability")
 abline(0,1,col="green")
+abline(ll-ll_new,1,col="green")
 title (paste ("Change in log prob. of simulation runs, log lik. change",
-               round(ll_new-ll,3)))
+               round(ll_new-ll,2),"  "))
 
 # Save the new parameter values.
 

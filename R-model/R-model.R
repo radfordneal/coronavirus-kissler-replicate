@@ -585,9 +585,16 @@ for (virus in virus_group)
   }
 }
 
-# Save the model parameters and decay values to a file.
+# Save the model coefficients and decay values to a file.
 
-saveRDS (list(mc=coef(model),imm_decay=imm_decay,ltimm_decay=ltimm_decay),
+mc <- coef(model)
+
+saveRDS (list (mc_trend = mc [grepl("trend",names(mc))],
+               mc_seasonality = mc [grepl("yrs",names(mc))],
+               mc_viral = mc [!grepl("trend",names(mc))
+                                & !grepl("yrs",names(mc))],
+               imm_decay = imm_decay[virus_group],
+               ltimm_decay = ltimm_decay[virus_group]),
          file = paste0(file_base,"-",names(virus_groups)[g],".model"),
          version=2)
 
