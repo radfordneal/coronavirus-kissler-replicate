@@ -65,17 +65,17 @@ stopifnot(length(R_estimates)==1)
 
 file_base <- paste0 (R_estimates,"-Rt-s2-",immune_type,"-",seffect_type,
                      if (het_virus) "-het")
+file_base_sim <- paste0("reg-sim-",gsub("Rt-s2-","",file_base),"-",itrans_arg)
 
-nsims <- 100000       # Number of simulations in full set
-sub <- 1000           # Number of simulations in subset
+nsims <- 50000        # Number of simulations in full set
+sub <- 2000           # Number of simulations in subset
 n_plotted <- 32       # Number of simulations to plot
 
 Min_inf <- 0.002      # Minimum infectivity
 
 # PLOT SETUP.
 
-pdf (paste0 ("reg-sim-",gsub("Rt-s2-","",file_base),"-",itrans_arg,".pdf"),
-     height=8, width=6)
+pdf (paste0(file_base_sim,".pdf"), height=8, width=6)
 par(mar=c(1.5,2.3,3,0.5), mgp=c(1.4,0.3,0), tcl=-0.22)
 yrcols <- c("red","green","blue","orange","darkcyan","darkmagenta")
 
@@ -117,8 +117,10 @@ for (g in seq_along (virus_groups)) {
 
 # READ THE MODEL.
 
-r <- readRDS (paste0("../R-model/R-model-",file_base,"-",
-                     names(virus_groups)[g],".model"))
+P_init <- readRDS (paste0("../R-model/R-model-",file_base,"-",
+                           names(virus_groups)[g],".model"))
+P_init$Rt_offset_alpha <- 0.9
+P_init$Rt_offset_sd <- 0.05
 
 print_model_parameters <- function (P)
 { cat("Coefficients:\n")
@@ -134,14 +136,6 @@ print_model_parameters <- function (P)
   print (c(Rt_offset_alpha=P$Rt_offset_alpha, Rt_offset_sd=P$Rt_offset_sd))
   cat("\n")
 }
-
-model <- r$model
-imm_decay <- r$imm_decay[virus_group]
-ltimm_decay <- r$ltimm_decay[virus_group]
-
-P_init <- list (mc = coef(model), imm_decay = imm_decay, 
-                ltimm_decay = ltimm_decay, Rt_offset_alpha = 0.9,
-                Rt_offset_sd = 0.05)
 
 cat("\n\nMODEL FOR GROUP",names(virus_groups)[g],":",virus_group,"\n\n")
 
@@ -466,7 +460,7 @@ est_error_model <- function (twsims, init_err_alpha=0.9, init_err_sd=1.0,
     { ll <- log_lik (twsims, err_alpha, err_sd, full=nsims)
       cat ("  err_alpha",round(err_alpha,6),
            ": err_sd",round(err_sd,3),
-           ": log likelihood",round(ll,3),
+           ": log likelihood",round(ll,5),
            "\n")
       if (is.na(ll)) stop("log likelihood is NA")
     }
@@ -564,7 +558,7 @@ cat ("\nHighest posterior probabilities:\n")
 print (round(sort(pp,decreasing=TRUE)[1:16],6))
 
 ll <- log_lik(twsims,err_alpha,err_sd,errors=errors)
-cat ("\nLog likelihood,", length(pp), "simulations:", round(ll,3), "\n")
+cat ("\nLog likelihood,", length(pp), "simulations:", round(ll,5), "\n")
 
 wmx <- which.max(pp)
 
@@ -604,7 +598,7 @@ errors_subset <- sim_errors(twsims_subset,err_alpha,err_sd)
 # print(pprob(errors_subset))
 
 cat ("Log likelihood based on subset of",subn,"simulations:", 
-      round(log_lik(twsims_subset,err_alpha,err_sd,full=nsims),3),
+      round(log_lik(twsims_subset,err_alpha,err_sd,full=nsims),5),
       "\n\n")
 
 
@@ -654,7 +648,7 @@ print (round(sort(pp_new,decreasing=TRUE)[1:16],6))
 ll_new <- log_lik (twsims_new, em_new$err_alpha, em_new$err_sd)
 
 cat ("\nLog likelihood for new parameters,", length(pp_new), "simulations",
-      round(ll_new,3), "\n")
+      round(ll_new,5), "\n")
 
 cat("GC after post-simulation work:\n")
 print(gc())
@@ -811,6 +805,11 @@ plot (log(pp[w]), log(pp_new[w]), pch=".", asp=1,
 abline(0,1,col="green")
 title (paste ("Change in log prob. of simulation runs, log lik. change",
                round(ll_new-ll,3)))
+
+# Save the new parameter values.
+
+saveRDS (P_new, file = paste0(file_base_sim,".model"), version=2)
+
 
 # ----- END OF LOOP OVER THE TWO VIRUS GROUPS -----
 

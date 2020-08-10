@@ -587,7 +587,7 @@ for (virus in virus_group)
 
 # Save the model parameters and decay values to a file.
 
-saveRDS (list(model=model,imm_decay=imm_decay,ltimm_decay=ltimm_decay),
+saveRDS (list(mc=coef(model),imm_decay=imm_decay,ltimm_decay=ltimm_decay),
          file = paste0(file_base,"-",names(virus_groups)[g],".model"),
          version=2)
 
