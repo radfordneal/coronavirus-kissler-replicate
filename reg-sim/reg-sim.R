@@ -67,12 +67,14 @@ file_base <- paste0 (R_estimates,"-Rt-s2-",immune_type,"-",seffect_type,
                      if (het_virus) "-het")
 file_base_sim <- paste0("reg-sim-",gsub("Rt-s2-","",file_base),"-",itrans_arg)
 
-nsims <- 50000        # Number of simulations in full set
-sub <- 2000           # Number of simulations in subset
+nsims <- 60000        # Number of simulations in full set
+sub <- 600            # Number of simulations in subset
 n_plotted <- 32       # Number of simulations to plot
-n_iter <- 250         # Number of iterations for optimization
+n_iter <- 400         # Number of iterations for optimization
+full_interval <- 20   # Interval for doing full set of simulations
 
-Min_inf <- 0.002      # Minimum infectivity
+Min_inf <- 0.0015     # Minimum infectivity
+
 
 # PLOT SETUP.
 
@@ -273,7 +275,7 @@ run_sims <- function (nsims, full=nsims, subset=NULL,
   mu1 <- c(mean(expave1),mean(expave1lt))
   mu2 <- c(mean(expave2),mean(expave2lt))
 
-  if (TRUE && nsims==full)
+  if (info && nsims==full)
   { cat("\nInitial log expave distributions:\n")
     print(mu1); print(mu2)
     print(cov(cbind(expave1,expave1lt))); print(cov(cbind(expave2,expave2lt)))
@@ -608,6 +610,8 @@ errors_subset <- sim_errors(twsims_subset,err_alpha,err_sd)
 # print(errors_subset)
 # print(pprob(errors_subset))
 
+cat("Lowest probability in top",subn,"is",pp[high[subn]],"\n")
+cat("Total probability in is",round(sum(pp[high]),5),"\n")
 cat ("Log likelihood based on subset of",subn,"simulations:", 
       round(log_lik(twsims_subset,err_alpha,err_sd,full=nsims),5),
       "\n\n")
@@ -811,7 +815,6 @@ par(mfrow=c(1,1))
 
 w <- 1:min(10000,length(pp))
 plot (log(pp[w]), log(pp_new[w]), pch=".", asp=1,
-      col = 1 + (pp[w]>=pp[high[length(high)]]),
       ylab="log new probability", xlab="log probability")
 abline(0,1,col="green")
 abline(ll-ll_new,1,col="green")

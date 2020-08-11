@@ -22,25 +22,66 @@
 cat("Number of parameters:",sum(sapply(P_init,length)),"\n")
 
 P_new <- P_init
+pp_new <- pp
 
 if (TRUE)  # optimization can be disabled for debugging
 { 
   eta <- 0*P_init + 5e-4
-  eta$mc_viral <- 5e-5
-  eta$imm_decay <- 2e-6
-  eta$ltimm_decay <- 5e-7
-  eta$Rt_offset["alpha"] <- 2e-6
-  eta$Rt_offset["sd"] <- 5e-7
+  eta$mc_viral[1:6] <- 5e-5
+  eta$imm_decay <- 1e-5
+  eta$ltimm_decay <- 5e-6
+  eta$Rt_offset["alpha"] <- 1e-5
+  eta$Rt_offset["sd"] <- 5e-6
 
-  alpha <- 0.985
+  alpha <- 0.992
 
   p <- 0*P_init
+
+  ws <- run_sims (subn, full=nsims, subset=high, P=P_new, 
+                  cache=cache, info=FALSE)
+  tws <- itrans_wsims(ws)
+  H_prev <- - profile_log_lik (tws, full=nsims)
+  p_prev <- p
+  P_new_prev <- P_new
 
   full_rate <- 15
   start_momentum <- 20
 
   for (iter in 1:n_iter)
   { 
+    if (iter > 1 && iter%%full_interval == 1)
+    {
+      ws <- run_sims (subn, full=nsims, subset=high, P=P_new, 
+                      cache=cache, info=FALSE)
+      tws <- itrans_wsims(ws)
+      cat("Log likelihood from current subset of size",subn,":",
+           profile_log_lik(tws,full=nsims), "\n")
+      cat("Redoing full set of simulations\n")
+      wsims_new <- run_sims (nsims, P=P_new, info=FALSE)
+      twsims_new <- itrans_wsims (wsims_new)
+
+      em_new <- est_error_model(twsims_new)
+      errors_new <- sim_errors(twsims_new,em_new$alpha,em_new$sd)
+      pp_new <- pprob(errors_new)
+      highL <- logical(nsims); highL[high] <- TRUE
+      high <- unique ((order(pp_new,decreasing=TRUE)[1:sub]-1) %% nsims + 1)
+      cat("Number of top simulations in common:",sum(highL[high]),"\n")
+      highL <- NULL  # free memory
+      subn <- length(high) # currently always equal to sub, but wasn't before
+      ll_new <- log_lik (twsims_new, em_new$alpha, em_new$sd)
+
+      cat("Lowest probability in top",subn,"is",pp_new[high[subn]],"\n")
+      cat("Total probability is",round(sum(pp_new[high]),5),"\n")
+      cat("Log likelihood from",nsims,"simulations:",round(ll_new,5),"\n")
+
+      cache <- new.env()
+      ws <- run_sims (subn, full=nsims, subset=high, P=P_new, 
+                      cache=cache, info=FALSE)
+      tws <- itrans_wsims(ws)
+      cat("Log likelihood from new subset of size",subn,":",
+           profile_log_lik(tws,full=nsims), "\n")
+    }
+
     nll <- with gradient (P_new)
     { ws <- run_sims (subn, full=nsims, subset=high, P=P_new, 
                       cache=cache, info=FALSE)
@@ -56,17 +97,30 @@ if (TRUE)  # optimization can be disabled for debugging
     P_new <- P_new + this_eta * p
 
     K <- sum(sapply(p^2,sum))/2
+    H <- nll + K
     
     cat ("iteration",iter,
          ": log lik",round(-nll,5),
          ": K",round(K,5),
-         ": energy",round(nll+K,5))
+         ": energy",round(H,5))
     if (this_alpha>0)
     { cat(" ->",round(nll+this_alpha^2*K,5))
     }
     cat("\n")
 
-    p <- if (iter<20) 0 else alpha*p
+    p <- alpha * p
+
+    if (H > H_prev+0.4)
+    { cat("Reducing eta by factor of 0.75 and backtracking\n")
+      eta <- 0.75 * eta
+      P_new <- P_new_prev
+      p <- p_prev
+    }
+    else
+    { P_new_prev <- P_new
+      p_prev <- p
+      H_prev <- H
+    }
   }
 
   cat("\nChange in parameter values:\n\n")
