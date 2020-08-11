@@ -28,12 +28,12 @@ if (TRUE)  # optimization can be disabled for debugging
 { 
   eta <- 0*P_init + 5e-4
   eta$mc_viral[1:6] <- 5e-5
-  eta$imm_decay <- 1e-5
-  eta$ltimm_decay <- 5e-6
-  eta$Rt_offset["alpha"] <- 1e-5
-  eta$Rt_offset["sd"] <- 5e-6
+  eta$imm_decay <- 5e-5
+  eta$ltimm_decay <- 1e-5
+  eta$Rt_offset["alpha"] <- 5e-5
+  eta$Rt_offset["sd"] <- 1e-5
 
-  alpha <- 0.992
+  alpha <- 0.994
 
   p <- 0*P_init
 
@@ -49,6 +49,9 @@ if (TRUE)  # optimization can be disabled for debugging
 
   for (iter in 1:n_iter)
   { 
+    # At intervals of 'full_interval', simulate a full set of 'nsims'
+    # simulations, and reselect the high-probability subset.
+
     if (iter > 1 && iter%%full_interval == 1)
     {
       ws <- run_sims (subn, full=nsims, subset=high, P=P_new, 
@@ -82,6 +85,8 @@ if (TRUE)  # optimization can be disabled for debugging
            profile_log_lik(tws,full=nsims), "\n")
     }
 
+    # Compute new negative log likelihood, with gradient attached.
+
     nll <- with gradient (P_new)
     { ws <- run_sims (subn, full=nsims, subset=high, P=P_new, 
                       cache=cache, info=FALSE)
@@ -89,12 +94,14 @@ if (TRUE)  # optimization can be disabled for debugging
       - profile_log_lik (tws, full=nsims)
     }
 
+    # Do a gradient descent with momentum update.
+
     this_eta <- if (iter<full_rate) 0.2*eta else eta
     this_alpha <- if (iter<start_momentum) 0 else alpha
 
-    g <- attr(nll,"gradient")
-    p <- p - this_eta * g
-    P_new <- P_new + this_eta * p
+    g <- attr(nll,"gradient")       # Update is done in Hamiltonian
+    p <- p - this_eta * g           #   dynamics fashion, so that 'energy'
+    P_new <- P_new + this_eta * p   #   would be conserved if exact
 
     K <- sum(sapply(p^2,sum))/2
     H <- nll + K
@@ -110,9 +117,12 @@ if (TRUE)  # optimization can be disabled for debugging
 
     p <- alpha * p
 
-    if (H > H_prev+0.4)
-    { cat("Reducing eta by factor of 0.75 and backtracking\n")
-      eta <- 0.75 * eta
+    # Reduce 'eta' if the energy went up too much.
+
+    if (H > H_prev+0.3)
+    { cat("Reducing eta by factor of 0.75 - from",eta,"to",0.8*eta,
+          "- and backtracking\n")
+      eta <- 0.8 * eta
       P_new <- P_new_prev
       p <- p_prev
     }

@@ -67,10 +67,10 @@ file_base <- paste0 (R_estimates,"-Rt-s2-",immune_type,"-",seffect_type,
                      if (het_virus) "-het")
 file_base_sim <- paste0("reg-sim-",gsub("Rt-s2-","",file_base),"-",itrans_arg)
 
-nsims <- 60000        # Number of simulations in full set
-sub <- 600            # Number of simulations in subset
+nsims <- 70000        # Number of simulations in full set
+sub <- 1000           # Number of simulations in subset
 n_plotted <- 32       # Number of simulations to plot
-n_iter <- 400         # Number of iterations for optimization
+n_iter <- 600         # Number of iterations for optimization
 full_interval <- 20   # Interval for doing full set of simulations
 
 Min_inf <- 0.0015     # Minimum infectivity
