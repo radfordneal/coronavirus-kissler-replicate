@@ -51,6 +51,7 @@ getarg <- function (what)
 }
 
 immune_type <- getarg (c("i2","i3", "i4"))
+season_type <- "s2"
 seffect_type <- getarg (c("e2","e3"))
 itrans_arg <- getarg (c("identity","sqrt","log"))
 
@@ -67,11 +68,19 @@ file_base <- paste0 (R_estimates,"-Rt-s2-",immune_type,"-",seffect_type,
                      if (het_virus) "-het")
 file_base_sim <- paste0("reg-sim-",gsub("Rt-s2-","",file_base),"-",itrans_arg)
 
-nsims <- 70000        # Number of simulations in full set
-sub <- 1000           # Number of simulations in subset
-n_plotted <- 32       # Number of simulations to plot
-n_iter <- 600         # Number of iterations for optimization
-full_interval <- 20   # Interval for doing full set of simulations
+if (FALSE)  # Small settings for testing
+{ nsims <- 1000         # Number of simulations in full set
+  sub <- 30             # Number of simulations in subset
+  n_plotted <- 32       # Number of simulations to plot
+  n_iter <- 30          # Number of iterations for optimization
+  full_interval <- 10   # Interval for doing full set of simulations
+} else      # Settings for full test
+{ nsims <- 100000       # Number of simulations in full set
+  sub <- 1000           # Number of simulations in subset
+  n_plotted <- 32       # Number of simulations to plot
+  n_iter <- 30          # Number of iterations for optimization
+  full_interval <- 20   # Interval for doing full set of simulations
+}
 
 Min_inf <- 0.0015     # Minimum infectivity
 
@@ -820,6 +829,34 @@ abline(0,1,col="green")
 abline(ll-ll_new,1,col="green")
 title (paste ("Change in log prob. of simulation runs, log lik. change",
                round(ll_new-ll,2),"  "))
+
+# Plot components of original and new models.
+
+source("../R-model/plot-components.R")
+
+plot_context <- readRDS (paste0 ("../R-model/R-model-",file_base,"-",
+                                 names(virus_groups)[g],".context"))
+
+model_x <- plot_context$model_x
+model_df <- plot_context$model_df
+
+par(mfcol=c(5,4))
+sv <- par (cex.main=3/4, cex.lab=2/3, cex.axis=4/10, mgp=c(0.8,0.18,0))
+  
+for (virus in virus_group)
+{ for (s in unique(model_df$season))
+  { plot_components (c(P_init$mc_trend,P_init$mc_seasonality,P_init$mc_viral),
+                     model_x, model_df, s, virus, logarithmic=TRUE,
+                     title = "Initial")
+  }
+  for (s in unique(model_df$season))
+  { plot_components (c(P_new$mc_trend,P_new$mc_seasonality,P_new$mc_viral),
+                     model_x, model_df, s, virus, logarithmic=TRUE,
+                     title = "New")
+  }
+}
+
+par(sv)
 
 # Save the new parameter values.
 

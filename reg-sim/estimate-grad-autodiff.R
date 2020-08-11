@@ -44,8 +44,8 @@ if (TRUE)  # optimization can be disabled for debugging
   p_prev <- p
   P_new_prev <- P_new
 
-  full_rate <- 15
-  start_momentum <- 20
+  full_rate <- 12
+  start_momentum <- 18
 
   for (iter in 1:n_iter)
   { 
@@ -99,9 +99,9 @@ if (TRUE)  # optimization can be disabled for debugging
     this_eta <- if (iter<full_rate) 0.2*eta else eta
     this_alpha <- if (iter<start_momentum) 0 else alpha
 
-    g <- attr(nll,"gradient")       # Update is done in Hamiltonian
-    p <- p - this_eta * g           #   dynamics fashion, so that 'energy'
-    P_new <- P_new + this_eta * p   #   would be conserved if exact
+    grad <- attr(nll,"gradient")     # Update is done in Hamiltonian
+    p <- p - this_eta * grad         #   dynamics fashion, so that 'energy'
+    P_new <- P_new + this_eta * p    #   would be conserved if exact
 
     K <- sum(sapply(p^2,sum))/2
     H <- nll + K
@@ -120,8 +120,7 @@ if (TRUE)  # optimization can be disabled for debugging
     # Reduce 'eta' if the energy went up too much.
 
     if (H > H_prev+0.3)
-    { cat("Reducing eta by factor of 0.75 - from",eta,"to",0.8*eta,
-          "- and backtracking\n")
+    { cat("Reducing eta by factor of 0.8 and backtracking\n")
       eta <- 0.8 * eta
       P_new <- P_new_prev
       p <- p_prev

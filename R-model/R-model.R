@@ -490,18 +490,20 @@ for (virus in virus_group)
 
 source("plot-components.R")
 
+mc <- coef(model)
+
 par(mfcol=c(5,4))
 sv <- par (cex.main=3/4, cex.lab=2/3, cex.axis=4/10, mgp=c(0.8,0.18,0))
 
 for (virus in virus_group)
 { for (s in unique(model_df$season))
-  { plot_components (model, model_df, s, virus,logarithmic=FALSE)
+  { plot_components (mc, model$x, model_df, s, virus,logarithmic=FALSE)
   }
 }
 
 for (virus in virus_group)
 { for (s in unique(model_df$season))
-  { plot_components (model, model_df, s, virus, logarithmic=TRUE)
+  { plot_components (mc, model$x, model_df, s, virus, logarithmic=TRUE)
   }
 }
 
@@ -512,15 +514,13 @@ par(sv)
 for (virus in virus_group)
 { par(mfrow=c(3,2))
   for (s in unique(model_df$season))
-  { plot_components (model, model_df, s, virus, logarithmic=FALSE)
-    plot_components (model, model_df, s, virus, logarithmic=TRUE)
+  { plot_components (mc, model$x, model_df, s, virus, logarithmic=FALSE)
+    plot_components (mc, model$x, model_df, s, virus, logarithmic=TRUE)
   }
 }
 
 
 # SAVE THE MODEL COEFFICIENTS AND DECAY VALUES TO A FILE.
-
-mc <- coef(model)
 
 saveRDS (list (mc_trend = mc [grepl("trend",names(mc))],
                mc_seasonality = mc [grepl("yrs",names(mc))],
@@ -529,6 +529,13 @@ saveRDS (list (mc_trend = mc [grepl("trend",names(mc))],
                imm_decay = imm_decay[virus_group],
                ltimm_decay = ltimm_decay[virus_group]),
          file = paste0(file_base,"-",names(virus_groups)[g],".model"),
+         version=2)
+
+
+# SAVE THE DATA CONTEXT USED FOR PLOTS.
+
+saveRDS (list (model_x = model$x, model_df = model_df),
+         file = paste0(file_base,"-",names(virus_groups)[g],".context"),
          version=2)
 
 

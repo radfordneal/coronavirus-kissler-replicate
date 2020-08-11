@@ -20,11 +20,13 @@
 # PLOT COMPONENTS OF MODEL FOR EACH VIRUS AND SEASON.  Similar to plots
 # of Kissler, et al. Figure 1.
 
-plot_components <- function (model, model_df, s, virus, logarithmic=FALSE, ...)
+plot_components <- function (mc, model_x, model_df, s, virus, logarithmic=FALSE,
+                     title = R_estimates, ...)
 {
+  season_length <- max(model_df$season_week)
+  start_season <- if (season_type=="s1") 40 else 28
   trans <- if (logarithmic) log else identity
   itrans <- if (logarithmic) identity else exp
-  mc <- coef(model)
   this <- model_df$season==s & model_df$virus==virus
   df <- model_df[this,]
   plot (c(1,season_length), trans(c(1,1)), type="n",
@@ -44,17 +46,18 @@ plot_components <- function (model, model_df, s, virus, logarithmic=FALSE, ...)
   { abline(v=40+1-start_season,col="gray",lty=3)
     abline(v=40+33-start_season,col="gray",lty=3)
   }
-  lines (itrans (predict(model,model_df)[this]), col="red", lwd=2)
+  lines (itrans (as.vector (model_x %*% mc) [this]), col="red", lwd=2)
   if (seffect_type=="e3")
-  { tn <- ncol(trend_spline)
+  { trend_spline <- make_trend_spline (R_est$yrs, model_df$yrs)
+    tn <- ncol(trend_spline)
     trend_component <- as.vector (trend_spline[this,] %*% mc[1:tn])
     lines (itrans(trend_component), col="green", lwd=1.5)
   }
   seasonal_component <- switch (seffect_type,
       e1 = as.vector (seasonal_spline[1:season_length,] 
                        %*% mc[1:ncol(seasonal_spline)]),
-      e2 = seffect_e2 (df$yrs),
-      e3 = seffect_e3 (df$yrs)
+      e2 = seffect_e2 (df$yrs,mc),
+      e3 = seffect_e3 (df$yrs,mc)
     )
   mc0 <- mc
   if (season_type=="s1" && seffect_type!="e1")
@@ -86,5 +89,5 @@ plot_components <- function (model, model_df, s, virus, logarithmic=FALSE, ...)
   { points (1, itrans (mc0[paste0(virus,"_overall")]), 
                pch=20, col="darkgreen", cex=0.75)
   }
-  title(paste0(virus," ",s,"-",s+1," ",R_estimates,"   "),line=0.5)
+  title (paste0 (virus," ",s,"-",s+1," ",title,"   "), line=0.5)
 }
