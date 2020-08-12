@@ -29,6 +29,7 @@ plot_components <- function (mc, model_x, model_df, s, virus, logarithmic=FALSE,
   itrans <- if (logarithmic) identity else exp
   this <- model_df$season==s & model_df$virus==virus
   df <- model_df[this,]
+
   plot (c(1,season_length), trans(c(1,1)), type="n",
         ylim=trans(c(0.5,2.0)), xlim=c(0,season_length), xaxs="i", xlab="", 
         ylab = if (logarithmic) "Additive effect on log(R)"
@@ -40,13 +41,17 @@ plot_components <- function (mc, model_x, model_df, s, virus, logarithmic=FALSE,
   { abline (v = c(5,10,15,20,25,30), col="gray", lwd=0.5)
   }
   abline (v=1, h=trans(1))
-  points (trans(model_df[,paste0(virus,"_R")][this]), pch=20, cex=0.75,
-          col="pink")
+
+  points (trans(df[,paste0(virus,"_R")]), pch=20, cex=0.75, col="pink")
   if (season_type=="s2")  # Show Kissler, et al season as dotted lines
   { abline(v=40+1-start_season,col="gray",lty=3)
     abline(v=40+33-start_season,col="gray",lty=3)
   }
-  lines (itrans (as.vector (model_x %*% mc) [this]), col="red", lwd=2)
+
+  pincidence <- model_df$R_value
+  pincidence[!is.na(pincidence)] <- model_x %*% mc
+  lines (itrans (pincidence[this]), col="red", lwd=2)
+
   if (seffect_type=="e3")
   { trend_spline <- make_trend_spline (R_est$yrs, model_df$yrs)
     tn <- ncol(trend_spline)
@@ -59,7 +64,9 @@ plot_components <- function (mc, model_x, model_df, s, virus, logarithmic=FALSE,
       e2 = seffect_e2 (df$yrs,mc),
       e3 = seffect_e3 (df$yrs,mc)
     )
+
   mc0 <- mc
+
   if (season_type=="s1" && seffect_type!="e1")
   { mc0[paste0(virus,"_overall")] <- 
       mc0[paste0(virus,"_overall")] + seasonal_component[1]
@@ -78,6 +85,7 @@ plot_components <- function (mc, model_x, model_df, s, virus, logarithmic=FALSE,
     otherlt <- df[,paste0(virus,"_otherlt")] * mc[paste0(virus,"_otherlt")]
     lines (itrans(otherlt), col="gray", lwd=1.5, lty=2)
   }
+
   if (immune_type=="i1" && seffect_type=="e1")
   { points (1, itrans (mc[paste0(virus,"_season_",s)]
                      - mc[paste0(virus_group[2],"_season_2014")]), 
@@ -89,5 +97,6 @@ plot_components <- function (mc, model_x, model_df, s, virus, logarithmic=FALSE,
   { points (1, itrans (mc0[paste0(virus,"_overall")]), 
                pch=20, col="darkgreen", cex=0.75)
   }
+
   title (paste0 (virus," ",s,"-",s+1," ",title,"   "), line=0.5)
 }
