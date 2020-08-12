@@ -37,12 +37,30 @@ if (TRUE)  # optimization can be disabled for debugging
 
   p <- 0*P_init
 
-  ws <- run_sims (subn, full=nsims, subset=high, P=P_new, 
-                  cache=cache, info=FALSE)
-  tws <- itrans_wsims(ws)
-  H_prev <- - profile_log_lik (tws, full=nsims)
+  # Compute negative log likelihood, with gradient attached.
+
+  neg_ll <- function (P) with gradient (P)
+  { ws <- run_sims (subn, full=nsims, subset=high, P=P, 
+                    cache=cache, info=FALSE)
+    tws <- itrans_wsims(ws)
+    - profile_log_lik (tws, full=nsims)
+  }
+
+  H_prev <- neg_ll (P_new)
   p_prev <- p
   P_new_prev <- P_new
+
+  # A check on the gradient...
+
+  cat("Gradient check:\n")
+  delta <- 1e-7
+  H2 <- neg_ll(P_new+delta)
+  cat ("  Change in H when adding",delta,":",H2-H_prev,"\n")
+  gave <- (attr(H_prev,"gradient")+attr(H2,"gradient"))/2
+  cat ("  Predicted change from average gradient :",
+          delta*sum(sapply(gave,sum)),"\n")
+  cat ("  Average gradient:\n\n")
+  print(gave)
 
   full_rate <- 12
   start_momentum <- 18
@@ -85,19 +103,12 @@ if (TRUE)  # optimization can be disabled for debugging
            profile_log_lik(tws,full=nsims), "\n")
     }
 
-    # Compute new negative log likelihood, with gradient attached.
-
-    nll <- with gradient (P_new)
-    { ws <- run_sims (subn, full=nsims, subset=high, P=P_new, 
-                      cache=cache, info=FALSE)
-      tws <- itrans_wsims(ws)
-      - profile_log_lik (tws, full=nsims)
-    }
-
     # Do a gradient descent with momentum update.
 
     this_eta <- if (iter<full_rate) 0.2*eta else eta
     this_alpha <- if (iter<start_momentum) 0 else alpha
+
+    nll <- neg_ll(P_new)
 
     grad <- attr(nll,"gradient")     # Update is done in Hamiltonian
     p <- p - this_eta * grad         #   dynamics fashion, so that 'energy'
