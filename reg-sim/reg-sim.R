@@ -728,7 +728,50 @@ print(proc.time()-start_time)
 
 # PLOTS FOR THIS VIRUS GROUP.  Corresponding plots use the same scales.
 
-par(mfrow=c(4,1))
+# PLOT BEST FIT AND OTHER SIMULATIONS.
+
+plot_sims <- function (wsims, twsims, wmx, pp, ll)
+{
+  for (s in 0:n_plotted)
+  {
+
+    plot (start, rep(0,length(start)),
+          ylim=c(0,1.02*yupper), yaxs="i", type="n", 
+          ylab="Simulated incidence")
+  
+    ss <- if (s==0) wmx else s
+    lines (start, wsims[[1]][ss,], col="blue")
+    lines (start, wsims[[2]][ss,], col="red")
+  
+    if (s==0)  # the best-fit simulation
+    { 
+      title (paste ("Best fit simulation out of",nsims,
+                    "for",virus_group[1],"and",virus_group[2]))
+  
+      plot (start, rep(0,length(start)),
+        ylim=itrans(c(0.98*ylower,1.02*yupper)), yaxs="i", type="n", 
+        ylab=paste(if (itrans_arg!="identity") itrans_arg, 
+                   "simulated incidence"))
+    
+      lines (start, twsims[[1]][wmx,], col="blue")
+      lines (start, twsims[[2]][wmx,], col="red")
+  
+      par(mfrow=c(4,2))
+  
+      plot (sort(pp,decreasing=TRUE)[1:20],pch=20,xlab="",
+            ylab="posterior prob")
+      title ("Posterior prob. of most-likely histories")
+      plot (log10(sort(pp,decreasing=TRUE)[1:20]),pch=20,xlab="",ylim=c(-30,0),
+            ylab="log10 of posterior prob")
+      title (paste ("Log likelihood based on sum:", round(ll,3)))
+
+      par(mfrow=c(4,1))
+    }
+    if (s==1) 
+    { title (paste ("Other simulations of",virus_group[1],"and",virus_group[2]))
+    }
+  }
+}
 
 yupper <-  max (proxy[[1]], proxy[[2]], 
                 wsims[[1]][c(wmx,1:n_plotted),], 
@@ -744,6 +787,8 @@ if (opt_iters > 0) ylower <- min (ylower,
                                   wsims_new[[2]][wmx_new,])
 
 # Observed proxies.
+
+par(mfrow=c(4,1))
 
 plot (start, rep(0,length(start)),
       ylim=c(0,1.02*yupper), yaxs="i", type="n",
@@ -764,47 +809,15 @@ lines (start, tproxy[[2]], col="red")
 
 # Best fit and other simulations.
 
-for (s in 0:n_plotted)
-{
-  plot (start, rep(0,length(start)),
-        ylim=c(0,1.02*yupper), yaxs="i", type="n", 
-        ylab="Simulated incidence")
-
-  ss <- if (s==0) wmx else s
-  lines (start, wsims[[1]][ss,], col="blue")
-  lines (start, wsims[[2]][ss,], col="red")
-
-  if (s==0)  # the best-fit simulation
-  { 
-    title (paste ("Best fit simulation out of",nsims,
-                  "for",virus_group[1],"and",virus_group[2]))
-
-    plot (start, rep(0,length(start)),
-      ylim=itrans(c(0.98*ylower,1.02*yupper)), yaxs="i", type="n", 
-      ylab=paste(if (itrans_arg!="identity") itrans_arg, "simulated incidence"))
-  
-    lines (start, twsims[[1]][wmx,], col="blue")
-    lines (start, twsims[[2]][wmx,], col="red")
-
-    par(mfrow=c(4,2))
-
-    plot (sort(pp,decreasing=TRUE)[1:20],pch=20,xlab="",
-          ylab="posterior prob")
-    title ("Posterior prob. of most-likely histories")
-    plot (log10(sort(pp,decreasing=TRUE)[1:20]),pch=20,xlab="",ylim=c(-30,0),
-          ylab="log10 of posterior prob")
-    title (paste ("Log likelihood based on sum:", round(ll,3)))
-
-    par(mfrow=c(4,1))
-  }
-  if (s==1) 
-  { title (paste ("Other simulations of",virus_group[1],"and",virus_group[2]))
-  }
-}
+plot_sims (wsims, twsims, wmx, pp, ll)
 
 if (opt_iters > 0) {
 
 # Observed proxies, again.
+
+par(mfrow=c(4,1))
+
+par(mfrow=c(4,1))
 
 plot (start, rep(0,length(start)),
       ylim=c(0,1.02*yupper), yaxs="i", type="n",
@@ -823,37 +836,15 @@ plot (start, rep(0,length(start)),
 lines (start, tproxy[[1]], col="blue")
 lines (start, tproxy[[2]], col="red")
 
-# Best fit simulation with new parameters.
+# Best fit and other simulations with new parameters.
 
-plot (start, rep(0,length(start)),
-      ylim=c(0,1.02*yupper), yaxs="i", type="n", 
-      ylab="Simulated incidence")
-
-lines (start, wsims_new[[1]][wmx_new,], col="blue")
-lines (start, wsims_new[[2]][wmx_new,], col="red")
-
-title (paste ("Best fit simulation with new parameters for",
-              virus_group[1],"and",virus_group[2]))
-
-plot (start, rep(0,length(start)),
-  ylim=itrans(c(0.98*ylower,1.02*yupper)), yaxs="i", type="n", 
-  ylab=paste(if (itrans_arg!="identity") itrans_arg, "simulated incidence"))
-  
-lines (start, twsims_new[[1]][wmx_new,], col="blue")
-lines (start, twsims_new[[2]][wmx_new,], col="red")
-
-par(mfrow=c(4,2))
-
-plot (sort(pp_new,decreasing=TRUE)[1:20],pch=20,xlab="",
-      ylab="posterior prob")
-title ("Posterior prob. of most-likely histories")
-plot (log10(sort(pp_new,decreasing=TRUE)[1:20]),pch=20,xlab="",ylim=c(-30,0),
-      ylab="log10 of posterior prob")
-title (paste ("Log likelihood based on sum:", round(ll_new,3)))
+plot_sims (wsims_new, twsims_new, wmx_new, pp_new, ll_new)
 
 # Plot exponential averages at starts of seasons for first 500 simulations.
 # Best-fit simulation is larger, in red.  Uses parameters from end of
 # optimization.
+
+par(mfrow=c(4,2))
 
 first <- c(1:min(500,nsims),wmx_new)
 
