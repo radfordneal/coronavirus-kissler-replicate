@@ -5,15 +5,22 @@
 #
 #   - The R estimates to use, from corresponding file (required)
 #   - Model of "immunity" (required) - i2 (exp decay), i3 (short & long),
-#                           i4 (like i3 but with no short-term cross-immunity)
+#     i4 (like i3 but with no short-term cross-immunity)
 #   - Model of seasonal effect (required) - e2 (sine), e3 (Fourier)
 #   - Whether heteroskedasticity w.r.t. virus is modelled - het for "yes" 
 #     (default "no")
 #   - Transformation to apply before comparing observed and simulated
-#     incidence (required) - identify, sqrt, log
+#     incidence (required) - identity, sqrt, log
+#   - Number of iterations of optimization to do, in the form: opt:<n>
+#     Default is to not do optimization
+#   - Whether to initialize from regression model (in R-model directory), 
+#     which is the default, or a previous optimization run (in this directory),
+#     with a given suffix, in the form: init:<suffix>
+#   - Suffix for saving plots and parameter estimates, in form: save:<suffix>
+#     Default is no suffix
 #
 # Produces various plots that are written to the file with name
-# reg-sim-<R-estimates>-<in>-<en>-<trans>.pdf.  
+# reg-sim-<R-estimates>-<in>-<en>-<trans>[-<suffix>].pdf.  
 #
 # Copyright 2020 by Radford M. Neal
 # 
@@ -60,6 +67,31 @@ itrans <- get(itrans_arg)
 het_virus <- sum(args=="het") == 1
 if (het_virus) args <- args [! (args %in% "het")]
 
+opt_iters <- 0
+
+if (any (substr(args,1,4) == "opt:"))
+{ stopifnot (sum (substr(args,1,4) == "opt:") == 1)
+  opt_arg <- substr (args [substr(args,1,4) == "opt:"], 5, 100)
+  opt_iters <- eval(parse(text=opt_arg))
+  args <- args [substr(args,1,4) != "opt:"]
+}
+
+init_suffix <- NULL
+
+if (any (substr(args,1,5) == "init:"))
+{ stopifnot (sum (substr(args,1,5) == "init:") == 1)
+  init_suffix <- substr (args [substr(args,1,5) == "init:"], 6, 100)
+  args <- args [substr(args,1,5) != "init:"]
+}
+
+save_suffix <- NULL
+
+if (any (substr(args,1,5) == "save:"))
+{ stopifnot (sum (substr(args,1,5) == "save:") == 1)
+  save_suffix <- substr (args [substr(args,1,5) == "save:"], 6, 100)
+  args <- args [substr(args,1,5) != "save:"]
+}
+
 R_estimates <- args
 
 stopifnot(length(R_estimates)==1)
@@ -68,26 +100,25 @@ file_base <- paste0 (R_estimates,"-Rt-s2-",immune_type,"-",seffect_type,
                      if (het_virus) "-het")
 file_base_sim <- paste0("reg-sim-",gsub("Rt-s2-","",file_base),"-",itrans_arg)
 
-if (FALSE)  # Small settings for testing
+if (TRUE)  # Small settings for testing
 { nsims <- 1000         # Number of simulations in full set
   sub <- 30             # Number of simulations in subset
-  n_plotted <- 32       # Number of simulations to plot
-  n_iter <- 30          # Number of iterations for optimization
   full_interval <- 10   # Interval for doing full set of simulations
 } else      # Settings for serious run
 { nsims <- 100000       # Number of simulations in full set
   sub <- 1000           # Number of simulations in subset
-  n_plotted <- 32       # Number of simulations to plot
-  n_iter <- 800         # Number of iterations for optimization
   full_interval <- 25   # Interval for doing full set of simulations
 }
 
-Min_inf <- 0.0015     # Minimum infectivity
+n_plotted <- 32         # Number of simulations to plot
+
+Min_inf <- 0.0015       # Minimum infectivity
 
 
 # PLOT SETUP.
 
-pdf (paste0(file_base_sim,".pdf"), height=8, width=6)
+pdf (paste0 (file_base_sim, if (!is.null(save_suffix)) "-", save_suffix,
+             ".pdf"), height=8, width=6)
 par(mar=c(1.5,2.3,3,0.5), mgp=c(1.4,0.3,0), tcl=-0.22)
 yrcols <- c("red","green","blue","orange","darkcyan","darkmagenta")
 
@@ -129,8 +160,17 @@ for (g in seq_along (virus_groups)) {
 
 # READ THE MODEL.
 
-P_init <- readRDS (paste0("../R-model/R-model-",file_base,"-",
-                           names(virus_groups)[g],".model"))
+if (is.null(init_suffix))
+{ P_init <- readRDS (paste0("../R-model/R-model-",file_base,"-",
+                            names(virus_groups)[g],".model"))
+}
+else if (init_suffix=="")
+{ P_init <- readRDS (paste0(file_base_sim,"-",names(virus_groups)[g],".model"))
+}
+else
+{ P_init <- readRDS (paste0(file_base_sim,"-",names(virus_groups)[g],
+                            "-",init_suffix,".model"))
+}
 
 P_init$Rt_offset <- c (alpha=0.9, sd=0.05)
 
@@ -628,6 +668,8 @@ cat ("Log likelihood based on subset of",subn,"simulations:",
 
 # ESTIMATE MODEL PARAMETERS.
 
+if (opt_iters > 0) {
+
 cat("\nESTIMATING MODEL PARAMETERS\n\n")
 
 start_time_est <- proc.time()
@@ -648,8 +690,11 @@ print(proc.time()-start_time_est)
 cat("\nNew parameters:\n\n")
 print_model_parameters(P_new)
 
+}
 
 # DO SIMULATIONS WITH NEW PARAMETERS.
+
+if (opt_iters > 0) {
 
 cat ("SIMULATIONS WITH NEW PARAMETER ESTIMATES\n\n")
 
@@ -679,6 +724,7 @@ print(gc())
 cat("Total processing time for this group of viruses:\n")
 print(proc.time()-start_time)
 
+}
 
 # PLOTS FOR THIS VIRUS GROUP.  Corresponding plots use the same scales.
 
@@ -686,14 +732,16 @@ par(mfrow=c(4,1))
 
 yupper <-  max (proxy[[1]], proxy[[2]], 
                 wsims[[1]][c(wmx,1:n_plotted),], 
-                wsims[[2]][c(wmx,1:n_plotted),],
-                wsims_new[[1]][wmx_new,],
-                wsims_new[[2]][wmx_new,])
+                wsims[[2]][c(wmx,1:n_plotted),])
+if (opt_iters > 0) yupper <- max (yupper,
+                                  wsims_new[[1]][wmx_new,],
+                                  wsims_new[[2]][wmx_new,])
 ylower <-  min (proxy[[1]], proxy[[2]], exp(-4),
                 wsims[[1]][wmx,],
-                wsims[[2]][wmx,],
-                wsims_new[[1]][wmx_new,],
-                wsims_new[[2]][wmx_new,])
+                wsims[[2]][wmx,])
+if (opt_iters > 0) ylower <- min (ylower,
+                                  wsims_new[[1]][wmx_new,],
+                                  wsims_new[[2]][wmx_new,])
 
 # Observed proxies.
 
@@ -754,6 +802,8 @@ for (s in 0:n_plotted)
   }
 }
 
+if (opt_iters > 0) {
+
 # Observed proxies, again.
 
 plot (start, rep(0,length(start)),
@@ -802,7 +852,8 @@ plot (log10(sort(pp_new,decreasing=TRUE)[1:20]),pch=20,xlab="",ylim=c(-30,0),
 title (paste ("Log likelihood based on sum:", round(ll_new,3)))
 
 # Plot exponential averages at starts of seasons for first 500 simulations.
-# Best-fit simulation is larger, in red.
+# Best-fit simulation is larger, in red.  Uses parameters from end of
+# optimization.
 
 first <- c(1:min(500,nsims),wmx_new)
 
@@ -858,9 +909,25 @@ for (virus in virus_group)
 
 par(sv)
 
+}
+
 # Save the new parameter values.
 
-saveRDS (P_new, file = paste0(file_base_sim,".model"), version=2)
+if (opt_iters > 0) {
+
+if (is.null(save_suffix) || save_suffix=="")
+{ saveRDS (P_new, 
+           file = paste0(file_base_sim,"-",names(virus_groups)[g],".model"),
+           version=2)
+}
+else
+{ saveRDS (P_new,
+           file = paste0(file_base_sim,"-",names(virus_groups)[g],
+                         "-",save_suffix,".model"), 
+           version=2)
+}
+
+}
 
 
 # ----- END OF LOOP OVER THE TWO VIRUS GROUPS -----

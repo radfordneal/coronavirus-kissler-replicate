@@ -33,6 +33,9 @@ if (TRUE)  # optimization can be disabled for debugging
   eta$Rt_offset["alpha"] <- 5e-5
   eta$Rt_offset["sd"] <- 1e-5
 
+  cat("Initial value for eta:\n")
+  print(eta)
+
   alpha <- 0.994
 
   p <- 0*P_init
@@ -53,19 +56,19 @@ if (TRUE)  # optimization can be disabled for debugging
   # A check on the gradient...
 
   cat("Gradient check:\n")
-  delta <- 1e-7
-  H2 <- neg_ll(P_new+delta)
-  cat ("  Change in H when adding",delta,":",H2-H_prev,"\n")
+  delta <- 1e-4
+  H2 <- neg_ll(P_new+eta*delta)
+  cat ("  Change in H when adding eta *",delta,":",H2-H_prev,"\n")
   gave <- (attr(H_prev,"gradient")+attr(H2,"gradient"))/2
   cat ("  Predicted change from average gradient :",
-          delta*sum(sapply(gave,sum)),"\n")
+          sum(sapply(gave*eta*delta,sum)),"\n")
   cat ("  Average gradient:\n\n")
   print(gave)
 
   full_rate <- 12
   start_momentum <- 18
 
-  for (iter in 1:n_iter)
+  for (iter in 1:opt_iters)
   { 
     # At intervals of 'full_interval', simulate a full set of 'nsims'
     # simulations, and reselect the high-probability subset.
@@ -130,7 +133,7 @@ if (TRUE)  # optimization can be disabled for debugging
 
     # Reduce 'eta' if the energy went up too much.
 
-    if (H > H_prev+0.3)
+    if (H > H_prev+0.15)
     { cat("Reducing eta by factor of 0.8 and backtracking\n")
       eta <- 0.8 * eta
       P_new <- P_new_prev
