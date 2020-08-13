@@ -30,10 +30,10 @@ if (TRUE)  # optimization can be disabled for debugging
   eta$mc_trend <- 5e-4
   eta$mc_seasonality <- 5e-4
   eta$mc_viral[1:6] <- 5e-5
-  # eta$imm_decay <- 5e-4
-  # eta$ltimm_decay <- 1e-4
-  eta$imm_decay <- 0
-  eta$ltimm_decay <- 0
+  eta$imm_decay <- 5e-4
+  eta$ltimm_decay <- 1e-4
+  eta$imm_initial <- 8e-4
+  eta$ltimm_initial <- 4e-4
   eta$Rt_offset["alpha"] <- 5e-4
   eta$Rt_offset["sd"] <- 2e-4
 
@@ -100,7 +100,7 @@ if (TRUE)  # optimization can be disabled for debugging
             sum(sapply(ga*eta0*delta,sum)),"\n")
   }
 
-  if (FALSE)
+  if (TRUE)
   { eta0 <- 0*eta; 
     eta0$imm_decay <- eta$imm_decay
     H3 <- neg_ll(P_new+eta0*delta)
@@ -110,11 +110,31 @@ if (TRUE)  # optimization can be disabled for debugging
             sum(sapply(ga*eta0*delta,sum)),"\n")
   }
 
-  if (FALSE)
+  if (TRUE)
   { eta0 <- 0*eta; 
     eta0$ltimm_decay <- eta$ltimm_decay
     H3 <- neg_ll(P_new+eta0*delta)
     cat ("  Change in H when adding eta0 *",delta,"(ltdecay) :",H3-H_prev,"\n")
+    ga <- (attr(H_prev,"gradient")+attr(H3,"gradient"))/2
+    cat ("  Predicted change from average gradient :",
+            sum(sapply(ga*eta0*delta,sum)),"\n")
+  }
+
+  if (TRUE)
+  { eta0 <- 0*eta; 
+    eta0$imm_initial <- eta$imm_initial
+    H3 <- neg_ll(P_new+eta0*delta)
+    cat ("  Change in H when adding eta0 *",delta,"(initial) :",H3-H_prev,"\n")
+    ga <- (attr(H_prev,"gradient")+attr(H3,"gradient"))/2
+    cat ("  Predicted change from average gradient :",
+            sum(sapply(ga*eta0*delta,sum)),"\n")
+  }
+
+  if (TRUE)
+  { eta0 <- 0*eta; 
+    eta0$ltimm_initial <- eta$ltimm_initial
+    H3 <- neg_ll(P_new+eta0*delta)
+    cat("  Change in H when adding eta0 *",delta,"(ltinitial) :",H3-H_prev,"\n")
     ga <- (attr(H_prev,"gradient")+attr(H3,"gradient"))/2
     cat ("  Predicted change from average gradient :",
             sum(sapply(ga*eta0*delta,sum)),"\n")

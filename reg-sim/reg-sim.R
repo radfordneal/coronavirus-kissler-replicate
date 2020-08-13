@@ -100,7 +100,7 @@ file_base <- paste0 (R_estimates,"-Rt-s2-",immune_type,"-",seffect_type,
                      if (het_virus) "-het")
 file_base_sim <- paste0("reg-sim-",gsub("Rt-s2-","",file_base),"-",itrans_arg)
 
-if (FALSE)  # Small settings for testing
+if (TRUE)  # Small settings for testing
 { nsims <- 1000         # Number of simulations in full set
   sub <- 30             # Number of simulations in subset
   full_interval <- 10   # Interval for doing full set of simulations
@@ -172,7 +172,18 @@ else
                             "-",init_suffix,".model"))
 }
 
-P_init$Rt_offset <- c (alpha=0.9, sd=0.05)
+if (is.null(P_init$imm_initial))
+{ P_init$imm_initial <- P_init$imm_decay      # to get names
+  P_init$imm_initial[] <- 2.0
+}
+if (is.null(P_init$ltimm_initial))
+{ P_init$ltimm_initial <- P_init$ltimm_decay  # to get names
+  P_init$ltimm_initial[] <- 5.0
+}
+
+if (is.null(P_init$Rt_offset))
+{ P_init$Rt_offset <- c (alpha=0.9, sd=0.05)
+}
 
 print_model_parameters <- function (P)
 { if (seffect_type=="e3")
@@ -191,6 +202,12 @@ print_model_parameters <- function (P)
   cat("\n")
   cat("Long-term immune decay:\n")
   print(t(t(P$ltimm_decay)))
+  cat("\n")
+  cat("Log initial short-term immunity:\n")
+  print(t(t(P$imm_initial)))
+  cat("\n")
+  cat("Log initial long-term immunity:\n")
+  print(t(t(P$ltimm_initial)))
   cat("\n")
   cat("Offset model:\n")
   print (t(t(P$Rt_offset)))
@@ -221,48 +238,6 @@ proxy <- list (R_est[,paste0(virus_group[1],"_proxy")],
                R_est[,paste0(virus_group[2],"_proxy")])
 
 tproxy <- list (itrans(proxy[[1]]), itrans(proxy[[2]]))
-
-
-# FIND CHOLESKY DECOMPOSITION.  Given a square matrix A that is symmetric
-# and positive definite, this function finds an upper-triangular matrix U
-# of the same dimensions for which t(U) %*% U = A.
-#
-# This function is used here because pqR doesn't handle gradients yet
-# for its pre-defined 'chol' function.
-
-cholesky <- function (A)
-{ 
-  if (!is.matrix(A) || nrow(A)!=ncol(A))
-  { stop("The argument for cholesky must be a square matrix")
-  }
-
-  p <- nrow(A)
-  U <- matrix(0,p,p)
-
-  for (i in 1:p)
-  { 
-    if (i==1)
-    { U[i,i] <- sqrt (A[i,i])
-    }
-    else
-    { U[i,i] <- sqrt (A[i,i] - sum(U[1:(i-1),i]^2))
-    }
-
-    if (i<p)
-    { for (j in (i+1):p)
-      { if (i==1)
-        { U[i,j] <- A[i,j] / U[i,i]
-        }
-        else
-        { U[i,j] <- (A[i,j] - sum(U[1:(i-1),i]*U[1:(i-1),j])) / U[i,i]
-        }
-      }
-    }
-  }
-
-  U
-
-}
 
 
 # FUNCTION TO RUN SIMULATIONS.  Returns 'nsims' simulation results,
@@ -355,51 +330,12 @@ run_sims <- function (nsims, full=nsims, subset=NULL,
   #   past   list of matrices of assumed past incidence values, one matrix
   #          for each virus, dimension nsims x length(gen_interval)
 
-  expave1 <- log(expave(proxy[[1]],P$imm_decay[1]))
-  expave1lt <- log(expave(proxy[[1]],P$ltimm_decay[1]))
-  expave2 <- log(expave(proxy[[2]],P$imm_decay[2]))
-  expave2lt <- log(expave(proxy[[2]],P$ltimm_decay[2]))
-
-  mu1 <- c(mean(expave1),mean(expave1lt))
-  mu2 <- c(mean(expave2),mean(expave2lt))
-
-  # # pqR doesn't handle gradients for 'cov' yet, so use this...
-  # covar <- function (x1,x2,mu1,mu2) 
-  # { X <- cbind(x1-mu1,x2-mu2)
-  #   t(X) %*% X
-  # }
-  # 
-  # cov1 <- covar(expave1,expave1lt,mu1[1],mu1[2])
-  # cov2 <- covar(expave2,expave2lt,mu2[1],mu2[2])
-  #
-  # chol1 <- cholesky (cov1)
-  # chol2 <- cholesky (cov2)
-    
-  cov1 <- cov (cbind(expave1,expave1lt))
-  cov2 <- cov (cbind(expave2,expave2lt))
-
-  chol1 <- chol(cov1)
-  chol2 <- chol(cov2)
-
-  if (info && nsims==full)
-  { cat("\nInitial log expave distributions:\n")
-    print(mu1); print(mu2)
-    print(cov1); print(cov2)
-    print(chol1); print(chol2);
-    cat("\n")
-  }
-
-  n1 <- exp (rep(mu1,each=nsims) + cbind(randn(),randn()) %*% chol1)
-  n2 <- exp (rep(mu2,each=nsims) + cbind(randn(),randn()) %*% chol2)
-
-  t <- list (n1[,1], n2[,1])
-  tlt <- list (n1[,2], n2[,2])
+  t <- list (exp (P$imm_initial[1] + 0.3*randn()),
+             exp (P$imm_initial[2] + 0.3*randn()))
+  tlt <- list (exp (P$ltimm_initial[1] + 0.3*randn()),
+               exp (P$ltimm_initial[2] + 0.3*randn()))
 
   sv_t <<- list(t); sv_tlt <<- list(tlt)  # for later plots
-
-  # cat("initial exponential averages:\n")
-  # print(t)
-  # print(tlt)
 
   past <- 
     list (matrix (t[[1]]*(1-daily_decay[1]), nsims, length(gen_interval)),
@@ -618,28 +554,6 @@ profile_log_lik <- function (twsims, ...)
   log_lik (twsims, est$alpha, est$sd, ...)
 }
 
-
-# FIND EXPONENTIAL AVERAGES OF AN INCIDENCE PROXY AT THE END OF EACH SEASON.
-
-expave <- function (proxy_values, decay)
-{
-  s <- mean(proxy_values) / (1-decay)
-  r <- numeric()
-  for (i in 1:length(proxy_values))
-  { if (i %% 52 == 0) 
-    { r <- c(r,s)
-    }
-    s <- proxy_values[i] + s * decay
-  }
-  r
-}
-
-cat("Exponential averages of proxies with original decay settings:\n")
-print (rbind (imm=expave(proxy[[1]],P_init$imm_decay[1]),
-              ltimm=expave(proxy[[1]],P_init$ltimm_decay[1])))
-print (rbind (imm=expave(proxy[[2]],P_init$imm_decay[2]),
-              ltimm=expave(proxy[[2]],P_init$ltimm_decay[2])))
-cat("\n")
 
 # FREE MEMORY.
 
