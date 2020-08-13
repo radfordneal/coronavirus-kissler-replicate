@@ -27,11 +27,15 @@ pp_new <- pp
 if (TRUE)  # optimization can be disabled for debugging
 { 
   eta <- 0*P_init + 5e-4
+  eta$mc_trend <- 5e-4
+  eta$mc_seasonality <- 5e-4
   eta$mc_viral[1:6] <- 5e-5
-  eta$imm_decay <- 5e-5
-  eta$ltimm_decay <- 1e-5
-  eta$Rt_offset["alpha"] <- 5e-5
-  eta$Rt_offset["sd"] <- 1e-5
+  # eta$imm_decay <- 5e-4
+  # eta$ltimm_decay <- 1e-4
+  eta$imm_decay <- 0
+  eta$ltimm_decay <- 0
+  eta$Rt_offset["alpha"] <- 5e-4
+  eta$Rt_offset["sd"] <- 2e-4
 
   cat("Initial value for eta:\n")
   print(eta)
@@ -56,13 +60,77 @@ if (TRUE)  # optimization can be disabled for debugging
   # A check on the gradient...
 
   cat("Gradient check:\n")
-  delta <- 1e-4
+  delta <- 2e-4
+
   H2 <- neg_ll(P_new+eta*delta)
   cat ("  Change in H when adding eta *",delta,":",H2-H_prev,"\n")
   gave <- (attr(H_prev,"gradient")+attr(H2,"gradient"))/2
   cat ("  Predicted change from average gradient :",
           sum(sapply(gave*eta*delta,sum)),"\n")
-  cat ("  Average gradient:\n\n")
+
+  # Can selectively enable these...
+
+  if (TRUE)
+  { eta0 <- 0*eta; 
+    eta0$mc_trend <- eta$mc_trend
+    H3 <- neg_ll(P_new+eta0*delta)
+    cat ("  Change in H when adding eta0 *",delta,"(trend) :",H3-H_prev,"\n")
+    ga <- (attr(H_prev,"gradient")+attr(H3,"gradient"))/2
+    cat ("  Predicted change from average gradient :",
+            sum(sapply(ga*eta0*delta,sum)),"\n")
+  }
+
+  if (TRUE)
+  { eta0 <- 0*eta; 
+    eta0$mc_seasonality <- eta$mc_seasonality
+    H3 <- neg_ll(P_new+eta0*delta)
+    cat ("  Change in H when adding eta0 *",delta,"(season) :",H3-H_prev,"\n")
+    ga <- (attr(H_prev,"gradient")+attr(H3,"gradient"))/2
+    cat ("  Predicted change from average gradient :",
+            sum(sapply(ga*eta0*delta,sum)),"\n")
+  }
+
+  if (TRUE)
+  { eta0 <- 0*eta; 
+    eta0$mc_viral <- eta$mc_viral
+    H3 <- neg_ll(P_new+eta0*delta)
+    cat ("  Change in H when adding eta0 *",delta,"(viral) :",H3-H_prev,"\n")
+    ga <- (attr(H_prev,"gradient")+attr(H3,"gradient"))/2
+    cat ("  Predicted change from average gradient :",
+            sum(sapply(ga*eta0*delta,sum)),"\n")
+  }
+
+  if (FALSE)
+  { eta0 <- 0*eta; 
+    eta0$imm_decay <- eta$imm_decay
+    H3 <- neg_ll(P_new+eta0*delta)
+    cat ("  Change in H when adding eta0 *",delta,"(decay) :",H3-H_prev,"\n")
+    ga <- (attr(H_prev,"gradient")+attr(H3,"gradient"))/2
+    cat ("  Predicted change from average gradient :",
+            sum(sapply(ga*eta0*delta,sum)),"\n")
+  }
+
+  if (FALSE)
+  { eta0 <- 0*eta; 
+    eta0$ltimm_decay <- eta$ltimm_decay
+    H3 <- neg_ll(P_new+eta0*delta)
+    cat ("  Change in H when adding eta0 *",delta,"(ltdecay) :",H3-H_prev,"\n")
+    ga <- (attr(H_prev,"gradient")+attr(H3,"gradient"))/2
+    cat ("  Predicted change from average gradient :",
+            sum(sapply(ga*eta0*delta,sum)),"\n")
+  }
+
+  if (TRUE)
+  { eta0 <- 0*eta; 
+    eta0$Rt_offset <- eta$Rt_offset
+    H3 <- neg_ll(P_new+eta0*delta)
+    cat ("  Change in H when adding eta0 *",delta,"(offset) :",H3-H_prev,"\n")
+    ga <- (attr(H_prev,"gradient")+attr(H3,"gradient"))/2
+    cat ("  Predicted change from average gradient :",
+            sum(sapply(ga*eta0*delta,sum)),"\n")
+  }
+
+  cat ("Average gradient:\n\n")
   print(gave)
 
   full_rate <- 12

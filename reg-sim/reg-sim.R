@@ -100,13 +100,13 @@ file_base <- paste0 (R_estimates,"-Rt-s2-",immune_type,"-",seffect_type,
                      if (het_virus) "-het")
 file_base_sim <- paste0("reg-sim-",gsub("Rt-s2-","",file_base),"-",itrans_arg)
 
-if (TRUE)  # Small settings for testing
+if (FALSE)  # Small settings for testing
 { nsims <- 1000         # Number of simulations in full set
   sub <- 30             # Number of simulations in subset
   full_interval <- 10   # Interval for doing full set of simulations
 } else      # Settings for serious run
 { nsims <- 100000       # Number of simulations in full set
-  sub <- 1000           # Number of simulations in subset
+  sub <- 2000           # Number of simulations in subset
   full_interval <- 25   # Interval for doing full set of simulations
 }
 
@@ -223,6 +223,48 @@ proxy <- list (R_est[,paste0(virus_group[1],"_proxy")],
 tproxy <- list (itrans(proxy[[1]]), itrans(proxy[[2]]))
 
 
+# FIND CHOLESKY DECOMPOSITION.  Given a square matrix A that is symmetric
+# and positive definite, this function finds an upper-triangular matrix U
+# of the same dimensions for which t(U) %*% U = A.
+#
+# This function is used here because pqR doesn't handle gradients yet
+# for its pre-defined 'chol' function.
+
+cholesky <- function (A)
+{ 
+  if (!is.matrix(A) || nrow(A)!=ncol(A))
+  { stop("The argument for cholesky must be a square matrix")
+  }
+
+  p <- nrow(A)
+  U <- matrix(0,p,p)
+
+  for (i in 1:p)
+  { 
+    if (i==1)
+    { U[i,i] <- sqrt (A[i,i])
+    }
+    else
+    { U[i,i] <- sqrt (A[i,i] - sum(U[1:(i-1),i]^2))
+    }
+
+    if (i<p)
+    { for (j in (i+1):p)
+      { if (i==1)
+        { U[i,j] <- A[i,j] / U[i,i]
+        }
+        else
+        { U[i,j] <- (A[i,j] - sum(U[1:(i-1),i]*U[1:(i-1),j])) / U[i,i]
+        }
+      }
+    }
+  }
+
+  U
+
+}
+
+
 # FUNCTION TO RUN SIMULATIONS.  Returns 'nsims' simulation results,
 # from 'nsims' five-year simulations.  If 'subset' is non-null, the
 # random number generation for the 'nsims' simulations is done as if
@@ -318,16 +360,31 @@ run_sims <- function (nsims, full=nsims, subset=NULL,
   expave2 <- log(expave(proxy[[2]],P$imm_decay[2]))
   expave2lt <- log(expave(proxy[[2]],P$ltimm_decay[2]))
 
-  chol1 <- chol(cov(cbind(expave1,expave1lt)))
-  chol2 <- chol(cov(cbind(expave2,expave2lt)))
-
   mu1 <- c(mean(expave1),mean(expave1lt))
   mu2 <- c(mean(expave2),mean(expave2lt))
+
+  # # pqR doesn't handle gradients for 'cov' yet, so use this...
+  # covar <- function (x1,x2,mu1,mu2) 
+  # { X <- cbind(x1-mu1,x2-mu2)
+  #   t(X) %*% X
+  # }
+  # 
+  # cov1 <- covar(expave1,expave1lt,mu1[1],mu1[2])
+  # cov2 <- covar(expave2,expave2lt,mu2[1],mu2[2])
+  #
+  # chol1 <- cholesky (cov1)
+  # chol2 <- cholesky (cov2)
+    
+  cov1 <- cov (cbind(expave1,expave1lt))
+  cov2 <- cov (cbind(expave2,expave2lt))
+
+  chol1 <- chol(cov1)
+  chol2 <- chol(cov2)
 
   if (info && nsims==full)
   { cat("\nInitial log expave distributions:\n")
     print(mu1); print(mu2)
-    print(cov(cbind(expave1,expave1lt))); print(cov(cbind(expave2,expave2lt)))
+    print(cov1); print(cov2)
     print(chol1); print(chol2);
     cat("\n")
   }
