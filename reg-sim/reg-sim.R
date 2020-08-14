@@ -100,14 +100,14 @@ file_base <- paste0 (R_estimates,"-Rt-s2-",immune_type,"-",seffect_type,
                      if (het_virus) "-het")
 file_base_sim <- paste0("reg-sim-",gsub("Rt-s2-","",file_base),"-",itrans_arg)
 
-if (TRUE)  # Small settings for testing
+if (FALSE)  # Small settings for testing
 { nsims <- 1000         # Number of simulations in full set
   sub <- 30             # Number of simulations in subset
   full_interval <- 10   # Interval for doing full set of simulations
 } else      # Settings for serious run
 { nsims <- 100000       # Number of simulations in full set
-  sub <- 2000           # Number of simulations in subset
-  full_interval <- 25   # Interval for doing full set of simulations
+  sub <- 2500           # Number of simulations in subset
+  full_interval <- 30   # Interval for doing full set of simulations
 }
 
 n_plotted <- 32         # Number of simulations to plot

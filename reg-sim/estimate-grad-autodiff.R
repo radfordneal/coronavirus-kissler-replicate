@@ -40,7 +40,12 @@ if (TRUE)  # optimization can be disabled for debugging
   cat("Initial value for eta:\n")
   print(eta)
 
-  alpha <- 0.994
+  alpha <- 0.995
+  cat("Momentum:",alpha,"\n")
+
+  full_rate <- 15        # When to switch from smaller to full eta
+  start_momentum <- 25   # When to swith from zero to small momentum
+  full_momentum <- 50    # When to swith from small to full momentum
 
   p <- 0*P_init
 
@@ -53,7 +58,7 @@ if (TRUE)  # optimization can be disabled for debugging
     - profile_log_lik (tws, full=nsims)
   }
 
-  H_prev <- neg_ll (P_new)
+  H <- neg_ll (P_new)
   p_prev <- p
   P_new_prev <- P_new
 
@@ -63,89 +68,89 @@ if (TRUE)  # optimization can be disabled for debugging
   delta <- 2e-4
 
   H2 <- neg_ll(P_new+eta*delta)
-  cat ("  Change in H when adding eta *",delta,":",H2-H_prev,"\n")
-  gave <- (attr(H_prev,"gradient")+attr(H2,"gradient"))/2
+  cat ("  Change in H when adding eta *",delta,":",H2-H,"\n")
+  gave <- (attr(H,"gradient")+attr(H2,"gradient"))/2
   cat ("  Predicted change from average gradient :",
           sum(sapply(gave*eta*delta,sum)),"\n")
 
   # Can selectively enable these...
 
-  if (TRUE)
+  if (FALSE)
   { eta0 <- 0*eta; 
     eta0$mc_trend <- eta$mc_trend
     H3 <- neg_ll(P_new+eta0*delta)
-    cat ("  Change in H when adding eta0 *",delta,"(trend) :",H3-H_prev,"\n")
-    ga <- (attr(H_prev,"gradient")+attr(H3,"gradient"))/2
+    cat ("  Change in H when adding eta0 *",delta,"(trend) :",H3-H,"\n")
+    ga <- (attr(H,"gradient")+attr(H3,"gradient"))/2
     cat ("  Predicted change from average gradient :",
             sum(sapply(ga*eta0*delta,sum)),"\n")
   }
 
-  if (TRUE)
+  if (FALSE)
   { eta0 <- 0*eta; 
     eta0$mc_seasonality <- eta$mc_seasonality
     H3 <- neg_ll(P_new+eta0*delta)
-    cat ("  Change in H when adding eta0 *",delta,"(season) :",H3-H_prev,"\n")
-    ga <- (attr(H_prev,"gradient")+attr(H3,"gradient"))/2
+    cat ("  Change in H when adding eta0 *",delta,"(season) :",H3-H,"\n")
+    ga <- (attr(H,"gradient")+attr(H3,"gradient"))/2
     cat ("  Predicted change from average gradient :",
             sum(sapply(ga*eta0*delta,sum)),"\n")
   }
 
-  if (TRUE)
+  if (FALSE)
   { eta0 <- 0*eta; 
     eta0$mc_viral <- eta$mc_viral
     H3 <- neg_ll(P_new+eta0*delta)
-    cat ("  Change in H when adding eta0 *",delta,"(viral) :",H3-H_prev,"\n")
-    ga <- (attr(H_prev,"gradient")+attr(H3,"gradient"))/2
+    cat ("  Change in H when adding eta0 *",delta,"(viral) :",H3-H,"\n")
+    ga <- (attr(H,"gradient")+attr(H3,"gradient"))/2
     cat ("  Predicted change from average gradient :",
             sum(sapply(ga*eta0*delta,sum)),"\n")
   }
 
-  if (TRUE)
+  if (FALSE)
   { eta0 <- 0*eta; 
     eta0$imm_decay <- eta$imm_decay
     H3 <- neg_ll(P_new+eta0*delta)
-    cat ("  Change in H when adding eta0 *",delta,"(decay) :",H3-H_prev,"\n")
-    ga <- (attr(H_prev,"gradient")+attr(H3,"gradient"))/2
+    cat ("  Change in H when adding eta0 *",delta,"(decay) :",H3-H,"\n")
+    ga <- (attr(H,"gradient")+attr(H3,"gradient"))/2
     cat ("  Predicted change from average gradient :",
             sum(sapply(ga*eta0*delta,sum)),"\n")
   }
 
-  if (TRUE)
+  if (FALSE)
   { eta0 <- 0*eta; 
     eta0$ltimm_decay <- eta$ltimm_decay
     H3 <- neg_ll(P_new+eta0*delta)
-    cat ("  Change in H when adding eta0 *",delta,"(ltdecay) :",H3-H_prev,"\n")
-    ga <- (attr(H_prev,"gradient")+attr(H3,"gradient"))/2
+    cat ("  Change in H when adding eta0 *",delta,"(ltdecay) :",H3-H,"\n")
+    ga <- (attr(H,"gradient")+attr(H3,"gradient"))/2
     cat ("  Predicted change from average gradient :",
             sum(sapply(ga*eta0*delta,sum)),"\n")
   }
 
-  if (TRUE)
+  if (FALSE)
   { eta0 <- 0*eta; 
     eta0$imm_initial <- eta$imm_initial
     H3 <- neg_ll(P_new+eta0*delta)
-    cat ("  Change in H when adding eta0 *",delta,"(initial) :",H3-H_prev,"\n")
-    ga <- (attr(H_prev,"gradient")+attr(H3,"gradient"))/2
+    cat ("  Change in H when adding eta0 *",delta,"(initial) :",H3-H,"\n")
+    ga <- (attr(H,"gradient")+attr(H3,"gradient"))/2
     cat ("  Predicted change from average gradient :",
             sum(sapply(ga*eta0*delta,sum)),"\n")
   }
 
-  if (TRUE)
+  if (FALSE)
   { eta0 <- 0*eta; 
     eta0$ltimm_initial <- eta$ltimm_initial
     H3 <- neg_ll(P_new+eta0*delta)
-    cat("  Change in H when adding eta0 *",delta,"(ltinitial) :",H3-H_prev,"\n")
-    ga <- (attr(H_prev,"gradient")+attr(H3,"gradient"))/2
+    cat("  Change in H when adding eta0 *",delta,"(ltinitial) :",H3-H,"\n")
+    ga <- (attr(H,"gradient")+attr(H3,"gradient"))/2
     cat ("  Predicted change from average gradient :",
             sum(sapply(ga*eta0*delta,sum)),"\n")
   }
 
-  if (TRUE)
+  if (FALSE)
   { eta0 <- 0*eta; 
     eta0$Rt_offset <- eta$Rt_offset
     H3 <- neg_ll(P_new+eta0*delta)
-    cat ("  Change in H when adding eta0 *",delta,"(offset) :",H3-H_prev,"\n")
-    ga <- (attr(H_prev,"gradient")+attr(H3,"gradient"))/2
+    cat ("  Change in H when adding eta0 *",delta,"(offset) :",H3-H,"\n")
+    ga <- (attr(H,"gradient")+attr(H3,"gradient"))/2
     cat ("  Predicted change from average gradient :",
             sum(sapply(ga*eta0*delta,sum)),"\n")
   }
@@ -153,8 +158,7 @@ if (TRUE)  # optimization can be disabled for debugging
   cat ("Average gradient:\n\n")
   print(gave)
 
-  full_rate <- 12
-  start_momentum <- 18
+  nll <- H
 
   for (iter in 1:opt_iters)
   { 
@@ -192,45 +196,53 @@ if (TRUE)  # optimization can be disabled for debugging
       tws <- itrans_wsims(ws)
       cat("Log likelihood from new subset of size",subn,":",
            profile_log_lik(tws,full=nsims), "\n")
+
+      nll <- neg_ll(P_new)
     }
 
-    # Do a gradient descent with momentum update.
+    # Do a gradient-descent-with-momentum update.  It's done in
+    # "leapfrog" style, so that H will be nearly preserved unless 
+    # eta is too big, allowing for an adjustment of eta when needed.
 
     this_eta <- if (iter<full_rate) 0.2*eta else eta
-    this_alpha <- if (iter<start_momentum) 0 else alpha
+    this_alpha <- ( if (iter<start_momentum) 0 
+                    else if (iter<full_momentum) alpha^2 
+                    else alpha )
 
+    H0 <- nll + sum(sapply(p^2,sum))/2
+
+    p <- p - (this_eta/2) * attr(nll,"gradient") 
+    P_new <- P_new + this_eta * p
     nll <- neg_ll(P_new)
-
-    grad <- attr(nll,"gradient")     # Update is done in Hamiltonian
-    p <- p - this_eta * grad         #   dynamics fashion, so that 'energy'
-    P_new <- P_new + this_eta * p    #   would be conserved if exact
+    p <- p - (this_eta/2) * attr(nll,"gradient") 
 
     K <- sum(sapply(p^2,sum))/2
     H <- nll + K
     
-    cat ("iteration",iter,
-         ": log lik",round(-nll,5),
-         ": K",round(K,5),
-         ": energy",round(H,5))
-    if (this_alpha>0)
-    { cat(" ->",round(nll+this_alpha^2*K,5))
-    }
-    cat("\n")
+    cat ("iter",sprintf("%4d",iter),
+       # ": H0",sprintf("%.5f",H0),
+         ": dH",sprintf("%8.5f",H-H0),
+         ": ll",sprintf("%.5f",-nll),
+         ": K",sprintf("%.5f",K),
+         ": H",sprintf("%.5f",H))
 
-    p <- alpha * p
+    p <- this_alpha * p
 
-    # Reduce 'eta' if the energy went up too much.
+    cat (" >",sprintf("%.5f",nll+sum(sapply(p^2,sum))/2), "\n")
 
-    if (H > H_prev+0.15)
-    { cat("Reducing eta by factor of 0.8 and backtracking\n")
-      eta <- 0.8 * eta
+    # Reduce 'eta' if H went up too much.
+
+    if (H-H0 > 0.2)
+    { eta <- 0.8 * eta
       P_new <- P_new_prev
       p <- p_prev
+      nll <- neg_ll(P_new)
+      cat("Reducing eta by factor of 0.8 and backtracking - new H is",
+           sprintf("%.5f",nll + sum(sapply(p^2,sum))/2),"\n")
     }
     else
     { P_new_prev <- P_new
       p_prev <- p
-      H_prev <- H
     }
   }
 
