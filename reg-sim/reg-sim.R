@@ -318,9 +318,6 @@ run_sims <- function (nsims, full=nsims, subset=NULL,
     }
   }
 
-  daily_decay <- P$imm_decay ^ (1/7)
-  ltdaily_decay <- P$ltimm_decay ^ (1/7)
-
   # Pre-compute trend and seasonal effects for all days.
   
   tseff <-
@@ -330,6 +327,14 @@ run_sims <- function (nsims, full=nsims, subset=NULL,
       seffect_e3(yrsd,P$mc_seasonality,0) +
         as.vector (predict(trend_spline,yrsd) %*% P$mc_trend)
   )
+
+  mc <- P$mc_viral
+
+  alph <- 1 / (1 + exp(-P$Rt_offset["alpha"]))
+  sd <- exp(P$Rt_offset["sd"])
+
+  daily_decay <- (1/(1+exp(-P$imm_decay))) ^ (1/7)
+  ltdaily_decay <- (1/(1+exp(-P$ltimm_decay))) ^ (1/7)
 
   # Initial levels for exponentially-decaying averages and past incidence.
   #
@@ -364,12 +369,9 @@ run_sims <- function (nsims, full=nsims, subset=NULL,
 
   # Simulate for all days, for all simulations, adding to weekly results.
 
-  mc <- P$mc_viral
-
   for (day in 1:(7*length(start)))
   {
-    alph <- 1 / (1 + exp(-P$Rt_offset["alpha"]))
-    Rt_offset <- alph*Rt_offset + exp(P$Rt_offset["sd"])*sqrt(1-alph^2)*randn()
+    Rt_offset <- alph * Rt_offset + sd * sqrt(1-alph^2) * randn()
 
     for (vi in 1:2)
     { 
