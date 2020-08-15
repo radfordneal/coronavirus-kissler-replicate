@@ -37,11 +37,12 @@ if (TRUE)  # optimization can be disabled for debugging
   eta$Rt_offset["alpha"] <- 5e-4
   eta$Rt_offset["sd"] <- 5e-4
 
-  cat("Initial value for eta:\n")
+  cat("Value for eta:\n")
   print(eta)
 
+  eta_adj <- 3
   alpha <- 0.995
-  cat("Momentum:",alpha,"\n")
+  cat("Eta ajustment:",eta_adj," Momentum:",alpha,"\n")
 
 #  full_rate <- 15        # When to switch from smaller to full eta
 #  start_momentum <- 25   # When to swith from zero to small momentum
@@ -89,7 +90,7 @@ if (TRUE)  # optimization can be disabled for debugging
             sum(sapply(ga*eta0*delta,sum)),"\n")
   }
 
-  if (TRUE)
+  if (FALSE)
   { eta0 <- 0*eta; 
     eta0$mc_seasonality <- eta$mc_seasonality
     H3 <- neg_ll(P_new+eta0*delta)
@@ -99,7 +100,7 @@ if (TRUE)  # optimization can be disabled for debugging
             sum(sapply(ga*eta0*delta,sum)),"\n")
   }
 
-  if (TRUE)
+  if (FALSE)
   { eta0 <- 0*eta; 
     eta0$mc_viral <- eta$mc_viral
     H3 <- neg_ll(P_new+eta0*delta)
@@ -109,7 +110,7 @@ if (TRUE)  # optimization can be disabled for debugging
             sum(sapply(ga*eta0*delta,sum)),"\n")
   }
 
-  if (TRUE)
+  if (FALSE)
   { eta0 <- 0*eta; 
     eta0$imm_decay <- eta$imm_decay
     H3 <- neg_ll(P_new+eta0*delta)
@@ -119,7 +120,7 @@ if (TRUE)  # optimization can be disabled for debugging
             sum(sapply(ga*eta0*delta,sum)),"\n")
   }
 
-  if (TRUE)
+  if (FALSE)
   { eta0 <- 0*eta; 
     eta0$ltimm_decay <- eta$ltimm_decay
     H3 <- neg_ll(P_new+eta0*delta)
@@ -129,7 +130,7 @@ if (TRUE)  # optimization can be disabled for debugging
             sum(sapply(ga*eta0*delta,sum)),"\n")
   }
 
-  if (TRUE)
+  if (FALSE)
   { eta0 <- 0*eta; 
     eta0$imm_initial <- eta$imm_initial
     H3 <- neg_ll(P_new+eta0*delta)
@@ -139,7 +140,7 @@ if (TRUE)  # optimization can be disabled for debugging
             sum(sapply(ga*eta0*delta,sum)),"\n")
   }
 
-  if (TRUE)
+  if (FALSE)
   { eta0 <- 0*eta; 
     eta0$ltimm_initial <- eta$ltimm_initial
     H3 <- neg_ll(P_new+eta0*delta)
@@ -149,7 +150,7 @@ if (TRUE)  # optimization can be disabled for debugging
             sum(sapply(ga*eta0*delta,sum)),"\n")
   }
 
-  if (TRUE)
+  if (FALSE)
   { eta0 <- 0*eta; 
     eta0$Rt_offset <- eta$Rt_offset
     H3 <- neg_ll(P_new+eta0*delta)
@@ -206,9 +207,9 @@ if (TRUE)  # optimization can be disabled for debugging
 
     # Do a gradient-descent-with-momentum update.  It's done in
     # "leapfrog" style, so that H will be nearly preserved unless 
-    # eta is too big, allowing for an adjustment of eta when needed.
+    # eta_adj is too big, allowing for change to eta_adj when needed.
 
-    this_eta <- if (iter<full_rate) 0.2*eta else eta
+    this_eta <- eta_adj * if (iter<full_rate) 0.2*eta else eta
     this_alpha <- ( if (iter<start_momentum) 0 
                     else if (iter<full_momentum) alpha^2 
                     else alpha )
@@ -234,14 +235,15 @@ if (TRUE)  # optimization can be disabled for debugging
 
     cat (" >",sprintf("%.5f",nll+sum(sapply(p^2,sum))/2), "\n")
 
-    # Reduce 'eta' if H went up too much.
+    # Reduce 'eta_adj' if H went up too much.
 
     if (H-H0 > 0.2)
-    { eta <- 0.8 * eta
+    { eta_adj <- 0.8 * eta_adj
       P_new <- P_new_prev
       p <- p_prev
       nll <- neg_ll(P_new)
-      cat("Reducing eta by factor of 0.8 and backtracking - new H is",
+      cat("Multiplying eta_adj by 0.8 - now",eta_adj,
+          "- and backtracking - new H is",
            sprintf("%.5f",nll + sum(sapply(p^2,sum))/2),"\n")
     }
     else
