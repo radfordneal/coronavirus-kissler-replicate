@@ -19,6 +19,8 @@
 # along with this program; if not, a copy is available at
 # https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
 
+source("concat.R")
+
 cat("Number of parameters:",sum(sapply(P_init,length)),"\n")
 
 P_new <- P_init
@@ -27,32 +29,33 @@ pp_new <- pp
 if (TRUE)  # optimization can be disabled for debugging
 { 
   eta <- 0*P_init + 5e-4
-  eta$mc_trend <- 5e-4
-  eta$mc_seasonality <- 5e-4
-  eta$mc_viral[1:6] <- 5e-5
-  eta$imm_decay <- 1e-3
-  eta$ltimm_decay <- 2e-4
-  eta$imm_initial <- 1e-3
-  eta$ltimm_initial <- 1e-3
-  eta$Rt_offset["alpha"] <- 5e-4
-  eta$Rt_offset["sd"] <- 5e-4
+  eta$mc_trend <- 1e-5
+  eta$mc_seasonality <- 2e-5
+  eta$mc_viral[1:6] <- 1e-5
+  eta$mc_viral[7:8] <- 2e-5
+  eta$imm_decay <- 7e-3
+  eta$ltimm_decay <- 7e-3
+  eta$imm_initial <- 1e-2
+  eta$ltimm_initial <- 1e-2
+  eta$Rt_offset["alpha"] <- 3e-3
+  eta$Rt_offset["sd"] <- 2e-3
 
   cat("Value for eta:\n")
   print(eta)
 
-  eta_adj <- 3
-  alpha <- 0.995
+  eta_adj <- 2.0
+  alpha <- 0.997
   cat("Eta ajustment:",eta_adj," Momentum:",alpha,"\n")
 
-#  full_rate <- 15        # When to switch from smaller to full eta
-#  start_momentum <- 25   # When to swith from zero to small momentum
-#  full_momentum <- 50    # When to swith from small to full momentum
+  full_rate <- 10        # When to switch from smaller to full eta
+  start_momentum <- 20   # When to swith from zero to small momentum
+  full_momentum <- 50    # When to swith from small to full momentum
 
-  full_rate <- 1        # When to switch from smaller to full eta
-  start_momentum <- 1   # When to swith from zero to small momentum
-  full_momentum <- 1    # When to swith from small to full momentum
+# full_rate <- 1        # When to switch from smaller to full eta
+# start_momentum <- 1   # When to swith from zero to small momentum
+# full_momentum <- 1    # When to swith from small to full momentum
 
-  p <- 0*P_init
+  p <- if (is.null(momentum)) 0*P_init else momentum
 
   # Compute negative log likelihood, with gradient attached.
 
@@ -165,8 +168,14 @@ if (TRUE)  # optimization can be disabled for debugging
 
   nll <- H
 
+  rec <- vector("list",opt_iters+1)
+  recp <- vector("list",opt_iters+1)
+
   for (iter in 1:opt_iters)
   { 
+    rec[[iter]] <- P_new
+    recp[[iter]] <- p
+
     # At intervals of 'full_interval', simulate a full set of 'nsims'
     # simulations, and reselect the high-probability subset.
 
@@ -252,7 +261,25 @@ if (TRUE)  # optimization can be disabled for debugging
     }
   }
 
-  cat("\nInitial and new parameter values:\n\n")
-  print_model_parameters (mapply (cbind, 
-                           Initial=P_init, New=P_new, Change=P_new-P_init))
+  par(mfrow=c(4,4))
+
+  rec[[opt_iters+1]] <- P_new
+  recp[[opt_iters+1]] <- p
+  rec <- concat(rec)
+  recp <- concat(recp)
+
+  for (i along(rec))
+  { plot(c(0,opt_iters),range(rec[[i]]),type="n",xlab="",ylab="")
+    title(names(rec)[[i]])
+    for (j in 1..nrow(rec[[i]]))
+    { lines(0..opt_iters,rec[[i]][j,],col=1+j)
+    }
+    plot(c(0,opt_iters),range(recp[[i]]),type="n",xlab="",ylab="")
+    abline(h=0)
+    for (j in 1..nrow(recp[[i]]))
+    { lines(0..opt_iters,recp[[i]][j,],col=1+j)
+    }
+  }
+
+  momentum <- p
 }

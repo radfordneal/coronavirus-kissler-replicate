@@ -105,8 +105,8 @@ if (FALSE)  # Small settings for testing
   sub <- 30             # Number of simulations in subset
   full_interval <- 10   # Interval for doing full set of simulations
 } else      # Settings for serious run
-{ nsims <- 100000       # Number of simulations in full set
-  sub <- 2500           # Number of simulations in subset
+{ nsims <- 50000        # Number of simulations in full set
+  sub <- 1000           # Number of simulations in subset
   full_interval <- 30   # Interval for doing full set of simulations
 }
 
@@ -171,6 +171,9 @@ else
 { P_init <- readRDS (paste0(file_base_sim,"-",names(virus_groups)[g],
                             "-",init_suffix,".model"))
 }
+
+momentum <- P_init$momentum
+P_init$momentum <- NULL
 
 if (is.null(P_init$imm_initial))
 { P_init$imm_initial <- P_init$imm_decay      # to get names
@@ -896,6 +899,8 @@ P_out$Rt_offset["alpha"] <- 1 / (1 + exp(-P_out$Rt_offset["alpha"]))
 P_out$Rt_offset["sd"] <- exp(P_out$Rt_offset["sd"])
 
 # Save parameters to file.
+
+P_out$momentum <- momentum
 
 if (is.null(save_suffix) || save_suffix=="")
 { saveRDS (P_out, 
