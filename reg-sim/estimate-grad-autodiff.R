@@ -30,12 +30,12 @@ if (TRUE)  # optimization can be disabled for debugging
   eta$mc_trend <- 5e-4
   eta$mc_seasonality <- 5e-4
   eta$mc_viral[1:6] <- 5e-5
-  eta$imm_decay <- 5e-4
-  eta$ltimm_decay <- 1e-4
-  eta$imm_initial <- 8e-4
-  eta$ltimm_initial <- 4e-4
+  eta$imm_decay <- 1e-3
+  eta$ltimm_decay <- 2e-4
+  eta$imm_initial <- 1e-3
+  eta$ltimm_initial <- 1e-3
   eta$Rt_offset["alpha"] <- 5e-4
-  eta$Rt_offset["sd"] <- 2e-4
+  eta$Rt_offset["sd"] <- 1e-4
 
   cat("Initial value for eta:\n")
   print(eta)
@@ -43,9 +43,13 @@ if (TRUE)  # optimization can be disabled for debugging
   alpha <- 0.995
   cat("Momentum:",alpha,"\n")
 
-  full_rate <- 15        # When to switch from smaller to full eta
-  start_momentum <- 25   # When to swith from zero to small momentum
-  full_momentum <- 50    # When to swith from small to full momentum
+#  full_rate <- 15        # When to switch from smaller to full eta
+#  start_momentum <- 25   # When to swith from zero to small momentum
+#  full_momentum <- 50    # When to swith from small to full momentum
+
+  full_rate <- 1        # When to switch from smaller to full eta
+  start_momentum <- 1   # When to swith from zero to small momentum
+  full_momentum <- 1    # When to swith from small to full momentum
 
   p <- 0*P_init
 
@@ -246,6 +250,7 @@ if (TRUE)  # optimization can be disabled for debugging
     }
   }
 
-  cat("\nChange in parameter values:\n\n")
-  print_model_parameters(P_new-P_init)
+  cat("\nInitial and new parameter values:\n\n")
+  print_model_parameters (mapply (cbind, 
+                           Initial=P_init, New=P_new, Change=P_new-P_init))
 }

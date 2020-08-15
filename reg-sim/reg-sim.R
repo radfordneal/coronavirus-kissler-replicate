@@ -655,12 +655,12 @@ else if (TRUE)
 { source("estimate-grad-autodiff.R")
 }
 
-cat("Processing time for estimation:\n")
+cat("Time for estimation:\n")
 print(proc.time()-start_time_est)
 
-cat("\nNew parameters:\n\n")
-print_model_parameters(P_new)
-
+cat("\nInitial and new parameter values:\n\n")
+print_model_parameters (mapply (cbind, 
+                                Initial=P_init, New=P_new, Change=P_new-P_init))
 }
 
 # DO SIMULATIONS WITH NEW PARAMETERS.
