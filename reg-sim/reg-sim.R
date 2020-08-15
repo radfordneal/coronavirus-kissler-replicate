@@ -185,6 +185,14 @@ if (is.null(P_init$Rt_offset))
 { P_init$Rt_offset <- c (alpha=0.9, sd=0.05)
 }
 
+# Transform some parameters to avoid constraints.
+
+P_init$imm_decay <- log (P_init$imm_decay / (1 - P_init$imm_decay))
+P_init$ltimm_decay <- log (P_init$ltimm_decay / (1 - P_init$ltimm_decay))
+P_init$Rt_offset["alpha"] <- 
+  log (P_init$Rt_offset["alpha"] / (1-P_init$Rt_offset["alpha"]))
+P_init$Rt_offset["sd"] <- log (abs (P_init$Rt_offset["sd"]))
+
 print_model_parameters <- function (P)
 { if (seffect_type=="e3")
   { cat("Trend:\n")
@@ -351,8 +359,8 @@ run_sims <- function (nsims, full=nsims, subset=NULL,
 
   wsims <- rep (list (matrix (0, nsims, length(start))), times=2)
 
-  Rt_offset <- P$Rt_offset["sd"] * randn()  # initialize AR(1) process that
-                                            #   modifies modelled Rt values
+  Rt_offset <- exp(P$Rt_offset["sd"]) * randn()  # initialize AR(1) process that
+                                                 #   modifies modelled Rt values
 
   # Simulate for all days, for all simulations, adding to weekly results.
 
@@ -360,8 +368,8 @@ run_sims <- function (nsims, full=nsims, subset=NULL,
 
   for (day in 1:(7*length(start)))
   {
-    Rt_offset <- P$Rt_offset["alpha"] * Rt_offset +
-                 P$Rt_offset["sd"] * sqrt(1-P$Rt_offset["alpha"]^2) * randn()
+    alph <- 1 / (1 + exp(-P$Rt_offset["alpha"]))
+    Rt_offset <- alph*Rt_offset + exp(P$Rt_offset["sd"])*sqrt(1-alph^2)*randn()
 
     for (vi in 1:2)
     { 
@@ -877,13 +885,23 @@ par(sv)
 
 if (opt_iters > 0) {
 
+# Undo transformations done for some parameters.
+
+P_out <- P_new
+P_out$imm_decay <- 1 / (1 + exp(-P_out$imm_decay))
+P_out$ltimm_decay <- 1 / (1 + exp(-P_out$ltimm_decay))
+P_out$Rt_offset["alpha"] <- 1 / (1 + exp(-P_out$Rt_offset["alpha"]))
+P_out$Rt_offset["sd"] <- exp(P_out$Rt_offset["sd"])
+
+# Save parameters to file.
+
 if (is.null(save_suffix) || save_suffix=="")
-{ saveRDS (P_new, 
+{ saveRDS (P_out, 
            file = paste0(file_base_sim,"-",names(virus_groups)[g],".model"),
            version=2)
 }
 else
-{ saveRDS (P_new,
+{ saveRDS (P_out,
            file = paste0(file_base_sim,"-",names(virus_groups)[g],
                          "-",save_suffix,".model"), 
            version=2)
