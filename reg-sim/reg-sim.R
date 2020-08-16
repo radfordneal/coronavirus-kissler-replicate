@@ -100,7 +100,7 @@ file_base <- paste0 (R_estimates,"-Rt-s2-",immune_type,"-",seffect_type,
                      if (het_virus) "-het")
 file_base_sim <- paste0("reg-sim-",gsub("Rt-s2-","",file_base),"-",itrans_arg)
 
-if (TRUE)  # Small settings for testing
+if (FALSE)  # Small settings for testing
 { nsims <- 1000         # Number of simulations in full set
   sub <- 30             # Number of simulations in subset
   full_interval <- 10   # Interval for doing full set of simulations
@@ -355,7 +355,7 @@ run_sims <- function (nsims, full=nsims, subset=NULL,
 
   past <- 
     list (matrix (t[[1]]*(1-daily_decay[1]), nsims, length(gen_interval)),
-          matrix (t[[2]]*(1-ltdaily_decay[2]), nsims, length(gen_interval)))
+          matrix (t[[2]]*(1-daily_decay[2]), nsims, length(gen_interval)))
 
   past_next <- rep(1,2)
 
@@ -924,21 +924,46 @@ source("../R-model/plot-components.R")
 plot_context <- readRDS (paste0 ("../R-model/R-model-",file_base,"-",
                                  names(virus_groups)[g],".context"))
 
-model_x <- plot_context$model_x
-model_df <- plot_context$model_df
+expave <- function (prx, decay, initial)
+{ r <- numeric(length(prx))
+  r[1] <- initial
+  for (i in 2:length(prx))
+  { r[i] <- prx[i-1] + (1/(1+exp(-decay))) * r[i-1]
+  }
+  r
+}
+
+make_model_x <- function (P)
+{ model_df <- plot_context$model_df
+  model_x <- plot_context$model_x
+  for (i in 1:2)
+  { virus <- virus_group [i]
+    other <- virus_group [ if (i==1) 2 else 1 ]
+    w <- model_df$virus==virus & !is.na(model_df$R_value)
+    prx <- model_df[w,paste0(virus,"_proxy")]
+    w <- (i-1)*nrow(model_x)/2 + (1:(nrow(model_x)/2))
+    model_x[w,paste0(virus_group[i],"_same")] <- 
+      expave (prx, P$imm_decay[i], P$imm_initial[i])
+    model_x[w,paste0(virus,"_samelt")] <- model_x[w,paste0(other,"_otherlt")] <-
+      expave (prx, P$ltimm_decay[i], P$ltimm_initial[i])
+  } 
+  model_x
+}
 
 par(mfcol=c(5,4))
 sv <- par (cex.main=3/4, cex.lab=2/3, cex.axis=4/10, mgp=c(0.8,0.18,0))
   
 for (virus in virus_group)
-{ for (s in unique(model_df$season))
+{ for (s in unique(plot_context$model_df$season))
   { plot_components (c(P_init$mc_trend,P_init$mc_seasonality,P_init$mc_viral),
-                     model_x, model_df, s, virus, logarithmic=TRUE,
+                     make_model_x(P_init), plot_context$model_df, 
+                     s, virus, logarithmic=TRUE,
                      title = "Initial")
   }
-  for (s in unique(model_df$season))
+  for (s in unique(plot_context$model_df$season))
   { plot_components (c(P_new$mc_trend,P_new$mc_seasonality,P_new$mc_viral),
-                     model_x, model_df, s, virus, logarithmic=TRUE,
+                     make_model_x(P_new), plot_context$model_df, 
+                     s, virus, logarithmic=TRUE,
                      title = "New")
   }
 }
