@@ -29,10 +29,10 @@ pp_new <- pp
 if (TRUE)  # optimization can be disabled for debugging
 { 
   eta <- 0*P_init + 5e-4
-  eta$mc_trend <- 1e-5
-  eta$mc_seasonality <- 2e-5
-  eta$mc_viral[1:6] <- 1e-5
-  eta$mc_viral[7:8] <- 2e-5
+  eta$mc_trend <- 3e-5
+  eta$mc_seasonality <- 6e-5
+  eta$mc_viral[1:6] <- 2e-5
+  eta$mc_viral[7:8] <- 3e-5
   eta$imm_decay <- 7e-3
   eta$ltimm_decay <- 7e-3
   eta$imm_initial <- 1e-2
@@ -47,13 +47,16 @@ if (TRUE)  # optimization can be disabled for debugging
   alpha <- 0.997
   cat("Eta ajustment:",eta_adj," Momentum:",alpha,"\n")
 
-  full_rate <- 10        # When to switch from smaller to full eta
-  start_momentum <- 20   # When to swith from zero to small momentum
-  full_momentum <- 50    # When to swith from small to full momentum
-
-# full_rate <- 1        # When to switch from smaller to full eta
-# start_momentum <- 1   # When to swith from zero to small momentum
-# full_momentum <- 1    # When to swith from small to full momentum
+  if (!is.null(momentum))
+  { full_rate <- 1
+    start_momentum <- 1
+    full_momentum <- 1
+  }
+  else
+  { full_rate <- 10        # When to switch from smaller to full eta
+    start_momentum <- 20   # When to swith from zero to small momentum
+    full_momentum <- 50    # When to swith from small to full momentum
+  }
 
   p <- if (is.null(momentum)) 0*P_init else momentum
 
@@ -83,7 +86,7 @@ if (TRUE)  # optimization can be disabled for debugging
 
   # Can selectively enable these...
 
-  if (TRUE)
+  if (FALSE)
   { eta0 <- 0*eta; 
     eta0$mc_trend <- eta$mc_trend
     H3 <- neg_ll(P_new+eta0*delta)

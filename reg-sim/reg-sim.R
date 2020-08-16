@@ -100,7 +100,7 @@ file_base <- paste0 (R_estimates,"-Rt-s2-",immune_type,"-",seffect_type,
                      if (het_virus) "-het")
 file_base_sim <- paste0("reg-sim-",gsub("Rt-s2-","",file_base),"-",itrans_arg)
 
-if (FALSE)  # Small settings for testing
+if (TRUE)  # Small settings for testing
 { nsims <- 1000         # Number of simulations in full set
   sub <- 30             # Number of simulations in subset
   full_interval <- 10   # Interval for doing full set of simulations
@@ -367,8 +367,8 @@ run_sims <- function (nsims, full=nsims, subset=NULL,
 
   wsims <- rep (list (matrix (0, nsims, length(start))), times=2)
 
-  Rt_offset <- exp(P$Rt_offset["sd"]) * randn()  # initialize AR(1) process that
-                                                 #   modifies modelled Rt values
+  Rt_offset <- sd * randn()   # initialize AR(1) process that
+                              #   modifies modelled Rt values
 
   # Simulate for all days, for all simulations, adding to weekly results.
 
@@ -718,7 +718,6 @@ plot_sims <- function (wsims, twsims, wmx, pp, ll)
 {
   for (s in 0:n_plotted)
   {
-
     plot (start, rep(0,length(start)),
           ylim=c(0,1.02*yupper), yaxs="i", type="n", 
           ylab="Simulated incidence")
@@ -823,6 +822,68 @@ lines (start, tproxy[[2]], col="red")
 # Best fit and other simulations with new parameters.
 
 plot_sims (wsims_new, twsims_new, wmx_new, pp_new, ll_new)
+
+# Plot proxies and 10 simulated incidence paths, drawn according to posterior
+# probabilities, for old and new parameters.
+
+par(mfrow=c(4,1))
+
+plot (start, rep(0,length(start)), type="n", 
+      ylim=c(0,1.02*yupper), yaxs="i", xlab="",  
+      ylab="incidence")
+
+for (i in 1:10)
+{ w <- sample (length(pp), 1, prob=pp)
+  lines (start, wsims[[1]][w,], col="lightblue")
+  lines (start, wsims[[2]][w,], col="pink")
+}
+
+lines (start, proxy[[1]], col="darkblue")
+lines (start, proxy[[2]], col="darkred")
+
+title ("Sample of incidence paths + observed proxies, old parameters")
+
+plot (start, rep(0,length(start)), type="n", 
+      ylim=itrans(c(0.98*ylower,1.02*yupper)), yaxs="i", xlab="",
+      ylab=paste(if (itrans_arg!="identity") itrans_arg, "incidence"))
+
+for (i in 1:10)
+{ w <- sample (length(pp), 1, prob=pp)
+  lines (start, twsims[[1]][w,], col="lightblue")
+  lines (start, twsims[[2]][w,], col="pink")
+}
+
+lines (start, tproxy[[1]], col="darkblue")
+lines (start, tproxy[[2]], col="darkred")
+
+plot (start, rep(0,length(start)), type="n", 
+      ylim=c(0,1.02*yupper), yaxs="i", xlab="",  
+      ylab="incidence")
+
+for (i in 1:10)
+{ w <- sample (length(pp_new), 1, prob=pp_new)
+  lines (start, wsims_new[[1]][w,], col="lightblue")
+  lines (start, wsims_new[[2]][w,], col="pink")
+}
+
+lines (start, proxy[[1]], col="darkblue")
+lines (start, proxy[[2]], col="darkred")
+
+title ("Sample of incidence paths + observed proxies, new parameters")
+
+plot (start, rep(0,length(start)), type="n", 
+      ylim=itrans(c(0.98*ylower,1.02*yupper)), yaxs="i", xlab="",
+      ylab=paste(if (itrans_arg!="identity") itrans_arg, "incidence"))
+
+for (i in 1:10)
+{ w <- sample (length(pp_new), 1, prob=pp_new)
+  lines (start, twsims_new[[1]][w,], col="lightblue")
+  lines (start, twsims_new[[2]][w,], col="pink")
+}
+
+lines (start, tproxy[[1]], col="darkblue")
+lines (start, tproxy[[2]], col="darkred")
+
 
 # Plot exponential averages at starts of seasons for first 500 simulations.
 # Best-fit simulation is larger, in red.  Uses parameters from end of
