@@ -100,7 +100,7 @@ file_base <- paste0 (R_estimates,"-Rt-s2-",immune_type,"-",seffect_type,
                      if (het_virus) "-het")
 file_base_sim <- paste0("reg-sim-",gsub("Rt-s2-","",file_base),"-",itrans_arg)
 
-if (TRUE)  # Small settings for testing
+if (FALSE)  # Small settings for testing
 { nsims <- 1000         # Number of simulations in full set
   sub <- 30             # Number of simulations in subset
   full_interval <- 10   # Interval for doing full set of simulations
@@ -926,7 +926,7 @@ plot_context <- readRDS (paste0 ("../R-model/R-model-",file_base,"-",
 
 expave <- function (prx, decay, initial)
 { r <- numeric(length(prx))
-  r[1] <- initial
+  r[1] <- exp(initial)
   for (i in 2:length(prx))
   { r[i] <- prx[i-1] + (1/(1+exp(-decay))) * r[i-1]
   }

@@ -29,10 +29,10 @@ pp_new <- pp
 if (TRUE)  # optimization can be disabled for debugging
 { 
   eta <- 0*P_init + 5e-4
-  eta$mc_trend <- 3e-5
-  eta$mc_seasonality <- 6e-5
+  eta$mc_trend <- 5e-5
+  eta$mc_seasonality <- 8e-5
   eta$mc_viral[1:6] <- 2e-5
-  eta$mc_viral[7:8] <- 3e-5
+  eta$mc_viral[7:8] <- 2e-5
   eta$imm_decay <- 7e-3
   eta$ltimm_decay <- 7e-3
   eta$imm_initial <- 1e-2
