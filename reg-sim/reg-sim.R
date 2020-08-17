@@ -940,11 +940,12 @@ make_model_df <- function (P)
     other <- virus_group [ if (i==1) 2 else 1 ]
     w <- model_df$virus==virus
     prx <- model_df[w,paste0(virus,"_proxy")]
-    model_df[w,paste0(virus_group[i],"_same")] <- 
+    model_df[w,paste0(virus,"_same")] <- 
       expave (prx, P$imm_decay[i], P$imm_initial[i])
     model_df[w,paste0(virus,"_samelt")] <- 
-      model_df[w,paste0(other,"_otherlt")] <-
       expave (prx, P$ltimm_decay[i], P$ltimm_initial[i])
+    model_df[!w,paste0(other,"_otherlt")] <-
+      model_df[w,paste0(virus,"_samelt")]
   } 
   model_df
 }
@@ -955,13 +956,16 @@ make_model_x <- function (P)
   for (i in 1:2)
   { virus <- virus_group [i]
     other <- virus_group [ if (i==1) 2 else 1 ]
-    w <- model_df$virus==virus & !is.na(model_df$R_value)
+    w <- model_df$virus==virus
     prx <- model_df[w,paste0(virus,"_proxy")]
+    w2 <- !is.na(model_df[w,"R_value"])
     w <- (i-1)*nrow(model_x)/2 + (1:(nrow(model_x)/2))
-    model_x[w,paste0(virus_group[i],"_same")] <- 
-      expave (prx, P$imm_decay[i], P$imm_initial[i])
-    model_x[w,paste0(virus,"_samelt")] <- model_x[w,paste0(other,"_otherlt")] <-
-      expave (prx, P$ltimm_decay[i], P$ltimm_initial[i])
+    model_x[w,paste0(virus,"_same")] <- 
+      expave (prx, P$imm_decay[i], P$imm_initial[i]) [w2]
+    model_x[w,paste0(virus,"_samelt")] <- 
+      expave (prx, P$ltimm_decay[i], P$ltimm_initial[i]) [w2]
+    model_x[-w,paste0(other,"_otherlt")] <-
+      model_x[w,paste0(virus,"_samelt")]
   } 
   model_x
 }
