@@ -84,8 +84,10 @@ plot_components <- function (mc, model_x, model_df, s, virus, logarithmic=FALSE,
     }
   }
 
-  lines (itrans(trend_component), col="green", lwd=1.5)
-  cmps <- reduce(cmps,itrans(trend_component))
+  if (seffect_type=="e3")
+  { lines (itrans(trend_component), col="green", lwd=1.5)
+    cmps <- reduce(cmps,itrans(trend_component))
+  }
 
   lines (itrans(seasonal_component), col="orange", lwd=1.5)
   cmps <- reduce(cmps,itrans(seasonal_component))
