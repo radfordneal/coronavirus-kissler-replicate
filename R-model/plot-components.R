@@ -27,6 +27,7 @@ plot_components <- function (mc, model_x, model_df, s, virus, logarithmic=FALSE,
   start_season <- if (season_type=="s1") 40 else 28
   trans <- if (logarithmic) log else identity
   itrans <- if (logarithmic) identity else exp
+  reduce <- if (logarithmic) `+` else `*`
   this <- model_df$season==s & model_df$virus==virus
   df <- model_df[this,]
 
@@ -50,14 +51,12 @@ plot_components <- function (mc, model_x, model_df, s, virus, logarithmic=FALSE,
 
   pincidence <- model_df$R_value
   pincidence[!is.na(pincidence)] <- model_x %*% mc
-  lines (itrans (pincidence[this]), col="red", lwd=2)
+  pincidence <- pincidence[this]
+  lines (itrans(pincidence), col="red", lwd=2)
 
-  if (seffect_type=="e3")
-  { trend_spline <- make_trend_spline (R_est$yrs, model_df$yrs)
-    tn <- ncol(trend_spline)
-    trend_component <- as.vector (trend_spline[this,] %*% mc[1:tn])
-    lines (itrans(trend_component), col="green", lwd=1.5)
-  }
+  cmps <- if (logarithmic) 0 else 1  # Keep track of total, to check it 
+                                     #   adds/multiplies to pincidence
+
   seasonal_component <- switch (seffect_type,
       e1 = as.vector (seasonal_spline[1:season_length,] 
                        %*% mc[1:ncol(seasonal_spline)]),
@@ -65,25 +64,47 @@ plot_components <- function (mc, model_x, model_df, s, virus, logarithmic=FALSE,
       e3 = seffect_e3 (df$yrs,mc)
     )
 
+  if (seffect_type=="e3")
+  { trend_spline <- make_trend_spline (
+      if (season_type=="s1") model_df$yrs else R_est$yrs, model_df$yrs)
+    tn <- ncol(trend_spline)
+    trend_component <- as.vector (trend_spline[this,] %*% mc[1:tn])
+  }
+
   mc0 <- mc
 
   if (season_type=="s1" && seffect_type!="e1")
   { mc0[paste0(virus,"_overall")] <- 
       mc0[paste0(virus,"_overall")] + seasonal_component[1]
     seasonal_component <- seasonal_component - seasonal_component[1]
+    if (seffect_type=="e3")
+    { mc0[paste0(virus,"_overall")] <- 
+        mc0[paste0(virus,"_overall")] + trend_component[1]
+      trend_component <- trend_component - trend_component[1]
+    }
   }
+
+  lines (itrans(trend_component), col="green", lwd=1.5)
+  cmps <- reduce(cmps,itrans(trend_component))
+
   lines (itrans(seasonal_component), col="orange", lwd=1.5)
+  cmps <- reduce(cmps,itrans(seasonal_component))
+
   same <- df[,paste0(virus,"_same")] * mc[paste0(virus,"_same")]
   lines (itrans(same), col="black", lwd=1.5)
+  cmps <- reduce(cmps,itrans(same))
   if (immune_type!="i4")
   { other <- df[,paste0(virus,"_other")] * mc[paste0(virus,"_other")]
     lines (itrans(other), col="gray", lwd=1.5)
+    cmps <- reduce(cmps,itrans(other))
   }
   if (immune_type=="i3" || immune_type=="i4")
   { samelt <- df[,paste0(virus,"_samelt")] * mc[paste0(virus,"_samelt")]
     lines (itrans(samelt), col="black", lwd=1.5, lty=2)
+    cmps <- reduce(cmps,itrans(samelt))
     otherlt <- df[,paste0(virus,"_otherlt")] * mc[paste0(virus,"_otherlt")]
     lines (itrans(otherlt), col="gray", lwd=1.5, lty=2)
+    cmps <- reduce(cmps,itrans(otherlt))
   }
 
   if (immune_type=="i1" && seffect_type=="e1")
@@ -92,11 +113,24 @@ plot_components <- function (mc, model_x, model_df, s, virus, logarithmic=FALSE,
                pch=20, col="black", cex=0.75)
     points (1, itrans (mc[paste0(virus,"_season_",s)]), 
                pch=20, col="green", cex=0.75)
+    cmps <- reduce (cmps, itrans (mc[paste0(virus,"_season_",s)]))
   }
   else
   { points (1, itrans (mc0[paste0(virus,"_overall")]), 
                pch=20, col="darkgreen", cex=0.75)
+    cmps <- reduce (cmps, itrans (mc0[paste0(virus,"_overall")]))
   }
 
   title (paste0 (virus," ",s,"-",s+1," ",title,"   "), line=0.5)
+
+  if (FALSE)
+  { cat("Check on components vs. combined:\n")
+    print (cbind(itrans(pincidence),cmps))
+  }
+  if (logarithmic)
+  { stopifnot (all (abs(itrans(pincidence)-cmps) < 1e-5, na.rm=TRUE))
+  }
+  else 
+  { stopifnot (all (abs(log(itrans(pincidence)/cmps)) < 1e-5, na.rm=TRUE))
+  }
 }
