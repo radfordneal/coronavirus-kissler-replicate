@@ -917,6 +917,26 @@ abline(ll-ll_new,1,col="green")
 title (paste ("Change in log prob. of simulation runs, log lik. change",
                round(ll_new-ll,2),"  "))
 
+# Plot combined immune decline.
+
+par(mfrow=c(2,1))
+
+tgrid <- 0:(52*3)
+
+for (virus in virus_group)
+{ same <- P_new$mc_viral[paste0(virus,"_same")]
+  samelt <- P_new$mc_viral[paste0(virus,"_samelt")]
+  decay <- 1/(1+exp(-P_new$imm_decay[virus]))
+  ltdecay <- 1/(1+exp(-P_new$ltimm_decay[virus]))
+  effect <- - same*decay^tgrid - samelt*ltdecay^tgrid
+  plot (tgrid, - samelt*ltdecay^tgrid, type="l", xaxs="i", yaxs="i", ylab="", 
+        ylim=range(c(0,1.1*range(effect))), col="gray")
+  abline(v=52*(0:3),col="gray",lty=3)
+  lines (tgrid, - same*decay^tgrid, col="gray")
+  lines (tgrid, effect)
+  title (paste("Combined immune effect for",virus,"(weeks)"))
+}
+
 # Plot components of original and new models.
 
 source("../R-model/plot-components.R")
