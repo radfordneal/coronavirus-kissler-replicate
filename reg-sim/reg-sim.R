@@ -100,7 +100,7 @@ file_base <- paste0 (R_estimates,"-Rt-s2-",immune_type,"-",seffect_type,
                      if (het_virus) "-het")
 file_base_sim <- paste0("reg-sim-",gsub("Rt-s2-","",file_base),"-",itrans_arg)
 
-if (FALSE)  # Small settings for testing
+if (TRUE)  # Small settings for testing
 { nsims <- 1000         # Number of simulations in full set
   sub <- 30             # Number of simulations in subset
   full_interval <- 10   # Interval for doing full set of simulations
@@ -180,18 +180,35 @@ if (is.null(P_init$imm_initial))
   P_init$imm_initial[] <- 2.0
 }
 if (is.null(P_init$ltimm_initial))
-{ P_init$ltimm_initial <- P_init$ltimm_decay  # to get names
+{ P_init$ltimm_initial <- P_init$imm_decay  # to get names
   P_init$ltimm_initial[] <- 5.0
 }
-
+if (is.null(P_init$lt2imm_initial))
+{ P_init$lt2imm_initial <- P_init$imm_decay  # to get names
+  P_init$lt2imm_initial[] <- 5.0
+}
+if (is.null(P_init$lt2imm_decay))
+{ P_init$lt2imm_decay <- P_init$imm_decay  # to get names
+  P_init$lt2imm_decay[] <- 0.5
+}
 if (is.null(P_init$Rt_offset))
 { P_init$Rt_offset <- c (alpha=0.9, sd=0.05)
+}
+for (i in 1:2)
+{ virus <- virus_group[i]
+  if (is.na(P_init$mc_viral[paste0(virus,"_samelt2")]))
+  { P_init$mc_viral[paste0(virus,"_samelt2")] <- 0
+  }
+  if (is.na(P_init$mc_viral[paste0(virus,"_otherlt2")]))
+  { P_init$mc_viral[paste0(virus,"_otherlt2")] <- 0
+  }
 }
 
 # Transform some parameters to avoid constraints.
 
 P_init$imm_decay <- log (P_init$imm_decay / (1 - P_init$imm_decay))
 P_init$ltimm_decay <- log (P_init$ltimm_decay / (1 - P_init$ltimm_decay))
+P_init$lt2imm_decay <- log (P_init$lt2imm_decay / (1 - P_init$lt2imm_decay))
 P_init$Rt_offset["alpha"] <- 
   log (P_init$Rt_offset["alpha"] / (1-P_init$Rt_offset["alpha"]))
 P_init$Rt_offset["sd"] <- log (abs (P_init$Rt_offset["sd"]))
@@ -214,11 +231,17 @@ print_model_parameters <- function (P)
   cat("Long-term immune decay:\n")
   print(t(t(P$ltimm_decay)))
   cat("\n")
+  cat("Long-term (2) immune decay:\n")
+  print(t(t(P$lt2imm_decay)))
+  cat("\n")
   cat("Log initial short-term immunity:\n")
   print(t(t(P$imm_initial)))
   cat("\n")
   cat("Log initial long-term immunity:\n")
   print(t(t(P$ltimm_initial)))
+  cat("\n")
+  cat("Log initial long-term (2) immunity:\n")
+  print(t(t(P$lt2imm_initial)))
   cat("\n")
   cat("Offset model:\n")
   print (t(t(P$Rt_offset)))
@@ -338,11 +361,13 @@ run_sims <- function (nsims, full=nsims, subset=NULL,
 
   daily_decay <- (1/(1+exp(-P$imm_decay))) ^ (1/7)
   ltdaily_decay <- (1/(1+exp(-P$ltimm_decay))) ^ (1/7)
+  lt2daily_decay <- (1/(1+exp(-P$lt2imm_decay))) ^ (1/7)
 
   # Initial levels for exponentially-decaying averages and past incidence.
   #
-  #   t      list of short-term exponetial sums for each virus
-  #   tlt    list of long-term exponetial sums for each virus
+  #   t      list of short-term exponential sums for each virus
+  #   tlt    list of long-term exponential sums for each virus
+  #   tlt2   list of long-term (2) sums for each virus
   #   past   list of matrices of assumed past incidence values, one matrix
   #          for each virus, dimension nsims x length(gen_interval)
 
@@ -350,8 +375,10 @@ run_sims <- function (nsims, full=nsims, subset=NULL,
              exp (P$imm_initial[2] + 0.3*randn()))
   tlt <- list (exp (P$ltimm_initial[1] + 0.3*randn()),
                exp (P$ltimm_initial[2] + 0.3*randn()))
+  tlt2 <- list (exp (P$lt2imm_initial[1] + 0.3*randn()),
+                exp (P$lt2imm_initial[2] + 0.3*randn()))
 
-  sv_t <<- list(t); sv_tlt <<- list(tlt)  # for later plots
+  sv_t <<- list(t); sv_tlt <<- list(tlt); sv_tlt2 <- list(tlt2)  # for plots
 
   past <- 
     list (matrix (t[[1]]*(1-daily_decay[1]), nsims, length(gen_interval)),
@@ -393,7 +420,9 @@ run_sims <- function (nsims, full=nsims, subset=NULL,
       if (immune_type=="i3" || immune_type=="i4")
       { log_Rt <- log_Rt + 
                   mc [paste0(virus,"_samelt")] * tlt [[vi]] +
-                  mc [paste0(virus,"_otherlt")] * tlt [[if (vi==1) 2 else 1]]
+                  mc [paste0(virus,"_otherlt")] * tlt [[if (vi==1) 2 else 1]] +
+                  mc [paste0(virus,"_samelt2")] * tlt2 [[vi]] +
+                  mc [paste0(virus,"_otherlt2")] * tlt2 [[if (vi==1) 2 else 1]]
       }
 
       rs <- length(gen_interval) + 2 - past_next[vi]
@@ -409,13 +438,16 @@ run_sims <- function (nsims, full=nsims, subset=NULL,
       past[[vi]][,past_next[vi]] <- p
       past_next[vi] <- past_next[vi] %% length(gen_interval) + 1
 
-      t[[vi]] <- p + t[[vi]] * daily_decay[virus]
+      tlt2[[vi]] <- p + tlt2[[vi]] * lt2daily_decay[virus] +
+                        tlt[[vi]] * (1 - ltdaily_decay[virus])
       tlt[[vi]] <- p + tlt[[vi]] * ltdaily_decay[virus]
+      t[[vi]] <- p + t[[vi]] * daily_decay[virus]
     }
 
     if (wk %% 52 == 0 && day %% 7 == 1)
     { sv_t <<- c(sv_t,list(t))
       sv_tlt <<- c(sv_tlt,list(tlt))
+      sv_tlt2 <<- c(sv_tlt2,list(tlt2))
     }
   }
 
@@ -1021,6 +1053,7 @@ if (opt_iters > 0) {
 P_out <- P_new
 P_out$imm_decay <- 1 / (1 + exp(-P_out$imm_decay))
 P_out$ltimm_decay <- 1 / (1 + exp(-P_out$ltimm_decay))
+P_out$lt2imm_decay <- 1 / (1 + exp(-P_out$lt2imm_decay))
 P_out$Rt_offset["alpha"] <- 1 / (1 + exp(-P_out$Rt_offset["alpha"]))
 P_out$Rt_offset["sd"] <- exp(P_out$Rt_offset["sd"])
 

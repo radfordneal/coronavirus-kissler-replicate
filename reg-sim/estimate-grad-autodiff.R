@@ -31,12 +31,14 @@ if (TRUE)  # optimization can be disabled for debugging
   eta <- 0*P_init + 5e-4
   eta$mc_trend <- 5e-5
   eta$mc_seasonality <- 8e-5
-  eta$mc_viral[1:6] <- 2e-5
-  eta$mc_viral[7:8] <- 2e-5
+  eta$mc_viral[1:10] <- 2e-5
+  eta$mc_viral[11:12] <- 2e-5
   eta$imm_decay <- 7e-3
   eta$ltimm_decay <- 7e-3
+  eta$lt2imm_decay <- 7e-3
   eta$imm_initial <- 1e-2
   eta$ltimm_initial <- 1e-2
+  eta$lt2imm_initial <- 1e-2
   eta$Rt_offset["alpha"] <- 3e-3
   eta$Rt_offset["sd"] <- 2e-3
 
