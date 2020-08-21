@@ -268,7 +268,7 @@ if (TRUE)  # optimization can be disabled for debugging
 
   # Plot changes in parameters, and in corresponding momentum variables.
 
-  par(mfrow=c(4,4))
+  par(mfrow=c(5,4))
 
   rec[[opt_iters+1]] <- P_new
   recp[[opt_iters+1]] <- p

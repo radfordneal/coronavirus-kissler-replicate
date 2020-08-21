@@ -50,6 +50,7 @@ plot_components <- function (mc, model_x, model_df, s, virus, logarithmic=FALSE,
   }
 
   pincidence <- model_df$R_value
+  stopifnot (identical (colnames(model_x), names(mc)))
   pincidence[!is.na(pincidence)] <- model_x %*% mc
   pincidence <- pincidence[this]
   lines (itrans(pincidence), col="red", lwd=2)
@@ -107,6 +108,14 @@ plot_components <- function (mc, model_x, model_df, s, virus, logarithmic=FALSE,
     otherlt <- df[,paste0(virus,"_otherlt")] * mc[paste0(virus,"_otherlt")]
     lines (itrans(otherlt), col="gray", lwd=1.5, lty=2)
     cmps <- reduce(cmps,itrans(otherlt))
+    if (paste0(virus,"_samelt2") %in% names(mc))
+    { samelt2 <- df[,paste0(virus,"_samelt2")] * mc[paste0(virus,"_samelt2")]
+      lines (itrans(samelt2), col="black", lwd=1.5, lty=3)
+      cmps <- reduce(cmps,itrans(samelt2))
+      otherlt2 <- df[,paste0(virus,"_otherlt2")] * mc[paste0(virus,"_otherlt2")]
+      lines (itrans(otherlt2), col="gray", lwd=1.5, lty=3)
+      cmps <- reduce(cmps,itrans(otherlt2))
+    }
   }
 
   if (immune_type=="i1" && seffect_type=="e1")

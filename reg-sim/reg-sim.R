@@ -421,8 +421,8 @@ run_sims <- function (nsims, full=nsims, subset=NULL,
       { log_Rt <- log_Rt + 
                   mc [paste0(virus,"_samelt")] * tlt [[vi]] +
                   mc [paste0(virus,"_otherlt")] * tlt [[if (vi==1) 2 else 1]] +
-                  mc [paste0(virus,"_samelt2")] * tlt2 [[vi]] +
-                  mc [paste0(virus,"_otherlt2")] * tlt2 [[if (vi==1) 2 else 1]]
+                  mc [paste0(virus,"_samelt2")] * no_gradient(tlt2) [[vi]] +
+                  mc [paste0(virus,"_otherlt2")] * no_gradient(tlt2) [[if (vi==1) 2 else 1]]
       }
 
       rs <- length(gen_interval) + 2 - past_next[vi]
@@ -998,6 +998,18 @@ make_model_df <- function (P)
       expave (prx, P$ltimm_decay[i], P$ltimm_initial[i])
     model_df[!w,paste0(other,"_otherlt")] <-
       model_df[w,paste0(virus,"_samelt")]
+    if (! (paste0(virus,"_samelt2") %in% colnames(model_df)))
+    { ocn <- colnames(model_df)
+      model_df <- cbind(model_df,0,0,0,0)
+      colnames(model_df) <- c (ocn, paste0(virus,"_samelt2"),
+                                    paste0(virus,"_otherlt2"),
+                                    paste0(other,"_samelt2"),
+                                    paste0(other,"_otherlt2"))
+    }
+    model_df[w,paste0(virus,"_samelt2")] <- 
+      0  ### for now
+    model_df[!w,paste0(other,"_otherlt2")] <-
+      model_df[w,paste0(virus,"_samelt2")]
   } 
   model_df
 }
@@ -1018,6 +1030,18 @@ make_model_x <- function (P)
       expave (prx, P$ltimm_decay[i], P$ltimm_initial[i]) [w2]
     model_x[-w,paste0(other,"_otherlt")] <-
       model_x[w,paste0(virus,"_samelt")]
+    if (! (paste0(virus,"_samelt2") %in% colnames(model_x)))
+    { ocn <- colnames(model_x)
+      model_x <- cbind(model_x,0,0,0,0)
+      colnames(model_x) <- c (ocn, paste0(virus,"_samelt2"),
+                                   paste0(virus,"_otherlt2"),
+                                   paste0(other,"_samelt2"),
+                                   paste0(other,"_otherlt2"))
+    }
+    model_x[w,paste0(virus,"_samelt2")] <- 
+      0  ### for now
+    model_x[-w,paste0(other,"_otherlt2")] <-
+      model_x[w,paste0(virus,"_samelt2")]
   } 
   model_x
 }
