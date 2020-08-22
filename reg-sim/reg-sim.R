@@ -421,8 +421,8 @@ run_sims <- function (nsims, full=nsims, subset=NULL,
       { log_Rt <- log_Rt + 
                   mc [paste0(virus,"_samelt")] * tlt [[vi]] +
                   mc [paste0(virus,"_otherlt")] * tlt [[if (vi==1) 2 else 1]] +
-                  mc [paste0(virus,"_samelt2")] * no_gradient(tlt2) [[vi]] +
-                  mc [paste0(virus,"_otherlt2")] * no_gradient(tlt2) [[if (vi==1) 2 else 1]]
+                  mc [paste0(virus,"_samelt2")] * tlt2 [[vi]] +
+                  mc [paste0(virus,"_otherlt2")] * tlt2 [[if (vi==1) 2 else 1]]
       }
 
       rs <- length(gen_interval) + 2 - past_next[vi]

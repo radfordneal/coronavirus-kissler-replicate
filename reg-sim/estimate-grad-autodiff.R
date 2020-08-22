@@ -140,6 +140,16 @@ if (TRUE)  # optimization can be disabled for debugging
 
   if (FALSE)
   { eta0 <- 0*eta; 
+    eta0$lt2imm_decay <- eta$lt2imm_decay
+    H3 <- neg_ll(P_new+eta0*delta)
+    cat ("  Change in H when adding eta0 *",delta,"(lt2decay) :",H3-H,"\n")
+    ga <- (attr(H,"gradient")+attr(H3,"gradient"))/2
+    cat ("  Predicted change from average gradient :",
+            sum(sapply(ga*eta0*delta,sum)),"\n")
+  }
+
+  if (FALSE)
+  { eta0 <- 0*eta; 
     eta0$imm_initial <- eta$imm_initial
     H3 <- neg_ll(P_new+eta0*delta)
     cat ("  Change in H when adding eta0 *",delta,"(initial) :",H3-H,"\n")
@@ -153,6 +163,16 @@ if (TRUE)  # optimization can be disabled for debugging
     eta0$ltimm_initial <- eta$ltimm_initial
     H3 <- neg_ll(P_new+eta0*delta)
     cat("  Change in H when adding eta0 *",delta,"(ltinitial) :",H3-H,"\n")
+    ga <- (attr(H,"gradient")+attr(H3,"gradient"))/2
+    cat ("  Predicted change from average gradient :",
+            sum(sapply(ga*eta0*delta,sum)),"\n")
+  }
+
+  if (FALSE)
+  { eta0 <- 0*eta; 
+    eta0$lt2imm_initial <- eta$lt2imm_initial
+    H3 <- neg_ll(P_new+eta0*delta)
+    cat("  Change in H when adding eta0 *",delta,"(lt2initial) :",H3-H,"\n")
     ga <- (attr(H,"gradient")+attr(H3,"gradient"))/2
     cat ("  Predicted change from average gradient :",
             sum(sapply(ga*eta0*delta,sum)),"\n")
