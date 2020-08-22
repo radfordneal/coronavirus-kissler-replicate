@@ -180,16 +180,16 @@ if (is.null(P_init$imm_initial))
   P_init$imm_initial[] <- 2.0
 }
 if (is.null(P_init$ltimm_initial))
-{ P_init$ltimm_initial <- P_init$imm_decay  # to get names
+{ P_init$ltimm_initial <- P_init$imm_decay    # to get names
   P_init$ltimm_initial[] <- 5.0
 }
 if (is.null(P_init$lt2imm_initial))
-{ P_init$lt2imm_initial <- P_init$imm_decay  # to get names
-  P_init$lt2imm_initial[] <- 5.0
+{ P_init$lt2imm_initial <- P_init$imm_decay   # to get names
+  P_init$lt2imm_initial[] <- 6.0
 }
 if (is.null(P_init$lt2imm_decay))
-{ P_init$lt2imm_decay <- P_init$imm_decay  # to get names
-  P_init$lt2imm_decay[] <- 0.5
+{ P_init$lt2imm_decay <- P_init$imm_decay     # to get names
+  P_init$lt2imm_decay[] <- 0.95
 }
 if (is.null(P_init$Rt_offset))
 { P_init$Rt_offset <- c (alpha=0.9, sd=0.05)
@@ -197,10 +197,10 @@ if (is.null(P_init$Rt_offset))
 for (i in 1:2)
 { virus <- virus_group[i]
   if (is.na(P_init$mc_viral[paste0(virus,"_samelt2")]))
-  { P_init$mc_viral[paste0(virus,"_samelt2")] <- 0
+  { P_init$mc_viral[paste0(virus,"_samelt2")] <- -0.01
   }
   if (is.na(P_init$mc_viral[paste0(virus,"_otherlt2")]))
-  { P_init$mc_viral[paste0(virus,"_otherlt2")] <- 0
+  { P_init$mc_viral[paste0(virus,"_otherlt2")] <- -0.01
   }
 }
 
@@ -438,8 +438,8 @@ run_sims <- function (nsims, full=nsims, subset=NULL,
       past[[vi]][,past_next[vi]] <- p
       past_next[vi] <- past_next[vi] %% length(gen_interval) + 1
 
-      tlt2[[vi]] <- p + tlt2[[vi]] * lt2daily_decay[virus] +
-                        tlt[[vi]] * (1 - ltdaily_decay[virus])
+      tlt2[[vi]] <- tlt[[vi]] * (1 - ltdaily_decay[virus]) +
+                    tlt2[[vi]] * lt2daily_decay[virus]
       tlt[[vi]] <- p + tlt[[vi]] * ltdaily_decay[virus]
       t[[vi]] <- p + t[[vi]] * daily_decay[virus]
     }
@@ -958,18 +958,25 @@ tgrid <- 0:(52*3)
 for (virus in virus_group)
 { same <- P_new$mc_viral[paste0(virus,"_same")]
   samelt <- P_new$mc_viral[paste0(virus,"_samelt")]
+  samelt2 <- P_new$mc_viral[paste0(virus,"_samelt2")]
   decay <- 1/(1+exp(-P_new$imm_decay[virus]))
   ltdecay <- 1/(1+exp(-P_new$ltimm_decay[virus]))
-  effect <- - same*decay^tgrid - samelt*ltdecay^tgrid
-  plot (tgrid, - samelt*ltdecay^tgrid, type="l", xaxs="i", yaxs="i", ylab="", 
-        ylim=range(c(0,1.1*range(effect))), col="gray")
+  lt2decay <- 1/(1+exp(-P_new$lt2imm_decay[virus]))
+  lt2 <- (1-ltdecay) * ltdecay^tgrid
+  for (i in 2:length(lt2))
+  { lt2[i] <- lt2[i] + lt2decay*lt2[i-1]
+  }
+  effect <- - same*decay^tgrid - samelt*ltdecay^tgrid - samelt2*lt2
+  plot (tgrid, effect, type="l", xaxs="i", yaxs="i", ylab="", 
+        ylim=range(c(0,1.1*range(effect))))
   abline(v=52*(0:3),col="gray",lty=3)
-  lines (tgrid, - same*decay^tgrid, col="gray")
-  lines (tgrid, effect)
+  lines (tgrid, - same*decay^tgrid, col="red")
+  lines (tgrid, effect + same*decay^tgrid, col="green")
+  lines (tgrid, effect + same*decay^tgrid + samelt*ltdecay^tgrid, col="blue")
   title (paste("Combined immune effect for",virus,"(weeks)"))
 }
 
-# Plot components of original and new models.
+# Plot components of Rt with initial and new models.
 
 source("../R-model/plot-components.R")
 
@@ -979,10 +986,25 @@ plot_context <- readRDS (paste0 ("../R-model/R-model-",file_base,"-",
 expave <- function (prx, decay, initial)
 { r <- numeric(length(prx))
   r[1] <- exp(initial)
+  a <- 1 / (1+exp(-decay))
   for (i in 2:length(prx))
-  { r[i] <- prx[i-1] + (1/(1+exp(-decay))) * r[i-1]
+  { r[i] <- prx[i-1] + a * r[i-1]
   }
   r
+}
+
+expave2 <- function (prx, decay, decay2, initial, initial2)
+{ r <- numeric(length(prx))
+  r2 <- numeric(length(prx))
+  r[1] <- exp(initial)
+  r[2] <- exp(initial2)
+  a <- 1 / (1+exp(-decay))
+  a2 <- 1 / (1+exp(-decay2))
+  for (i in 2:length(prx))
+  { r2[i] <- (1-a) * r[i-1] + a2 * r2[i-1]
+    r[i] <- prx[i-1] + a * r[i-1]
+  }
+  r2
 }
 
 make_model_df <- function (P)
@@ -1007,7 +1029,8 @@ make_model_df <- function (P)
                                     paste0(other,"_otherlt2"))
     }
     model_df[w,paste0(virus,"_samelt2")] <- 
-      0  ### for now
+      expave2 (prx, P$ltimm_decay[i], P$lt2imm_decay[i], 
+                    P$ltimm_initial[i], P$lt2imm_initial[i])
     model_df[!w,paste0(other,"_otherlt2")] <-
       model_df[w,paste0(virus,"_samelt2")]
   } 
@@ -1039,7 +1062,8 @@ make_model_x <- function (P)
                                    paste0(other,"_otherlt2"))
     }
     model_x[w,paste0(virus,"_samelt2")] <- 
-      0  ### for now
+      expave2 (prx, P$ltimm_decay[i], P$lt2imm_decay[i], 
+                    P$ltimm_initial[i], P$lt2imm_initial[i]) [w2]
     model_x[-w,paste0(other,"_otherlt2")] <-
       model_x[w,paste0(virus,"_samelt2")]
   } 
