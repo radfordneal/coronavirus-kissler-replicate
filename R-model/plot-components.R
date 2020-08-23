@@ -96,12 +96,12 @@ plot_components <- function (mc, model_x, model_df, s, virus, logarithmic=FALSE,
   same <- df[,paste0(virus,"_same")] * mc[paste0(virus,"_same")]
   lines (itrans(same), col="black", lwd=1.5)
   cmps <- reduce(cmps,itrans(same))
-  if (immune_type!="i4")
+  if (immune_type!="i4" && immune_type!="i5")
   { other <- df[,paste0(virus,"_other")] * mc[paste0(virus,"_other")]
     lines (itrans(other), col="gray", lwd=1.5)
     cmps <- reduce(cmps,itrans(other))
   }
-  if (immune_type=="i3" || immune_type=="i4")
+  if (immune_type=="i3" || immune_type=="i4" || immune_type=="i5")
   { samelt <- df[,paste0(virus,"_samelt")] * mc[paste0(virus,"_samelt")]
     lines (itrans(samelt), col="black", lwd=1.5, lty=2)
     cmps <- reduce(cmps,itrans(samelt))

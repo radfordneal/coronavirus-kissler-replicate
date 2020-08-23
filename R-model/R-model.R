@@ -10,15 +10,18 @@
 #   - Model of seasonal effect - e1 (default, spline), e2 (sine), e3 (Fourier)
 #   - Flu season - s1 (default) or s2 (52 weeks, usually the whole year)
 #   - Model of "immunity" - i1 (default), i2 (exp decay), i3 (short & long),
-#                           i4 (like i3 but with no short-term cross-immunity)
+#                           i4 (like i3 but with no short-term cross-immunity),
+#                           i5 (like i4 but with two-stage immunity)
 #   - Whether heteroskedasticity w.r.t. virus is modelled - het for "yes" 
 #     (default "no")
-#   - Immune decay constants for i2 or i3/i4 model (defaults in code).
+#   - Immune decay constants for i2 or i3/i4/i5 model (defaults in code).
 #     For example: decay:NL63=0.9,E229=0.8,OC43=0.7,HKU1=0.6
 #     May override just a subst of the values
-#   - Long-term immune decay constants for i3/i4 model (defaults in code).
+#   - Long-term immune decay constants for i3/i4/i5 model (defaults in code).
 #     For example: ltdecay:NL63=0.91,E229=0.92,OC43=0.93,HKU1=0.94
 #     May override just a subst of the values
+#   - 2nd long-term immune decay constants for i5 model (defaults in code).
+#     For example: lt2decay:NL63=0.92,E229=0.93,OC43=0.94,HKU1=0.95
 #
 # Produces various plots that are written to the file with name
 # R-model-<R-estimates>-<R-estimate-type>[-<sn>][-<in>][-<en>][-het].pdf.  
@@ -82,21 +85,26 @@ getarg <- function (what, default="")
 
 R_est_type <- getarg (c("Rt","Rt_smoothed","Ru","Ru_smoothed"), "Ru_smoothed")
 
-immune_type <- getarg (c("i1","i2","i3", "i4"), "i1")
+immune_type <- getarg (c("i1","i2","i3", "i4", "i5"), "i1")
 seffect_type <- getarg (c("e1","e2","e3"), "e1")
 season_type <- getarg (c("s1","s2"), "s1")
 
 het_virus <- getarg ("het") == "het"
 
-# The default values below were found using the "search" and
-# "search-lt" scripts, with proxyDss-filter proxies.
+# The default values below for imm_decay with immune_type of "i2" were
+# found using the "search" script, with proxyDss-filter proxies.
 
 imm_decay <- ( if (immune_type == "i2")
                  c (NL63=0.9175, E229=0.9850, OC43=0.9500, HKU1=0.9750)
                else
                  c (NL63=0.85, E229=0.85, OC43=0.85, HKU1=0.85) )
 
-ltimm_decay <- c (NL63=0.985, E229=0.985, OC43=0.985, HKU1=0.985)
+ltimm_decay <- ( if (immune_type == "i5")
+                   c (NL63=0.98, E229=0.98, OC43=0.98, HKU1=0.98)
+                 else
+                   c (NL63=0.985, E229=0.985, OC43=0.985, HKU1=0.985)
+               )
+lt2imm_decay <- c (NL63=0.95, E229=0.95, OC43=0.95, HKU1=0.95)
 
 if (any (substr(args,1,6) == "decay:"))
 { stopifnot (sum (substr(args,1,6) == "decay:") == 1)
@@ -112,6 +120,14 @@ if (any (substr(args,1,8) == "ltdecay:"))
   repl_ltimm_decay <- eval(parse(text=paste0("c(",ltdecay_arg,")")))
   ltimm_decay[names(repl_ltimm_decay)] <- repl_ltimm_decay
   args <- args [substr(args,1,8) != "ltdecay:"]
+}
+
+if (any (substr(args,1,8) == "lt2decay:"))
+{ stopifnot (sum (substr(args,1,9) == "lt2decay:") == 1)
+  lt2decay_arg <- substr (args [substr(args,1,9) == "lt2decay:"], 10, 100)
+  repl_lt2imm_decay <- eval(parse(text=paste0("c(",lt2decay_arg,")")))
+  lt2imm_decay[names(repl_lt2imm_decay)] <- repl_lt2imm_decay
+  args <- args [substr(args,1,9) != "lt2decay:"]
 }
 
 R_estimates <- args
@@ -225,7 +241,8 @@ select_df$season_week <-
 # "seasons"), using the imm_decay values for each virus, wrapping
 # around once so that the start has a sum obtained from the average of
 # the last four starts-of-years.  Similary, columns named <virus>_cumexplt 
-# that are exponentially-weights sums using ltimm_decay values are added.
+# that are exponentially-weights sums using ltimm_decay values are added,
+# and columns named <virus>_cumexplt2 are added if immune_type is "i5".
 
 par(mfrow=c(2,1))
 
@@ -251,29 +268,43 @@ for (virus in virus_group)
   p <- R_est[,paste0(virus,"_proxy")]
   c <- rep(0,length(p))
   clt <- rep(0,length(p))
+  clt2 <- rep(0,length(p))
   t <- 0
   tlt <- 0
+  tlt2 <- 0
   d <- imm_decay[virus]
   dlt <- ltimm_decay[virus]
+  dlt2 <- lt2imm_decay[virus]
   for (i in rep(seq_along(p),2))
   { t <- d*t + p[i]
+    tlt2 <- dlt2*tlt2 + (1-dlt)*tlt
     tlt <- dlt*tlt + p[i]
     c[i] <- t
     clt[i] <- tlt
+    clt2[i] <- tlt2
     if (i==length(p))
     { t <- mean(c[i-52*(0:3)])
       tlt <- mean(clt[i-52*(0:3)])
+      tlt2 <- mean(clt2[i-52*(0:3)])
     }
   }
   select_df[,paste0(virus,"_cumexp")] <- c[in_season]
   select_df[,paste0(virus,"_cumexplt")] <- clt[in_season]
+  if (immune_type=="i5")
+  { select_df[,paste0(virus,"_cumexplt2")] <- clt2[in_season]
+  }
   plot (start, c, pch=20, col=ifelse(in_season,"black","gray"),
         ylim=c(0,max(c,clt)), 
-        ylab="cum incidence, black short term, green long term")
+        ylab=paste("cum incidence: black st - green lt",
+                   if (immune_type=="i5") "- blue lt2"))
   points (start, clt, pch=20, col=ifelse(in_season,"green","lightgreen"))
+  if (immune_type=="i5")
+  { points (start, clt2, pch=20, col=ifelse(in_season,"blue","lightblue"))
+  }
   abline(h=0)
-  title (paste ("Exp-weighted cum. incidences for",virus,
-                 "- decay",imm_decay[virus],ltimm_decay[virus],"   "))
+  title (paste ("Exp. cum. incidences for",virus,
+                 "- decay",imm_decay[virus],ltimm_decay[virus],
+                 if (immune_type=="i5")lt2imm_decay[virus],"   "))
 }
 
 
@@ -313,7 +344,7 @@ for (virus in virus_group)
   v_df[,paste0(other_virus_of_type[virus],"_same")] <- 0
   formula <- paste (formula, "+", paste0(virus,"_same"))
 
-  if (immune_type!="i4") 
+  if (immune_type!="i4" && immune_type!="i5") 
   { v_df [, paste0(virus,"_other")] <- 
       v_df [, paste0 (other_virus_of_type[virus], 
                       if (immune_type=="i1") "_cum" else "_cumexp")]
@@ -321,7 +352,7 @@ for (virus in virus_group)
     formula <- paste (formula, "+", paste0(virus,"_other"))
   }
 
-  if (immune_type=="i3" || immune_type=="i4")
+  if (immune_type=="i3" || immune_type=="i4" || immune_type=="i5")
   { 
     v_df [, paste0(virus,"_samelt")] <- 
       v_df [, paste0 (virus, "_cumexplt")]
@@ -333,6 +364,20 @@ for (virus in virus_group)
     v_df[,paste0(other_virus_of_type[virus],"_otherlt")] <- 0
     formula <- paste (formula, "+", paste0(virus,"_otherlt"))
   }
+
+  if (immune_type=="i5")
+  { 
+    v_df [, paste0(virus,"_samelt2")] <- 
+      v_df [, paste0 (virus, "_cumexplt2")]
+    v_df[,paste0(other_virus_of_type[virus],"_samelt2")] <- 0
+    formula <- paste (formula, "+", paste0(virus,"_samelt2"))
+
+    v_df [, paste0(virus,"_otherlt2")] <-  
+      v_df [, paste0 (other_virus_of_type[virus],"_cumexplt2")]
+    v_df[,paste0(other_virus_of_type[virus],"_otherlt2")] <- 0
+    formula <- paste (formula, "+", paste0(virus,"_otherlt2"))
+  }
+
   model_df <- if (is.null(model_df)) v_df else rbind(model_df,v_df)
 }
 
@@ -404,23 +449,24 @@ for (rpt in if (het_virus) 1:3 else 1)
   cat("\n")
 
   # Special computation for standard error in sum of short and long term
-  # immunity coefficients for i3/i4 model, using Newey-West covariance
+  # immunity coefficients for i3/i4/i5 model, using Newey-West covariance
   # matrix of estimates. Also computes standard error for the difference
   # in seasonal effect between week 20 and week 50.
 
-  if (immune_type %in% c("i3","i4"))
+  if (immune_type %in% c("i3","i4","i5"))
   { 
     v <- NeweyWest (model, adjust=TRUE)
     mc <- summary(model)$coefficients[,1]
 
     for (virus in virus_group)
     { 
-      wv <- paste0(virus,c("_same","_samelt"))
+      wv <- paste0(virus,c("_same","_samelt", if (immune_type=="i5")"_samelt2"))
       vv <- v[wv,wv]
-      cat("Sum of",wv[1],"and",wv[2],":",
-           round(sum(mc[wv]),5),
-           "NW std err", round(sqrt(sum(vv)),5),
-           "\n")
+      cat("Sum of",wv[1],"and",wv[2],
+          if (immune_type=="i5") paste("and",wv[3],":") else ":",
+          round(sum(mc[wv]),5),
+          "NW std err", round(sqrt(sum(vv)),5),
+          "\n")
     }
 
     if (season_type=="s2" && seffect_type=="e3")
