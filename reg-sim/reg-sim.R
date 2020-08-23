@@ -100,13 +100,13 @@ file_base <- paste0 (R_estimates,"-Rt-s2-",immune_type,"-",seffect_type,
                      if (het_virus) "-het")
 file_base_sim <- paste0("reg-sim-",gsub("Rt-s2-","",file_base),"-",itrans_arg)
 
-if (TRUE)  # Small settings for testing
+if (FALSE)  # Small settings for testing
 { nsims <- 1000         # Number of simulations in full set
   sub <- 30             # Number of simulations in subset
   full_interval <- 10   # Interval for doing full set of simulations
 } else      # Settings for serious run
 { nsims <- 50000        # Number of simulations in full set
-  sub <- 1000           # Number of simulations in subset
+  sub <- 1500           # Number of simulations in subset
   full_interval <- 30   # Interval for doing full set of simulations
 }
 
@@ -185,11 +185,11 @@ if (is.null(P_init$ltimm_initial))
 }
 if (is.null(P_init$lt2imm_initial))
 { P_init$lt2imm_initial <- P_init$imm_decay   # to get names
-  P_init$lt2imm_initial[] <- 6.0
+  P_init$lt2imm_initial[] <- 3.5
 }
 if (is.null(P_init$lt2imm_decay))
 { P_init$lt2imm_decay <- P_init$imm_decay     # to get names
-  P_init$lt2imm_decay[] <- 0.95
+  P_init$lt2imm_decay[] <- 0.9
 }
 if (is.null(P_init$Rt_offset))
 { P_init$Rt_offset <- c (alpha=0.9, sd=0.05)
@@ -197,10 +197,10 @@ if (is.null(P_init$Rt_offset))
 for (i in 1:2)
 { virus <- virus_group[i]
   if (is.na(P_init$mc_viral[paste0(virus,"_samelt2")]))
-  { P_init$mc_viral[paste0(virus,"_samelt2")] <- -0.01
+  { P_init$mc_viral[paste0(virus,"_samelt2")] <- -0.0001
   }
   if (is.na(P_init$mc_viral[paste0(virus,"_otherlt2")]))
-  { P_init$mc_viral[paste0(virus,"_otherlt2")] <- -0.01
+  { P_init$mc_viral[paste0(virus,"_otherlt2")] <- -0.0001
   }
 }
 
@@ -514,7 +514,7 @@ pprob <- function (errors)
 # ESTIMATE ERROR ALPHAS AND STANDARD DEVIATIONS.  Assumes that there
 # are nsims histories in total.
 
-est_error_model <- function (twsims, init_err_alpha=0.9, init_err_sd=1.0,
+est_error_model <- function (twsims, init_err_alpha=0.9, init_err_sd=0.8,
                              verbose=FALSE)
 {
   if (verbose) cat("\nEstimation of error model\n\n")
@@ -523,7 +523,7 @@ est_error_model <- function (twsims, init_err_alpha=0.9, init_err_sd=1.0,
   err_sd <- rep (init_err_sd, length=2)
 
   if (TRUE)  # can set to TRUE to disable estimation of error model
-  { if (verbose) cat("Using initial values\n")
+  { if (verbose) cat("Using initial values -",err_alpha,err_sd,"\n")
     return (list (alpha=err_alpha, sd=err_sd))
   }
 

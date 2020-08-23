@@ -47,7 +47,7 @@ if (TRUE)  # optimization can be disabled for debugging
 
   eta_adj <- 2.0
   alpha <- 0.997
-  cat("Eta ajustment:",eta_adj," Momentum:",alpha,"\n")
+  cat("Eta adjustment:",eta_adj," Momentum:",alpha,"\n")
 
   if (!is.null(momentum))
   { full_rate <- 1
