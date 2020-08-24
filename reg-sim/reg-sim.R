@@ -57,7 +57,7 @@ getarg <- function (what)
   res
 }
 
-immune_type <- getarg (c("i2","i3", "i4"))
+immune_type <- getarg (c("i2","i3", "i4", "i5", "i6"))
 season_type <- "s2"
 seffect_type <- getarg (c("e2","e3"))
 itrans_arg <- getarg (c("identity","sqrt","log"))
@@ -105,9 +105,9 @@ if (FALSE)  # Small settings for testing
   sub <- 30             # Number of simulations in subset
   full_interval <- 10   # Interval for doing full set of simulations
 } else      # Settings for serious run
-{ nsims <- 50000        # Number of simulations in full set
-  sub <- 1500           # Number of simulations in subset
-  full_interval <- 30   # Interval for doing full set of simulations
+{ nsims <- 60000        # Number of simulations in full set
+  sub <- 2000           # Number of simulations in subset
+  full_interval <- 20   # Interval for doing full set of simulations
 }
 
 n_plotted <- 32         # Number of simulations to plot
@@ -413,14 +413,21 @@ run_sims <- function (nsims, full=nsims, subset=NULL,
       log_Rt <- tseff[day] +
                 mc [paste0(virus,"_overall")] +
                 mc [paste0(virus,"_same")] * t [[vi]]
-      if (immune_type!="i4")
+      if (immune_type!="i4" && immune_type!="i5" && immune_type!="i6")
       { log_Rt <- log_Rt + 
                  mc [paste0(virus,"_other")] * t [[if (vi==1) 2 else 1]]
       }
-      if (immune_type=="i3" || immune_type=="i4")
+      if (immune_type=="i3" || immune_type=="i4" || immune_type=="i5")
       { log_Rt <- log_Rt + 
                   mc [paste0(virus,"_samelt")] * tlt [[vi]] +
                   mc [paste0(virus,"_otherlt")] * tlt [[if (vi==1) 2 else 1]] +
+                  mc [paste0(virus,"_samelt2")] * tlt2 [[vi]] +
+                  mc [paste0(virus,"_otherlt2")] * tlt2 [[if (vi==1) 2 else 1]]
+      }
+      else if (immune_type=="i6")
+      { log_Rt <- log_Rt + 
+                  mc [paste0(virus,"_samelt2")] * tlt [[vi]] +
+                  mc [paste0(virus,"_otherlt2")] * tlt [[if (vi==1) 2 else 1]] +
                   mc [paste0(virus,"_samelt2")] * tlt2 [[vi]] +
                   mc [paste0(virus,"_otherlt2")] * tlt2 [[if (vi==1) 2 else 1]]
       }
@@ -916,26 +923,25 @@ for (i in 1:10)
 lines (start, tproxy[[1]], col="darkblue")
 lines (start, tproxy[[2]], col="darkred")
 
-
 # Plot exponential averages at starts of seasons for first 500 simulations.
 # Best-fit simulation is larger, in red.  Uses parameters from end of
 # optimization.
-
-par(mfrow=c(4,2))
-
-first <- c(1:min(500,nsims),wmx_new)
-
-for (i in 1:6)
-{ for (vi in 1:2)
-  { plot (pmax(-3,log(sv_t[[i]][[vi]][first])), 
-          pmax(3,log(sv_tlt[[i]][[vi]][first])), 
-          xlab="log short-term average", ylab="log long-term average", 
-          xlim=c(-3,6), ylim=c(3,7),
-          pch = ifelse (first==wmx_new, "O", "."), 
-          col = 1+(first==wmx_new))
-    title (paste (virus_group[vi],"year",i-1))
-  }
-}
+#
+# par(mfrow=c(4,2))
+# 
+# first <- c(1:min(500,nsims),wmx_new)
+# 
+# for (i in 1:6)
+# { for (vi in 1:2)
+#   { plot (pmax(-3,log(sv_t[[i]][[vi]][first])), 
+#           pmax(3,log(sv_tlt[[i]][[vi]][first])), 
+#           xlab="log short-term average", ylab="log long-term average", 
+#           xlim=c(-3,6), ylim=c(3,7),
+#           pch = ifelse (first==wmx_new, "O", "."), 
+#           col = 1+(first==wmx_new))
+#     title (paste (virus_group[vi],"year",i-1))
+#   }
+# }
 
 # Plot posterior probabilities of runs before and after parameter change.
 
@@ -957,8 +963,9 @@ tgrid <- 0:(52*3)
 
 for (virus in virus_group)
 { same <- P_new$mc_viral[paste0(virus,"_same")]
-  samelt <- P_new$mc_viral[paste0(virus,"_samelt")]
   samelt2 <- P_new$mc_viral[paste0(virus,"_samelt2")]
+  samelt <- if (immune_type=="i6") samelt2 else 
+            P_new$mc_viral[paste0(virus,"_samelt")]
   decay <- 1/(1+exp(-P_new$imm_decay[virus]))
   ltdecay <- 1/(1+exp(-P_new$ltimm_decay[virus]))
   lt2decay <- 1/(1+exp(-P_new$lt2imm_decay[virus]))
@@ -972,7 +979,9 @@ for (virus in virus_group)
   abline(v=52*(0:3),col="gray",lty=3)
   lines (tgrid, - same*decay^tgrid, col="red")
   lines (tgrid, effect + same*decay^tgrid, col="green")
-  lines (tgrid, effect + same*decay^tgrid + samelt*ltdecay^tgrid, col="blue")
+  if (immune_type != "i6")
+  { lines (tgrid, effect + same*decay^tgrid + samelt*ltdecay^tgrid, col="blue")
+  }
   title (paste("Combined immune effect for",virus,"(weeks)"))
 }
 
@@ -1016,10 +1025,12 @@ make_model_df <- function (P)
     prx <- model_df[w,paste0(virus,"_proxy")]
     model_df[w,paste0(virus,"_same")] <- 
       expave (prx, P$imm_decay[i], P$imm_initial[i])
-    model_df[w,paste0(virus,"_samelt")] <- 
-      expave (prx, P$ltimm_decay[i], P$ltimm_initial[i])
-    model_df[!w,paste0(other,"_otherlt")] <-
-      model_df[w,paste0(virus,"_samelt")]
+    if (immune_type!="i6")
+    { model_df[w,paste0(virus,"_samelt")] <- 
+        expave (prx, P$ltimm_decay[i], P$ltimm_initial[i])
+      model_df[!w,paste0(other,"_otherlt")] <-
+        model_df[w,paste0(virus,"_samelt")]
+    }
     if (! (paste0(virus,"_samelt2") %in% colnames(model_df)))
     { ocn <- colnames(model_df)
       model_df <- cbind(model_df,0,0,0,0)
@@ -1031,6 +1042,11 @@ make_model_df <- function (P)
     model_df[w,paste0(virus,"_samelt2")] <- 
       expave2 (prx, P$ltimm_decay[i], P$lt2imm_decay[i], 
                     P$ltimm_initial[i], P$lt2imm_initial[i])
+    if (immune_type=="i6")
+    { model_df[w,paste0(virus,"_samelt2")] <- 
+        model_df[w,paste0(virus,"_samelt2")] +
+        expave (prx, P$ltimm_decay[i], P$ltimm_initial[i])
+    }
     model_df[!w,paste0(other,"_otherlt2")] <-
       model_df[w,paste0(virus,"_samelt2")]
   } 
@@ -1049,10 +1065,12 @@ make_model_x <- function (P)
     w <- (i-1)*nrow(model_x)/2 + (1:(nrow(model_x)/2))
     model_x[w,paste0(virus,"_same")] <- 
       expave (prx, P$imm_decay[i], P$imm_initial[i]) [w2]
-    model_x[w,paste0(virus,"_samelt")] <- 
-      expave (prx, P$ltimm_decay[i], P$ltimm_initial[i]) [w2]
-    model_x[-w,paste0(other,"_otherlt")] <-
-      model_x[w,paste0(virus,"_samelt")]
+    if (immune_type!="i6")
+    { model_x[w,paste0(virus,"_samelt")] <- 
+        expave (prx, P$ltimm_decay[i], P$ltimm_initial[i]) [w2]
+      model_x[-w,paste0(other,"_otherlt")] <-
+        model_x[w,paste0(virus,"_samelt")]
+    }
     if (! (paste0(virus,"_samelt2") %in% colnames(model_x)))
     { ocn <- colnames(model_x)
       model_x <- cbind(model_x,0,0,0,0)
@@ -1064,6 +1082,11 @@ make_model_x <- function (P)
     model_x[w,paste0(virus,"_samelt2")] <- 
       expave2 (prx, P$ltimm_decay[i], P$lt2imm_decay[i], 
                     P$ltimm_initial[i], P$lt2imm_initial[i]) [w2]
+    if (immune_type=="i6")
+    { model_x[w,paste0(virus,"_samelt2")] <- 
+        model_x[w,paste0(virus,"_samelt2")] +
+        expave (prx, P$ltimm_decay[i], P$ltimm_initial[i]) [w2]
+    }
     model_x[-w,paste0(other,"_otherlt2")] <-
       model_x[w,paste0(virus,"_samelt2")]
   } 

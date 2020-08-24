@@ -31,8 +31,7 @@ if (TRUE)  # optimization can be disabled for debugging
   eta <- 0*P_init + 5e-4
   eta$mc_trend <- 5e-5
   eta$mc_seasonality <- 8e-5
-  eta$mc_viral[1:10] <- 2e-5
-  eta$mc_viral[11:12] <- 2e-5
+  eta$mc_viral <- 2e-5
   eta$imm_decay <- 7e-3
   eta$ltimm_decay <- 7e-3
   eta$lt2imm_decay <- 7e-3
@@ -56,8 +55,8 @@ if (TRUE)  # optimization can be disabled for debugging
   }
   else
   { full_rate <- 10        # When to switch from smaller to full eta
-    start_momentum <- 20   # When to swith from zero to small momentum
-    full_momentum <- 50    # When to swith from small to full momentum
+    start_momentum <- 15   # When to swith from zero to small momentum
+    full_momentum <- 20    # When to swith from small to full momentum
   }
 
   p <- if (is.null(momentum)) 0*P_init else momentum
