@@ -96,26 +96,30 @@ plot_components <- function (mc, model_x, model_df, s, virus, logarithmic=FALSE,
   same <- df[,paste0(virus,"_same")] * mc[paste0(virus,"_same")]
   lines (itrans(same), col="black", lwd=1.5)
   cmps <- reduce(cmps,itrans(same))
-  if (immune_type!="i4" && immune_type!="i5")
+  if (paste0(virus,"_other") %in% names(mc))
   { other <- df[,paste0(virus,"_other")] * mc[paste0(virus,"_other")]
     lines (itrans(other), col="gray", lwd=1.5)
     cmps <- reduce(cmps,itrans(other))
   }
-  if (immune_type=="i3" || immune_type=="i4" || immune_type=="i5")
+  if (paste0(virus,"_samelt") %in% names(mc))
   { samelt <- df[,paste0(virus,"_samelt")] * mc[paste0(virus,"_samelt")]
     lines (itrans(samelt), col="black", lwd=1.5, lty=2)
     cmps <- reduce(cmps,itrans(samelt))
-    otherlt <- df[,paste0(virus,"_otherlt")] * mc[paste0(virus,"_otherlt")]
+  }
+  if (paste0(virus,"_otherlt") %in% names(mc))
+  { otherlt <- df[,paste0(virus,"_otherlt")] * mc[paste0(virus,"_otherlt")]
     lines (itrans(otherlt), col="gray", lwd=1.5, lty=2)
     cmps <- reduce(cmps,itrans(otherlt))
-    if (paste0(virus,"_samelt2") %in% names(mc))
-    { samelt2 <- df[,paste0(virus,"_samelt2")] * mc[paste0(virus,"_samelt2")]
-      lines (itrans(samelt2), col="black", lwd=1.5, lty=3)
-      cmps <- reduce(cmps,itrans(samelt2))
-      otherlt2 <- df[,paste0(virus,"_otherlt2")] * mc[paste0(virus,"_otherlt2")]
-      lines (itrans(otherlt2), col="gray", lwd=1.5, lty=3)
-      cmps <- reduce(cmps,itrans(otherlt2))
-    }
+  }
+  if (paste0(virus,"_samelt2") %in% names(mc))
+  { samelt2 <- df[,paste0(virus,"_samelt2")] * mc[paste0(virus,"_samelt2")]
+    lines (itrans(samelt2), col="black", lwd=1.5, lty=3)
+    cmps <- reduce(cmps,itrans(samelt2))
+  }
+  if (paste0(virus,"_otherlt2") %in% names(mc))
+  { otherlt2 <- df[,paste0(virus,"_otherlt2")] * mc[paste0(virus,"_otherlt2")]
+    lines (itrans(otherlt2), col="gray", lwd=1.5, lty=3)
+    cmps <- reduce(cmps,itrans(otherlt2))
   }
 
   if (immune_type=="i1" && seffect_type=="e1")
