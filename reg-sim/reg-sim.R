@@ -100,7 +100,7 @@ file_base <- paste0 (R_estimates,"-Rt-s2-",immune_type,"-",seffect_type,
                      if (het_virus) "-het")
 file_base_sim <- paste0("reg-sim-",gsub("Rt-s2-","",file_base),"-",itrans_arg)
 
-if (TRUE)  # Small settings for testing
+if (FALSE)  # Small settings for testing
 { nsims <- 500          # Number of simulations in full set
   sub <- 30             # Number of simulations in subset
   full_interval <- 10   # Interval for doing full set of simulations
@@ -527,7 +527,7 @@ pprob <- function (errors)
 # ESTIMATE ERROR ALPHAS AND STANDARD DEVIATIONS.  Assumes that there
 # are nsims histories in total.
 
-est_error_model <- function (twsims, init_err_alpha=0.9, init_err_sd=0.8,
+est_error_model <- function (twsims, init_err_alpha=0.9, init_err_sd=0.75,
                              verbose=FALSE)
 {
   if (verbose) cat("\nEstimation of error model\n\n")
@@ -979,14 +979,17 @@ for (virus in virus_group)
   for (i in 2:length(lt2))
   { lt2[i] <- lt2[i] + lt2decay*lt2[i-1]
   }
-  effect <- - same*decay^tgrid - samelt*ltdecay^tgrid - samelt2*lt2
+  effect1 <- - same*decay^tgrid
+  effect2 <- effect1- samelt*ltdecay^tgrid
+  effect <- effect2 - samelt2*lt2
   plot (tgrid, effect, type="l", xaxs="i", yaxs="i", ylab="", 
-        ylim=range(c(0,1.1*range(effect))))
+        ylim=range(c(0,1.1*range(c(effect1,effect2,effect)))))
   abline(v=52*(0:3),col="gray",lty=3)
-  lines (tgrid, - same*decay^tgrid, col="red")
-  lines (tgrid, effect + same*decay^tgrid, col="green")
+  abline(h=0)
+  lines (tgrid, effect1, col="red")
+  lines (tgrid, effect - effect1, col="green")
   if (immune_type != "i6")
-  { lines (tgrid, effect + same*decay^tgrid + samelt*ltdecay^tgrid, col="blue")
+  { lines (tgrid, effect - effect2, col="blue")
   }
   title (paste("Combined immune effect for",virus,"(weeks)"))
 }
