@@ -1,0 +1,15 @@
+#!/bin/bash
+
+export LANG=en_CA.UTF-8
+
+if [ x$R == x ]; then R=R; fi
+
+for R_estim in proxyAXss-filter proxyDss-filter proxyDn proxyEn-daily
+do
+  for R_est_type in Rt; do
+    $R --save --no-restore --args $R_estim $R_est_type s2 i5 e3 \
+       <R-model.R >&R-model-$R_estim-$R_est_type-s2-i5-e3.out
+    $R --save --no-restore --args $R_estim $R_est_type s2 i6 e3 \
+       <R-model.R >&R-model-$R_estim-$R_est_type-s2-i6-e3.out
+  done
+done

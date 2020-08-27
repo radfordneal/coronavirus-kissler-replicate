@@ -100,13 +100,13 @@ file_base <- paste0 (R_estimates,"-Rt-s2-",immune_type,"-",seffect_type,
                      if (het_virus) "-het")
 file_base_sim <- paste0("reg-sim-",gsub("Rt-s2-","",file_base),"-",itrans_arg)
 
-if (FALSE)  # Small settings for testing
-{ nsims <- 1000         # Number of simulations in full set
+if (TRUE)  # Small settings for testing
+{ nsims <- 500          # Number of simulations in full set
   sub <- 30             # Number of simulations in subset
   full_interval <- 10   # Interval for doing full set of simulations
 } else      # Settings for serious run
-{ nsims <- 60000        # Number of simulations in full set
-  sub <- 2000           # Number of simulations in subset
+{ nsims <- 100000       # Number of simulations in full set
+  sub <- 1000           # Number of simulations in subset
   full_interval <- 20   # Interval for doing full set of simulations
 }
 
@@ -172,20 +172,26 @@ else
                             "-",init_suffix,".model"))
 }
 
+model_context <- readRDS (paste0 ("../R-model/R-model-",file_base,"-",
+                                 names(virus_groups)[g],".context"))
+
 momentum <- P_init$momentum
 P_init$momentum <- NULL
 
 if (is.null(P_init$imm_initial))
 { P_init$imm_initial <- P_init$imm_decay      # to get names
-  P_init$imm_initial[] <- 2.0
+  P_init$imm_initial[] <- 
+   as.numeric(log(model_context$model_df [1, paste0(virus_group,"_cumexp")]))
 }
 if (is.null(P_init$ltimm_initial))
 { P_init$ltimm_initial <- P_init$imm_decay    # to get names
-  P_init$ltimm_initial[] <- 5.0
+  P_init$ltimm_initial[] <-
+   as.numeric(log(model_context$model_df [1, paste0(virus_group,"_cumexplt")]))
 }
 if (is.null(P_init$lt2imm_initial))
 { P_init$lt2imm_initial <- P_init$imm_decay   # to get names
-  P_init$lt2imm_initial[] <- 3.5
+  P_init$lt2imm_initial[] <-
+   as.numeric(log(model_context$model_df [1, paste0(virus_group,"_cumexplt2")]))
 }
 if (is.null(P_init$lt2imm_decay))
 { P_init$lt2imm_decay <- P_init$imm_decay     # to get names
@@ -989,9 +995,6 @@ for (virus in virus_group)
 
 source("../R-model/plot-components.R")
 
-plot_context <- readRDS (paste0 ("../R-model/R-model-",file_base,"-",
-                                 names(virus_groups)[g],".context"))
-
 expave <- function (prx, decay, initial)
 { r <- numeric(length(prx))
   r[1] <- exp(initial)
@@ -1017,7 +1020,7 @@ expave2 <- function (prx, decay, decay2, initial, initial2)
 }
 
 make_model_df <- function (P)
-{ model_df <- plot_context$model_df
+{ model_df <- model_context$model_df
   for (i in 1:2)
   { virus <- virus_group [i]
     other <- virus_group [ if (i==1) 2 else 1 ]
@@ -1054,8 +1057,8 @@ make_model_df <- function (P)
 }
 
 make_model_x <- function (P)
-{ model_df <- plot_context$model_df
-  model_x <- plot_context$model_x
+{ model_df <- model_context$model_df
+  model_x <- model_context$model_x
   for (i in 1:2)
   { virus <- virus_group [i]
     other <- virus_group [ if (i==1) 2 else 1 ]
@@ -1097,13 +1100,13 @@ par(mfcol=c(5,4))
 sv <- par (cex.main=3/4, cex.lab=2/3, cex.axis=4/10, mgp=c(0.8,0.18,0))
   
 for (virus in virus_group)
-{ for (s in unique(plot_context$model_df$season))
+{ for (s in unique(model_context$model_df$season))
   { plot_components (c(P_init$mc_trend,P_init$mc_seasonality,P_init$mc_viral),
                      make_model_x(P_init), make_model_df(P_init),
                      s, virus, logarithmic=TRUE,
                      title = "Initial")
   }
-  for (s in unique(plot_context$model_df$season))
+  for (s in unique(model_context$model_df$season))
   { plot_components (c(P_new$mc_trend,P_new$mc_seasonality,P_new$mc_viral),
                      make_model_x(P_new), make_model_df(P_new),
                      s, virus, logarithmic=TRUE,

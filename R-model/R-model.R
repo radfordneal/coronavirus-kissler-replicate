@@ -580,12 +580,13 @@ saveRDS (list (mc_trend = mc [grepl("trend",names(mc))],
                mc_viral = mc [!grepl("trend",names(mc))
                                 & !grepl("yrs",names(mc))],
                imm_decay = imm_decay[virus_group],
-               ltimm_decay = ltimm_decay[virus_group]),
+               ltimm_decay = ltimm_decay[virus_group],
+               lt2imm_decay = lt2imm_decay[virus_group]),
          file = paste0(file_base,"-",names(virus_groups)[g],".model"),
          version=2)
 
 
-# SAVE THE DATA CONTEXT USED FOR PLOTS.
+# SAVE THE DATA CONTEXT USED.
 
 saveRDS (list (model_x = model$x, model_df = model_df),
          file = paste0(file_base,"-",names(virus_groups)[g],".context"),
