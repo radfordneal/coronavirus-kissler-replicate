@@ -5,7 +5,9 @@
 #
 #   - The R estimates to use, from corresponding file (required)
 #   - Model of "immunity" (required) - i2 (exp decay), i3 (short & long),
-#     i4 (like i3 but with no short-term cross-immunity)
+#                           i4 (like i3 but with no short-term cross-immunity),
+#                           i5 (like i4 but with 2-stage immunity)
+#                           i6 (like i5 but long-term immunity only 2-stage)
 #   - Model of seasonal effect (required) - e2 (sine), e3 (Fourier)
 #   - Whether heteroskedasticity w.r.t. virus is modelled - het for "yes" 
 #     (default "no")
@@ -962,35 +964,52 @@ abline(ll-ll_new,1,col="green")
 title (paste ("Change in log prob. of simulation runs, log lik. change",
                round(ll_new-ll,2),"  "))
 
-# Plot combined immune decline.
+# Plot combined immune decline of a unit 'pulse' of infection.
 
 par(mfrow=c(2,1))
 
-tgrid <- 0:(52*3)
+tgrid <- 0:(365*3)
 
 for (virus in virus_group)
-{ same <- P_new$mc_viral[paste0(virus,"_same")]
-  samelt2 <- P_new$mc_viral[paste0(virus,"_samelt2")]
-  samelt <- if (immune_type=="i6") samelt2 else 
-            P_new$mc_viral[paste0(virus,"_samelt")]
-  decay <- 1/(1+exp(-P_new$imm_decay[virus]))
-  ltdecay <- 1/(1+exp(-P_new$ltimm_decay[virus]))
-  lt2decay <- 1/(1+exp(-P_new$lt2imm_decay[virus]))
-  lt2 <- (1-ltdecay) * ltdecay^tgrid
-  for (i in 2:length(lt2))
-  { lt2[i] <- lt2[i] + lt2decay*lt2[i-1]
+{ 
+  same <- P_new$mc_viral[paste0(virus,"_same")]
+  daily_decay <- 1/(1+exp(-P_new$imm_decay[virus]))^(1/7)
+  effect1 <- - same * daily_decay^tgrid
+
+  effect2 <- effect3 <- 0
+  if (immune_type!="i2")
+  { if (immune_type=="i5" || immune_type=="i6")
+    { samelt2 <- P_new$mc_viral[paste0(virus,"_samelt2")]
+      daily_lt2decay <- 1/(1+exp(-P_new$lt2imm_decay[virus]))^(1/7)
+    }
+    samelt <- if (immune_type=="i6") samelt2 else 
+              P_new$mc_viral[paste0(virus,"_samelt")]
+    daily_ltdecay <- 1/(1+exp(-P_new$ltimm_decay[virus]))^(1/7)
+    lt <- daily_ltdecay^tgrid
+    effect2 <- - samelt * lt
+    if (immune_type=="i5" || immune_type=="i6")
+    { lt2 <- numeric(length(tgrid))
+      for (i in 2:length(lt2))
+      { lt[i] <- lt[i-1]*daily_ltdecay
+        { lt2[i] <- lt[i-1]*(1-daily_ltdecay) + daily_lt2decay*lt2[i-1]
+        }
+      }
+      effect3 <- - samelt2 * lt2
+    }
   }
-  effect1 <- - same*decay^tgrid
-  effect2 <- effect1- samelt*ltdecay^tgrid
-  effect <- effect2 - samelt2*lt2
-  plot (tgrid, effect, type="l", xaxs="i", yaxs="i", ylab="", 
-        ylim=range(c(0,1.1*range(c(effect1,effect2,effect)))))
-  abline(v=52*(0:3),col="gray",lty=3)
+
+  effect <- effect1 + effect2 + effect3
+  plot (tgrid, effect1+effect2+effect3, type="l", xaxs="i", yaxs="i", ylab="", 
+        lwd=2, ylim=range(c(0,1.1*range(c(effect1,effect2,effect3,effect)))))
+  abline(v=365*(0:3),col="gray",lty=3)
   abline(h=0)
   lines (tgrid, effect1, col="red")
-  lines (tgrid, effect - effect1, col="green")
-  if (immune_type != "i6")
-  { lines (tgrid, effect - effect2, col="blue")
+  if (immune_type!="i2")
+  { lines (tgrid, effect2, col="lightgreen")
+    if (immune_type=="i5" || immune_type=="i6")
+    { lines (tgrid, effect3, col="darkgreen")
+      lines (tgrid, effect2+effect3, col="blue")
+    }
   }
   title (paste("Combined immune effect for",virus,"(weeks)"))
 }
