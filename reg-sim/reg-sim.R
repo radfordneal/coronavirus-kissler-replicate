@@ -932,26 +932,6 @@ for (i in 1:10)
 lines (start, tproxy[[1]], col="darkblue")
 lines (start, tproxy[[2]], col="darkred")
 
-# Plot exponential averages at starts of seasons for first 500 simulations.
-# Best-fit simulation is larger, in red.  Uses parameters from end of
-# optimization.
-#
-# par(mfrow=c(4,2))
-# 
-# first <- c(1:min(500,nsims),wmx_new)
-# 
-# for (i in 1:6)
-# { for (vi in 1:2)
-#   { plot (pmax(-3,log(sv_t[[i]][[vi]][first])), 
-#           pmax(3,log(sv_tlt[[i]][[vi]][first])), 
-#           xlab="log short-term average", ylab="log long-term average", 
-#           xlim=c(-3,6), ylim=c(3,7),
-#           pch = ifelse (first==wmx_new, "O", "."), 
-#           col = 1+(first==wmx_new))
-#     title (paste (virus_group[vi],"year",i-1))
-#   }
-# }
-
 # Plot posterior probabilities of runs before and after parameter change.
 
 par(mfrow=c(1,1))
