@@ -932,6 +932,38 @@ for (i in 1:10)
 lines (start, tproxy[[1]], col="darkblue")
 lines (start, tproxy[[2]], col="darkred")
 
+# Plot posterior mean incidence, residuals.
+
+par(mfrow=c(4,1))
+
+plot (start, rep(0,length(start)), type="n", 
+      ylim=itrans(c(0.98*ylower,1.02*yupper)), yaxs="i", xlab="",
+      ylab=paste("Mean", if (itrans_arg!="identity") itrans_arg, "incidence"))
+
+pr1 <- colSums(pp_new*twsims_new[[1]])
+pr2 <- colSums(pp_new*twsims_new[[2]])
+
+lines (start, pr1, col="lightblue", lwd=2)
+lines (start, pr2, col="pink", lwd=2)
+
+lines (start, tproxy[[1]], col="darkblue")
+lines (start, tproxy[[2]], col="darkred")
+
+title ("Posterior mean incidence, new parameters")
+
+res1 <- tproxy[[1]]-pr1
+res2 <- tproxy[[2]]-pr2
+
+plot (start, res1, xlab="", pch=19, ylab="Residuals", col="blue")
+abline(h=0)
+title(paste("Residuals - sd",round(sd(res1),2),"- lag1 autocor",
+            round(acf(res1,plot=FALSE)$acf[2],3)))
+
+plot (start, res2, xlab="", pch=19, ylab="Residuals", col="red")
+abline(h=0)
+title (paste ("Residuals - sd",round(sd(res2),2),"- lag1 autocor",
+              round(acf(res2,plot=FALSE)$acf[2],3)))
+
 # Plot posterior probabilities of runs before and after parameter change.
 
 par(mfrow=c(1,1))
