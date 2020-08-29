@@ -61,6 +61,14 @@ if (TRUE)  # optimization can be disabled for debugging
 
   p <- if (is.null(momentum)) 0*P_init else momentum
 
+  # Impose initial constraint that P$imm_decay be less than Max_short_term.
+
+  for (i in 1:2)
+  { if (P_new$imm_decay[i] > Max_short_term)
+    { P_new$imm_decay[i] <- Max_short_term
+    }
+  }
+
   # Compute negative log likelihood, with gradient attached.
 
   neg_ll <- function (P) with gradient (P)
@@ -249,10 +257,26 @@ if (TRUE)  # optimization can be disabled for debugging
 
     H0 <- nll + sum(sapply(p^2,sum))/2
 
+    # START leapfrog update
+
     p <- p - (this_eta/2) * attr(nll,"gradient") 
+
     P_new <- P_new + this_eta * p
+
+    # Impose constraint that P$imm_decay be less than Max_short_term.
+
+    for (i in 1:2)
+    { if (P_new$imm_decay[i] > Max_short_term)
+      { P_new$imm_decay[i] <- 
+          Max_short_term - (P_new$imm_decay[i] - Max_short_term)
+        p$imm_decay[i] <- -p$imm_decay[i]
+      }
+    }
+
     nll <- neg_ll(P_new)
     p <- p - (this_eta/2) * attr(nll,"gradient") 
+
+    # END leapfrog update.
 
     K <- sum(sapply(p^2,sum))/2
     H <- nll + K

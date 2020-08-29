@@ -113,6 +113,7 @@ if (FALSE)  # Small settings for testing
 n_plotted <- 32         # Number of simulations to plot
 
 Min_inf <- 0.0015       # Minimum infectivity
+Max_short_term <- log(0.9/(1-0.9))  # Maximum scale of "short-term" immunity
 
 
 # PLOT SETUP.
