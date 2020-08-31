@@ -102,7 +102,7 @@ file_base <- paste0 (R_estimates,"-Rt-s2-",immune_type,"-",seffect_type,
                      if (het_virus) "-het")
 file_base_sim <- paste0("reg-sim-",gsub("Rt-s2-","",file_base),"-",itrans_arg)
 
-if (TRUE)  # Small settings for testing
+if (FALSE)  # Small settings for testing
 { nsims <- 500          # Number of simulations in full set
   sub <- 30             # Number of simulations in subset
   full_interval <- 10   # Interval for doing full set of simulations
@@ -387,9 +387,10 @@ run_sims <- function (nsims, full=nsims, subset=NULL,
   tlt2 <- list (exp (P$lt2imm_initial[1] + 0.1*randn()),
                 exp (P$lt2imm_initial[2] + 0.1*randn()))
 
-  past <- 
-    list (matrix (t[[1]]*(1-daily_decay[1]), nsims, length(gen_interval)),
-          matrix (t[[2]]*(1-daily_decay[2]), nsims, length(gen_interval)))
+  init1 <- model_context$model_df[1,paste0(virus_group[1],"_proxy")] / 7
+  init2 <- model_context$model_df[1,paste0(virus_group[2],"_proxy")] / 7
+  past <- list (matrix (init1*exp(0.1*randn()), nsims, length(gen_interval)),
+                matrix (init2*exp(0.1*randn()), nsims, length(gen_interval)))
 
   if (info)
   { cat("Initial short-term exp averages -",exp(P$imm_initial),"\n")
