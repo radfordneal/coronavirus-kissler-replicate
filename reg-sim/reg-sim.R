@@ -102,7 +102,7 @@ file_base <- paste0 (R_estimates,"-Rt-s2-",immune_type,"-",seffect_type,
                      if (het_virus) "-het")
 file_base_sim <- paste0("reg-sim-",gsub("Rt-s2-","",file_base),"-",itrans_arg)
 
-if (FALSE)  # Small settings for testing
+if (TRUE)  # Small settings for testing
 { nsims <- 500          # Number of simulations in full set
   sub <- 30             # Number of simulations in subset
   full_interval <- 10   # Interval for doing full set of simulations
@@ -310,8 +310,8 @@ tproxy <- list (itrans(proxy[[1]]), itrans(proxy[[2]]))
 # numbers used are saved, or from which they are taken if they are already
 # there.
 #
-# If the 'info' argument is TRUE, processor time and gc information is 
-# printed.
+# If the 'info' argument is TRUE, some information, and processor time and 
+# gc information is printed.
 #
 # The returned value is a list of, for each virus, a matrix with
 # dimensions nsims x number of weeks.
@@ -380,23 +380,27 @@ run_sims <- function (nsims, full=nsims, subset=NULL,
   #   past   list of matrices of assumed past incidence values, one matrix
   #          for each virus, dimension nsims x length(gen_interval)
 
-  t <- list (exp (P$imm_initial[1] + 0.3*randn()),
-             exp (P$imm_initial[2] + 0.3*randn()))
-  tlt <- list (exp (P$ltimm_initial[1] + 0.3*randn()),
-               exp (P$ltimm_initial[2] + 0.3*randn()))
-  tlt2 <- list (exp (P$lt2imm_initial[1] + 0.3*randn()),
-                exp (P$lt2imm_initial[2] + 0.3*randn()))
-
-  sv_t <<- list(t); sv_tlt <<- list(tlt); sv_tlt2 <- list(tlt2)  # for plots
+  t <- list (exp (P$imm_initial[1] + 0.1*randn()),
+             exp (P$imm_initial[2] + 0.1*randn()))
+  tlt <- list (exp (P$ltimm_initial[1] + 0.1*randn()),
+               exp (P$ltimm_initial[2] + 0.1*randn()))
+  tlt2 <- list (exp (P$lt2imm_initial[1] + 0.1*randn()),
+                exp (P$lt2imm_initial[2] + 0.1*randn()))
 
   past <- 
     list (matrix (t[[1]]*(1-daily_decay[1]), nsims, length(gen_interval)),
           matrix (t[[2]]*(1-daily_decay[2]), nsims, length(gen_interval)))
 
-  past_next <- rep(1,2)
+  if (info)
+  { cat("Initial short-term exp averages -",exp(P$imm_initial),"\n")
+    cat("                mean with noise -",mean(t[[1]]),mean(t[[2]]),"\n")
+    cat("Short-term daily decay -",daily_decay,"\n")
+    cat("             1 - decay -",1-daily_decay,"\n")
+    cat("Means of daily incidences at start of simulation:",
+         mean(past[[1]][,1]), mean(past[[2]][,1]), "\n")
+  }
 
-  # cat("initial past history:\n")
-  # print(past)
+  past_next <- rep(1,2)
 
   # Space to store simulation results. A list of two matrices, one for each
   # virus, of dimension total nsims x number of weeks.
@@ -458,12 +462,6 @@ run_sims <- function (nsims, full=nsims, subset=NULL,
                     tlt2[[vi]] * lt2daily_decay[virus]
       tlt[[vi]] <- p + tlt[[vi]] * ltdaily_decay[virus]
       t[[vi]] <- p + t[[vi]] * daily_decay[virus]
-    }
-
-    if (wk %% 52 == 0 && day %% 7 == 1)
-    { sv_t <<- c(sv_t,list(t))
-      sv_tlt <<- c(sv_tlt,list(tlt))
-      sv_tlt2 <<- c(sv_tlt2,list(tlt2))
     }
   }
 
