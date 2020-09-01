@@ -1022,7 +1022,7 @@ for (virus in virus_group)
       lines (tgrid, effect2+effect3, col="blue")
     }
   }
-  title (paste("Combined immune effect for",virus,"(weeks)"))
+  title (paste("Combined immune effect for",virus,"(days)"))
 }
 
 # Plot components of Rt with initial and new models.
