@@ -33,13 +33,14 @@ if (TRUE)  # optimization can be disabled for debugging
   eta$mc_seasonality <- 8e-5
   eta$mc_viral <- 2e-5
   eta$imm_decay <- 7e-3
-  eta$ltimm_decay <- 7e-3
-  eta$lt2imm_decay <- 7e-3
+  if (!is.null(eta$ltimm_decay)) eta$ltimm_decay <- 7e-3
+  if (!is.null(eta$lt2imm_decay)) eta$lt2imm_decay <- 7e-3
   eta$imm_initial <- 1e-2
-  eta$ltimm_initial <- 1e-2
-  eta$lt2imm_initial <- 1e-2
+  if (!is.null(eta$ltimm_initial)) eta$ltimm_initial <- 1e-2
+  if (!is.null(eta$lt2imm_initial)) eta$lt2imm_initial <- 1e-2
   eta$Rt_offset["alpha"] <- 3e-3
   eta$Rt_offset["sd"] <- 2e-3
+  eta$gen_dist <- 1e-3
 
   cat("Value for eta:\n")
   print(eta)
@@ -187,6 +188,16 @@ if (TRUE)  # optimization can be disabled for debugging
 
   if (FALSE)
   { eta0 <- 0*eta; 
+    eta0$gen_dist <- eta$gen_dist
+    H3 <- neg_ll(P_new+eta0*delta)
+    cat ("  Change in H when adding eta0 *",delta,"(gen_dist) :",H3-H,"\n")
+    ga <- (attr(H,"gradient")+attr(H3,"gradient"))/2
+    cat ("  Predicted change from average gradient :",
+            sum(sapply(ga*eta0*delta,sum)),"\n")
+  }
+
+  if (FALSE)
+  { eta0 <- 0*eta; 
     eta0$Rt_offset <- eta$Rt_offset
     H3 <- neg_ll(P_new+eta0*delta)
     cat ("  Change in H when adding eta0 *",delta,"(offset) :",H3-H,"\n")
@@ -311,7 +322,7 @@ if (TRUE)  # optimization can be disabled for debugging
 
   # Plot changes in parameters, and in corresponding momentum variables.
 
-  par(mfrow=c(5,4))
+  par(mfrow=c(6,4))
 
   rec[[opt_iters+1]] <- P_new
   recp[[opt_iters+1]] <- p

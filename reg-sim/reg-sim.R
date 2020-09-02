@@ -45,6 +45,23 @@ library(splines)
 
 options(warn=1)
 
+# ADJUSTABLE SETTINGS.
+
+if (FALSE)  # Small settings for testing
+{ nsims <- 500          # Number of simulations in full set
+  sub <- 30             # Number of simulations in subset
+  full_interval <- 10   # Interval for doing full set of simulations
+} else      # Settings for serious run
+{ nsims <- 100000       # Number of simulations in full set
+  sub <- 1000           # Number of simulations in subset
+  full_interval <- 20   # Interval for doing full set of simulations
+}
+
+n_plotted <- 32         # Number of simulations to plot
+
+Min_inf <- 0.0015       # Minimum infectivity
+Max_short_term <- log(0.9/(1-0.9))  # Maximum scale of "short-term" immunity
+
 
 # ESTABLISH WHICH PARAMETERS TO USE, LOOKING AT R'S ARGUMENTS.
 
@@ -101,21 +118,6 @@ stopifnot(length(R_estimates)==1)
 file_base <- paste0 (R_estimates,"-Rt-s2-",immune_type,"-",seffect_type,
                      if (het_virus) "-het")
 file_base_sim <- paste0("reg-sim-",gsub("Rt-s2-","",file_base),"-",itrans_arg)
-
-if (FALSE)  # Small settings for testing
-{ nsims <- 500          # Number of simulations in full set
-  sub <- 30             # Number of simulations in subset
-  full_interval <- 10   # Interval for doing full set of simulations
-} else      # Settings for serious run
-{ nsims <- 100000       # Number of simulations in full set
-  sub <- 1000           # Number of simulations in subset
-  full_interval <- 20   # Interval for doing full set of simulations
-}
-
-n_plotted <- 32         # Number of simulations to plot
-
-Min_inf <- 0.0015       # Minimum infectivity
-Max_short_term <- log(0.9/(1-0.9))  # Maximum scale of "short-term" immunity
 
 
 # PLOT SETUP.
@@ -181,6 +183,9 @@ model_context <- readRDS (paste0 ("../R-model/R-model-",file_base,"-",
 momentum <- P_init$momentum
 P_init$momentum <- NULL
 
+if (is.null(P_init$gen_dist))
+{ P_init$gen_dist <- c(shape=log(2.35), scale=log(9.48))
+}
 if (is.null(P_init$imm_initial))
 { P_init$imm_initial <- P_init$imm_decay      # to get names
   P_init$imm_initial[] <- 
@@ -252,6 +257,9 @@ print_model_parameters <- function (P)
   cat("Log initial long-term (2) immunity:\n")
   print(t(t(P$lt2imm_initial)))
   cat("\n")
+  cat("Generation interval distribution:\n")
+  print (t(t(P$gen_dist)))
+  cat("\n")
   cat("Offset model:\n")
   print (t(t(P$Rt_offset)))
   cat("\n")
@@ -260,19 +268,6 @@ print_model_parameters <- function (P)
 cat("\n\nMODEL FOR GROUP",names(virus_groups)[g],":",virus_group,"\n\n")
 
 print_model_parameters (P_init)
-
-
-# SET GENERATION INTERVAL DISTRIBUTION USED BY KISSLER, ET AL.
-
-SARS_shape <- 2.35
-SARS_scale <- 9.48
-
-SARS_gen_interval <-
-  dweibull (1:ceiling(qweibull(0.99, shape=SARS_shape, scale=SARS_scale)),
-            shape=SARS_shape, scale=SARS_scale)
-
-gen_interval <- SARS_gen_interval # / sum(SARS_gen_interval)
-rev_gen_interval2 <- rep(rev(gen_interval),2)
 
 
 # PROXIES FOR VIRUS INCIDENCE.
@@ -328,6 +323,11 @@ run_sims <- function (nsims, full=nsims, subset=NULL,
   }
 
   set.seed(seed)
+
+  gen_interval <- dweibull (1:19, shape=exp(P$gen_dist["shape"]), 
+                                  scale=exp(P$gen_dist["scale"]))
+  gen_interval <- gen_interval / sum(gen_interval)
+  rev_gen_interval2 <- rep(rev(gen_interval),2)
   
   if (is.null(cache))          # just generate random numbers, no cache
   { randn <- function () 
@@ -389,8 +389,8 @@ run_sims <- function (nsims, full=nsims, subset=NULL,
 
   init1 <- model_context$model_df[1,paste0(virus_group[1],"_proxy")] / 7
   init2 <- model_context$model_df[1,paste0(virus_group[2],"_proxy")] / 7
-  past <- list (matrix (init1*exp(0.1*randn()), nsims, length(gen_interval)),
-                matrix (init2*exp(0.1*randn()), nsims, length(gen_interval)))
+  past <- list (matrix (init1*exp(0.3*randn()), nsims, length(gen_interval)),
+                matrix (init2*exp(0.3*randn()), nsims, length(gen_interval)))
 
   if (info)
   { cat("Initial short-term exp averages -",exp(P$imm_initial),"\n")
