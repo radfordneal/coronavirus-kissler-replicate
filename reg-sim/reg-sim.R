@@ -380,12 +380,12 @@ run_sims <- function (nsims, full=nsims, subset=NULL,
   #   past   list of matrices of assumed past incidence values, one matrix
   #          for each virus, dimension nsims x length(gen_interval)
 
-  t <- list (exp (P$imm_initial[1] + 0.1*randn()),
-             exp (P$imm_initial[2] + 0.1*randn()))
-  tlt <- list (exp (P$ltimm_initial[1] + 0.1*randn()),
-               exp (P$ltimm_initial[2] + 0.1*randn()))
-  tlt2 <- list (exp (P$lt2imm_initial[1] + 0.1*randn()),
-                exp (P$lt2imm_initial[2] + 0.1*randn()))
+  t <- list (exp (P$imm_initial[1] + 0.3*randn()),
+             exp (P$imm_initial[2] + 0.3*randn()))
+  tlt <- list (exp (P$ltimm_initial[1] + 0.3*randn()),
+               exp (P$ltimm_initial[2] + 0.3*randn()))
+  tlt2 <- list (exp (P$lt2imm_initial[1] + 0.3*randn()),
+                exp (P$lt2imm_initial[2] + 0.3*randn()))
 
   init1 <- model_context$model_df[1,paste0(virus_group[1],"_proxy")] / 7
   init2 <- model_context$model_df[1,paste0(virus_group[2],"_proxy")] / 7
@@ -691,7 +691,7 @@ errors_subset <- sim_errors(twsims_subset,err_alpha,err_sd)
 # print(pprob(errors_subset))
 
 cat("Lowest probability in top",subn,"is",pp[high[subn]],"\n")
-cat("Total probability in is",round(sum(pp[high]),5),"\n")
+cat("Total probability is",round(sum(pp[high]),5),"\n")
 cat ("Log likelihood based on subset of",subn,"simulations:", 
       round(log_lik(twsims_subset,err_alpha,err_sd,full=nsims),5),
       "\n\n")
