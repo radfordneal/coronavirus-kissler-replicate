@@ -38,8 +38,8 @@ if (TRUE)  # optimization can be disabled for debugging
   eta$imm_initial <- 1e-2
   if (!is.null(eta$ltimm_initial)) eta$ltimm_initial <- 1e-2
   if (!is.null(eta$lt2imm_initial)) eta$lt2imm_initial <- 1e-2
-  eta$Rt_offset["alpha"] <- 3e-3
-  eta$Rt_offset["sd"] <- 2e-3
+  eta$Rt_offset["alpha"] <- 2e-3
+  eta$Rt_offset["sd"] <- 1e-3
   eta$gen_dist <- 1e-3
 
   cat("Value for eta:\n")

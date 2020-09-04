@@ -1,0 +1,12 @@
+#!/bin/bash
+
+export LANG=en_CA.UTF-8
+
+if [ x$R == x ]; then R=pqR; fi
+
+$R --no-save --no-restore --args proxyEn-daily i6 e3 sqrt opt:$1 \
+       save:$2 init:$3 \
+       <reg-sim.R >&reg-sim-proxyEn-daily-i6-e3-sqrt-$2.out
+
+git show | head -1 >> reg-sim-proxyEn-daily-i6-e3-sqrt-$2.out
+git diff HEAD >> reg-sim-proxyEn-daily-i6-e3-sqrt-$2.out
