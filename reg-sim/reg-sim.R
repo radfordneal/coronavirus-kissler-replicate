@@ -11,6 +11,9 @@
 #   - Model of seasonal effect (required) - e2 (sine), e3 (Fourier)
 #   - Whether heteroskedasticity w.r.t. virus is modelled - het for "yes" 
 #     (default "no")
+#   - Values to fix error standard deviation to (default is estimated by EM).
+#     If fixed, error autocorrelation is also fixed (to 0.9).
+#     Example: errorsd:0.75
 #   - Transformation to apply before comparing observed and simulated
 #     incidence (required) - identity, sqrt, log
 #   - Number of iterations of optimization to do, in the form: opt:<n>
@@ -45,7 +48,7 @@ library(splines)
 
 options(warn=1)
 
-# ADJUSTABLE SETTINGS.
+# SETTINGS ADJUSTABLE BY EDITING CODE HERE.
 
 if (FALSE)  # Small settings for testing
 { nsims <- 500          # Number of simulations in full set
@@ -63,7 +66,7 @@ Min_inf <- 0.0015       # Minimum infectivity
 Max_short_term <- log(0.9/(1-0.9))  # Maximum scale of "short-term" immunity
 
 
-# ESTABLISH WHICH PARAMETERS TO USE, LOOKING AT R'S ARGUMENTS.
+# SETTINGS SET BY LOOKING AT R'S ARGUMENTS.
 
 args <- commandArgs(trailing=TRUE)
 
@@ -93,6 +96,14 @@ if (any (substr(args,1,4) == "opt:"))
   opt_arg <- substr (args [substr(args,1,4) == "opt:"], 5, 100)
   opt_iters <- eval(parse(text=opt_arg))
   args <- args [substr(args,1,4) != "opt:"]
+}
+
+errorsd <- NULL
+
+if (any (substr(args,1,8) == "errorsd:"))
+{ stopifnot (sum (substr(args,1,8) == "errorsd:") == 1)
+  errorsd <- as.numeric (substr (args [substr(args,1,8)=="errorsd:"], 9, 100))
+  args <- args [substr(args,1,8) != "errorsd:"]
 }
 
 init_suffix <- NULL
@@ -537,9 +548,9 @@ est_error_model <- function (twsims, init_err_alpha=0.9, init_err_sd=0.75,
   err_alpha <- rep (init_err_alpha, length=2)
   err_sd <- rep (init_err_sd, length=2)
 
-  if (TRUE)  # can set to TRUE to disable estimation of error model
-  { if (verbose) cat("Using initial values -",err_alpha,err_sd,"\n")
-    return (list (alpha=err_alpha, sd=err_sd))
+  if (!is.null(errorsd))  # use fixed value
+  { if (verbose) cat("Using fixed value for error sd:",errorsd,"\n")
+    return (list (alpha=rep(0.9,2), sd=rep(errorsd,2)))
   }
 
   for (i in 0:6)
@@ -610,7 +621,12 @@ log_lik <- function (twsims, err_alpha, err_sd, errors, full=length(errors))
 
 profile_log_lik <- function (twsims, ...)
 {
-  est <- est_error_model (twsims, verbose=FALSE)
+  # Note: Gradient needn't be computed since the parial derivative of the 
+  # log likelihood wrt error model parameters at their maximizing values 
+  # is zero.
+
+  est <- no_gradient (est_error_model (twsims, verbose=FALSE))
+
   log_lik (twsims, est$alpha, est$sd, ...)
 }
 
@@ -648,6 +664,7 @@ pp <- pprob(errors)
 
 cat ("\nHighest posterior probabilities:\n")
 print (round(sort(pp,decreasing=TRUE)[1:16],6))
+stopifnot(!any(is.na(pp)))
 
 ll <- log_lik(twsims,err_alpha,err_sd,errors=errors)
 cat ("\nLog likelihood,", length(pp), "simulations:", round(ll,5), "\n")
