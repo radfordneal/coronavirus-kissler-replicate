@@ -980,15 +980,25 @@ abline(h=0)
 title (paste ("Residuals - sd",round(sd(res2),2),"- lag1 autocor",
               round(acf(res2,plot=FALSE)$acf[2],3)))
 
-# Plot posterior probabilities of runs before and after parameter change.
+# Plot posterior probabilities of runs before and after parameter
+# change.  If there are more than 10,000 runs, a sample of 10,000 is
+# plotted, along with (in red) any additional ones in the top 100 for
+# the before or after runs.
 
 par(mfrow=c(1,1))
 
-w <- 1:min(10000,length(pp))
-plot (log(pp[w]), log(pp_new[w]), pch=".", asp=1,
+w <- c (1:min(10000,length(pp)), 
+        order(pp,decreasing=TRUE)[1:100], 
+        order(pp_new,decreasing=TRUE)[1:100])
+plot (log(pp[w]), log(pp_new[w]), pch=".", asp=1, type="n",
       ylab="log new probability", xlab="log probability")
 abline(0,1,col="green")
 abline(ll-ll_new,1,col="green")
+w <- c (order(pp,decreasing=TRUE)[1:100],
+        order(pp_new,decreasing=TRUE)[1:100])
+points (log(pp[w]), log(pp_new[w]), pch=".", col="red")
+w <- 1:min(10000,length(pp))
+points (log(pp[w]), log(pp_new[w]), pch=".", col="black")
 title (paste ("Change in log prob. of simulation runs, log lik. change",
                round(ll_new-ll,2),"  "))
 
