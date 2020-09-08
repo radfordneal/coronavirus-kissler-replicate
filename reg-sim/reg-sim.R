@@ -11,9 +11,13 @@
 #   - Model of seasonal effect (required) - e2 (sine), e3 (Fourier)
 #   - Whether heteroskedasticity w.r.t. virus is modelled - het for "yes" 
 #     (default "no")
-#   - Values to fix error standard deviation to (default is estimated by EM).
+#   - Value to fix error standard deviations to (default is estimated by EM).
 #     If fixed, error autocorrelation is also fixed (to 0.9).
 #     Example: errorsd:0.75
+#   - Value to fix R offset standard deviations to (default: they are estimated)
+#     Example: offsetsd:0.3
+#   - Fix the autoregression alpha fixed for the errror model (default no)?
+#     Set by option fix_err_alpha
 #   - Transformation to apply before comparing observed and simulated
 #     incidence (required) - identity, sqrt, log
 #   - Number of iterations of optimization to do, in the form: opt:<n>
@@ -55,9 +59,9 @@ if (FALSE)  # Small settings for testing
   sub <- 30             # Number of simulations in subset
   full_interval <- 10   # Interval for doing full set of simulations
 } else      # Settings for serious run
-{ nsims <- 100000       # Number of simulations in full set
+{ nsims <- 200000       # Number of simulations in full set
   sub <- 1000           # Number of simulations in subset
-  full_interval <- 20   # Interval for doing full set of simulations
+  full_interval <- 25   # Interval for doing full set of simulations
 }
 
 n_plotted <- 32         # Number of simulations to plot
@@ -106,6 +110,14 @@ if (any (substr(args,1,8) == "errorsd:"))
   args <- args [substr(args,1,8) != "errorsd:"]
 }
 
+offsetsd <- NULL
+
+if (any (substr(args,1,9) == "offsetsd:"))
+{ stopifnot (sum (substr(args,1,9) == "offsetsd:") == 1)
+  offsetsd <- as.numeric (substr (args [substr(args,1,9)=="offsetsd:"], 10, 100))
+  args <- args [substr(args,1,9) != "offsetsd:"]
+}
+
 init_suffix <- NULL
 
 if (any (substr(args,1,5) == "init:"))
@@ -120,6 +132,14 @@ if (any (substr(args,1,5) == "save:"))
 { stopifnot (sum (substr(args,1,5) == "save:") == 1)
   save_suffix <- substr (args [substr(args,1,5) == "save:"], 6, 100)
   args <- args [substr(args,1,5) != "save:"]
+}
+
+fix_err_alpha <- FALSE
+
+if (any (args == "fix_err_alpha"))
+{ stopifnot (sum (args == "fix_err_alpha") == 1)
+  fix_err_alpha <- TRUE
+  args <- args [args != "fix_err_alpha"]
 }
 
 R_estimates <- args
@@ -217,7 +237,8 @@ if (is.null(P_init$lt2imm_decay))
   P_init$lt2imm_decay[] <- 0.9
 }
 if (is.null(P_init$Rt_offset))
-{ P_init$Rt_offset <- c (alpha=0.9, sd=0.05)
+{ P_init$Rt_offset <- 
+    c (alpha = 0.98, sd = if (is.null(offsetsd)) 0.1 else offsetsd)
 }
 for (i in 1:2)
 { virus <- virus_group[i]
@@ -306,8 +327,8 @@ tproxy <- list (itrans(proxy[[1]]), itrans(proxy[[2]]))
 # generated randomly from vivariate normal distributions found from
 # the observed proxies (in conjunction with current parameter values).
 # The initial history of past incidence (used with the generation interval 
-# distribution) is constant, with value determined from the short-term
-# exponential average.
+# distribution) is constant, with value determined from the earliest
+# proxy value, with some randomness.
 #
 # Randomness is introduced into the Rt values, differently for each 
 # according to the 'Rt_offset' parameters.
@@ -321,6 +342,9 @@ tproxy <- list (itrans(proxy[[1]]), itrans(proxy[[2]]))
 #
 # The returned value is a list of, for each virus, a matrix with
 # dimensions nsims x number of weeks.
+#
+# The Rt_offset values for the first n_plotted simulations are saved in
+# the global offset_sv variable.
 
 run_sims <- function (nsims, full=nsims, subset=NULL, 
                       cache=NULL, info=FALSE, P=P_init)
@@ -391,17 +415,17 @@ run_sims <- function (nsims, full=nsims, subset=NULL,
   #   past   list of matrices of assumed past incidence values, one matrix
   #          for each virus, dimension nsims x length(gen_interval)
 
-  t <- list (exp (P$imm_initial[1] + 0.3*randn()),
-             exp (P$imm_initial[2] + 0.3*randn()))
-  tlt <- list (exp (P$ltimm_initial[1] + 0.3*randn()),
-               exp (P$ltimm_initial[2] + 0.3*randn()))
-  tlt2 <- list (exp (P$lt2imm_initial[1] + 0.3*randn()),
-                exp (P$lt2imm_initial[2] + 0.3*randn()))
+  t <- list (exp (P$imm_initial[1] + 0.25*randn()),
+             exp (P$imm_initial[2] + 0.25*randn()))
+  tlt <- list (exp (P$ltimm_initial[1] + 0.25*randn()),
+               exp (P$ltimm_initial[2] + 0.25*randn()))
+  tlt2 <- list (exp (P$lt2imm_initial[1] + 0.25*randn()),
+                exp (P$lt2imm_initial[2] + 0.25*randn()))
 
   init1 <- model_context$model_df[1,paste0(virus_group[1],"_proxy")] / 7
   init2 <- model_context$model_df[1,paste0(virus_group[2],"_proxy")] / 7
-  past <- list (matrix (init1*exp(0.3*randn()), nsims, length(gen_interval)),
-                matrix (init2*exp(0.3*randn()), nsims, length(gen_interval)))
+  past <- list (matrix (init1*exp(0.25*randn()), nsims, length(gen_interval)),
+                matrix (init2*exp(0.25*randn()), nsims, length(gen_interval)))
 
   if (info)
   { cat("Initial short-term exp averages -",exp(P$imm_initial),"\n")
@@ -418,6 +442,7 @@ run_sims <- function (nsims, full=nsims, subset=NULL,
   # virus, of dimension total nsims x number of weeks.
 
   wsims <- rep (list (matrix (0, nsims, length(start))), times=2)
+  offset_sv <<- matrix (0, n_plotted, length(start))
 
   Rt_offset <- sd * randn()   # initialize AR(1) process that
                               #   modifies modelled Rt values
@@ -426,7 +451,10 @@ run_sims <- function (nsims, full=nsims, subset=NULL,
 
   for (day in 1:(7*length(start)))
   {
+    wk <- ceiling(day/7)
+
     Rt_offset <- alph * Rt_offset + sd * sqrt(1-alph^2) * randn()
+    offset_sv[,wk] <<- offset_sv[,wk] + Rt_offset[1:n_plotted]/7
 
     for (vi in 1:2)
     { 
@@ -464,7 +492,6 @@ run_sims <- function (nsims, full=nsims, subset=NULL,
       p <- pmax(Min_inf,inf) * exp (log_Rt + Rt_offset)
       if (any(is.na(p))) stop("NA in prevalence")
 
-      wk <- ceiling(day/7)
       wsims[[vi]][,wk] <- wsims[[vi]][,wk] + p
 
       past[[vi]][,past_next[vi]] <- p
@@ -540,7 +567,7 @@ pprob <- function (errors)
 # ESTIMATE ERROR ALPHAS AND STANDARD DEVIATIONS.  Assumes that there
 # are nsims histories in total.
 
-est_error_model <- function (twsims, init_err_alpha=0.9, init_err_sd=0.75,
+est_error_model <- function (twsims, init_err_alpha=0.975, init_err_sd=0.75,
                              verbose=FALSE)
 {
   if (verbose) cat("\nEstimation of error model\n\n")
@@ -550,7 +577,7 @@ est_error_model <- function (twsims, init_err_alpha=0.9, init_err_sd=0.75,
 
   if (!is.null(errorsd))  # use fixed value
   { if (verbose) cat("Using fixed value for error sd:",errorsd,"\n")
-    return (list (alpha=rep(0.9,2), sd=rep(errorsd,2)))
+    return (list (alpha=err_alpha, sd=rep(errorsd,2)))
   }
 
   for (i in 0:6)
@@ -558,22 +585,24 @@ est_error_model <- function (twsims, init_err_alpha=0.9, init_err_sd=0.75,
     if (i>0)
     { pp <- pprob (sim_errors (twsims, err_alpha, err_sd))
       for (vi in 1:2)
-      { tp <- tproxy[[vi]]
-        tv <- twsims[[vi]]
-        var <- 0
-        cov <- 0
-        res0 <- tp[1] - tv[,1]
-        for (j in 2:ncol(tv))
-        { var <- var + res0^2
-          res1 <- tp[j] - tv[,j]
-          cov <- cov + res1*res0
-          res0 <- res1
+      { if (!fix_err_alpha)
+        { tp <- tproxy[[vi]]
+          tv <- twsims[[vi]]
+          var <- 0
+          cov <- 0
+          res0 <- tp[1] - tv[,1]
+          for (j in 2:ncol(tv))
+          { var <- var + res0^2
+            res1 <- tp[j] - tv[,j]
+            cov <- cov + res1*res0
+            res0 <- res1
+          }
+          var <- sum(pp*var) / (ncol(tv)-1)
+          cov <- sum(pp*cov) / (ncol(tv)-1)
+          # cat("var",var,"\n")
+          # cat("cov",cov,"\n")
+          err_alpha[vi] <- cov/var
         }
-        var <- sum(pp*var) / (ncol(tv)-1)
-        cov <- sum(pp*cov) / (ncol(tv)-1)
-        # cat("var",var,"\n")
-        # cat("cov",cov,"\n")
-        err_alpha[vi] <- cov/var
         esd <- 0
         for (j in 2:ncol(tv))
         { esd <- esd + ((tp[j]-tv[,j]) - err_alpha[vi]*(tp[j-1]-tv[,j-1]))^2
@@ -584,6 +613,7 @@ est_error_model <- function (twsims, init_err_alpha=0.9, init_err_sd=0.75,
     if (verbose)
     { ll <- log_lik (twsims, err_alpha, err_sd, full=nsims)
       cat ("  err_alpha",round(err_alpha,6),
+           if (fix_err_alpha) "(fixed)",
            ": err_sd",round(err_sd,3),
            ": log likelihood",round(ll,5),
            "\n")
@@ -707,6 +737,8 @@ errors_subset <- sim_errors(twsims_subset,err_alpha,err_sd)
 # print(errors_subset)
 # print(pprob(errors_subset))
 
+cat("Entropy (nats) for all simulations is",
+     round(-sum(pp*log(pp),na.rm=TRUE),5),"\n")
 cat("Lowest probability in top",subn,"is",pp[high[subn]],"\n")
 cat("Total probability is",round(sum(pp[high]),5),"\n")
 cat ("Log likelihood based on subset of",subn,"simulations:", 
@@ -778,8 +810,10 @@ print(proc.time()-start_time)
 
 # PLOT BEST FIT AND OTHER SIMULATIONS.
 
-plot_sims <- function (wsims, twsims, wmx, pp, ll)
+plot_sims <- function (wsims, twsims, wmx, pp, ll, plot_offset=FALSE)
 {
+  if (plot_offset) offset_range <- range(offset_sv)
+
   for (s in 0:n_plotted)
   {
     plot (start, rep(0,length(start)),
@@ -816,6 +850,10 @@ plot_sims <- function (wsims, twsims, wmx, pp, ll)
     }
     if (s==1) 
     { title (paste ("Other simulations of",virus_group[1],"and",virus_group[2]))
+    }
+    if (s!=0 && plot_offset)
+    { plot (start, offset_sv[s,], ylim=offset_range, ylab="Rt_offset", type="l")
+      abline(h=0)
     }
   }
 }
@@ -885,7 +923,7 @@ lines (start, tproxy[[2]], col="red")
 
 # Best fit and other simulations with new parameters.
 
-plot_sims (wsims_new, twsims_new, wmx_new, pp_new, ll_new)
+plot_sims (wsims_new, twsims_new, wmx_new, pp_new, ll_new, plot_offset=TRUE)
 
 # Plot proxies and 10 simulated incidence paths, drawn according to posterior
 # probabilities, for old and new parameters.
@@ -972,13 +1010,13 @@ res2 <- tproxy[[2]]-pr2
 
 plot (start, res1, xlab="", pch=19, ylab="Residuals", col="blue")
 abline(h=0)
-title(paste("Residuals - sd",round(sd(res1),2),"- lag1 autocor",
-            round(acf(res1,plot=FALSE)$acf[2],3)))
+title(paste("Residuals - mean",round(mean(res1),2),"sd",round(sd(res1),2),
+            "- lag1 autocor", round(acf(res1,plot=FALSE)$acf[2],3)))
 
 plot (start, res2, xlab="", pch=19, ylab="Residuals", col="red")
 abline(h=0)
-title (paste ("Residuals - sd",round(sd(res2),2),"- lag1 autocor",
-              round(acf(res2,plot=FALSE)$acf[2],3)))
+title (paste ("Residuals - mean",round(mean(res2),2),"sd",round(sd(res2),2),
+              "- lag1 autocor", round(acf(res2,plot=FALSE)$acf[2],3)))
 
 # Plot posterior probabilities of runs before and after parameter
 # change.  If there are more than 10,000 runs, a sample of 10,000 is

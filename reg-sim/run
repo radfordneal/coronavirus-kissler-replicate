@@ -1,14 +1,12 @@
 #!/bin/bash
 
 rr-strt 100 a
-rr-cont-e 100 b a 0.75
-rr-cont-e 100 c b 0.70
-rr-cont-e 100 d c 0.65
-rr-cont-e 200 e d 0.60
-rr-cont-e 200 f e 0.55
-rr-cont-e 200 g f 0.50
+rr-cont-e 100 b a 0.60
+rr-cont-e 100 c b 0.55
+rr-cont-e 100 d c 0.50
+rr-cont-e 100 e d 0.45
+rr-cont 200 f e
+rr-cont 200 g f
 rr-cont 200 h g
 rr-cont 200 i h
 rr-cont 200 j i
-rr-cont 200 k j
-rr-cont 200 l k

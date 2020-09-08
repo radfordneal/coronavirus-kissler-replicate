@@ -39,7 +39,7 @@ if (TRUE)  # optimization can be disabled for debugging
   if (!is.null(eta$ltimm_initial)) eta$ltimm_initial <- 1e-2
   if (!is.null(eta$lt2imm_initial)) eta$lt2imm_initial <- 1e-2
   eta$Rt_offset["alpha"] <- 2e-3
-  eta$Rt_offset["sd"] <- 1e-3
+  eta$Rt_offset["sd"] <- if (is.null(offsetsd)) 2e-3 else 0
   eta$gen_dist <- 1e-3
 
   cat("Value for eta:\n")
@@ -243,6 +243,8 @@ if (TRUE)  # optimization can be disabled for debugging
       subn <- length(high) # currently always equal to sub, but wasn't before
       ll_new <- log_lik (twsims_new, em_new$alpha, em_new$sd)
 
+      cat("Entropy (nats) for all simulations is",
+           round(-sum(pp_new*log(pp_new),na.rm=TRUE),5),"\n")
       cat("Lowest probability in top",subn,"is",pp_new[high[subn]],"\n")
       cat("Total probability is",round(sum(pp_new[high]),5),"\n")
       cat("Log likelihood from",nsims,"simulations:",round(ll_new,5),"\n")
