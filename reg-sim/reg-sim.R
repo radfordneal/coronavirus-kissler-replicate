@@ -585,10 +585,10 @@ est_error_model <- function (twsims, init_err_alpha=0.975, init_err_sd=0.75,
     if (i>0)
     { pp <- pprob (sim_errors (twsims, err_alpha, err_sd))
       for (vi in 1:2)
-      { if (!fix_err_alpha)
-        { tp <- tproxy[[vi]]
-          tv <- twsims[[vi]]
-          var <- 0
+      { tp <- tproxy[[vi]]
+        tv <- twsims[[vi]]
+        if (!fix_err_alpha)
+        { var <- 0
           cov <- 0
           res0 <- tp[1] - tv[,1]
           for (j in 2:ncol(tv))
