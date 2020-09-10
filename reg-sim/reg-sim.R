@@ -59,9 +59,9 @@ if (FALSE)  # Small settings for testing
   sub <- 30             # Number of simulations in subset
   full_interval <- 10   # Interval for doing full set of simulations
 } else      # Settings for serious run
-{ nsims <- 200000       # Number of simulations in full set
-  sub <- 1000           # Number of simulations in subset
-  full_interval <- 25   # Interval for doing full set of simulations
+{ nsims <- 250000       # Number of simulations in full set
+  sub <- 500            # Number of simulations in subset
+  full_interval <- 40   # Interval for doing full set of simulations
 }
 
 n_plotted <- 32         # Number of simulations to plot
@@ -415,25 +415,33 @@ run_sims <- function (nsims, full=nsims, subset=NULL,
   #   past   list of matrices of assumed past incidence values, one matrix
   #          for each virus, dimension nsims x length(gen_interval)
 
-  t <- list (exp (P$imm_initial[1] + 0.25*randn()),
-             exp (P$imm_initial[2] + 0.25*randn()))
-  tlt <- list (exp (P$ltimm_initial[1] + 0.25*randn()),
-               exp (P$ltimm_initial[2] + 0.25*randn()))
-  tlt2 <- list (exp (P$lt2imm_initial[1] + 0.25*randn()),
-                exp (P$lt2imm_initial[2] + 0.25*randn()))
+  t <- list (exp (P$imm_initial[1] + 0.1*randn()),
+             exp (P$imm_initial[2] + 0.1*randn()))
+  tlt <- list (exp (P$ltimm_initial[1] + 0.1*randn()),
+               exp (P$ltimm_initial[2] + 0.1*randn()))
+  tlt2 <- list (exp (P$lt2imm_initial[1] + 0.1*randn()),
+                exp (P$lt2imm_initial[2] + 0.1*randn()))
 
-  init1 <- model_context$model_df[1,paste0(virus_group[1],"_proxy")] / 7
-  init2 <- model_context$model_df[1,paste0(virus_group[2],"_proxy")] / 7
-  past <- list (matrix (init1*exp(0.25*randn()), nsims, length(gen_interval)),
-                matrix (init2*exp(0.25*randn()), nsims, length(gen_interval)))
+  past <- list()
+  ramp <- seq(2,1,length=length(gen_interval))
+  for (vi in 1:2)
+  { init <- model_context$model_df[1,paste0(virus_group[vi],"_proxy")] / 7
+    past[[vi]] <- matrix (init*exp(0.25*randn()), nsims, length(gen_interval))
+    for (i in 1:nsims)
+    { past[[vi]][i,] <- past[[vi]][i,] * ramp
+    }
+  }
 
   if (info)
   { cat("Initial short-term exp averages -",exp(P$imm_initial),"\n")
     cat("                mean with noise -",mean(t[[1]]),mean(t[[2]]),"\n")
     cat("Short-term daily decay -",daily_decay,"\n")
     cat("             1 - decay -",1-daily_decay,"\n")
-    cat("Means of daily incidences at start of simulation:",
-         mean(past[[1]][,1]), mean(past[[2]][,1]), "\n")
+    cat("Mean daily incidences at start of simulation:",
+         round(mean(past[[1]][,length(gen_interval)]),5),
+         round(mean(past[[1]][,1]),5), ":",
+         round(mean(past[[2]][,length(gen_interval)]),5),
+         round(mean(past[[2]][,1]),5), "\n")
   }
 
   past_next <- rep(1,2)
