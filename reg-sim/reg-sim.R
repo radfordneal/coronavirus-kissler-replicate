@@ -18,6 +18,8 @@
 #     Example: offsetsd:0.3
 #   - Fix the autoregression alpha fixed for the errror model (default no)?
 #     Set by option fix_err_alpha
+#   - Autocorrelation for random normals in successive simulations (default 0)
+#     Example: rand_alpha:0.99
 #   - Transformation to apply before comparing observed and simulated
 #     incidence (required) - identity, sqrt, log
 #   - Number of iterations of optimization to do, in the form: opt:<n>
@@ -60,7 +62,7 @@ if (FALSE)  # Small settings for testing
   full_interval <- 10   # Interval for doing full set of simulations
 } else      # Settings for serious run
 { nsims <- 250000       # Number of simulations in full set
-  sub <- 500            # Number of simulations in subset
+  sub <- 250            # Number of simulations in subset
   full_interval <- 40   # Interval for doing full set of simulations
 }
 
@@ -116,6 +118,15 @@ if (any (substr(args,1,9) == "offsetsd:"))
 { stopifnot (sum (substr(args,1,9) == "offsetsd:") == 1)
   offsetsd <- as.numeric (substr (args [substr(args,1,9)=="offsetsd:"], 10, 100))
   args <- args [substr(args,1,9) != "offsetsd:"]
+}
+
+rand_alpha <- 0
+
+if (any (substr(args,1,11) == "rand_alpha:"))
+{ stopifnot (sum (substr(args,1,11) == "rand_alpha:") == 1)
+  rand_alpha <- 
+    as.numeric (substr (args [substr(args,1,11)=="rand_alpha:"], 12, 100))
+  args <- args [substr(args,1,11) != "rand_alpha:"]
 }
 
 init_suffix <- NULL
@@ -363,17 +374,29 @@ run_sims <- function (nsims, full=nsims, subset=NULL,
                                   scale=exp(P$gen_dist["scale"]))
   gen_interval <- gen_interval / sum(gen_interval)
   rev_gen_interval2 <- rep(rev(gen_interval),2)
-  
-  if (is.null(cache))          # just generate random numbers, no cache
-  { randn <- function () 
+
+  if (rand_alpha==0)
+  { rnd <- function () 
     { if (is.null(subset)) rnorm(full) else rnorm(full)[subset]
     }
+  }
+  else
+  { rnd <- function () 
+    { r <- rnorm(full)
+      f <- sqrt(1-rand_alpha^2) * r
+      for (i in 2:length(r)) r[i] <- rand_alpha*r[i-1] + f[i]
+      if (is.null(subset)) r else r[subset]
+    }
+  }
+
+  if (is.null(cache))          # just generate random numbers, no cache
+  { randn <- rnd
   }
   else if (is.null(cache$rn))  # generate random numbers, save them in cache
   { cache$rn <- list()
     next_rn <- 1
     randn <- function () 
-    { r <- if (is.null(subset)) rnorm(full) else rnorm(full)[subset]
+    { r <- rnd()
       cache$rn[[next_rn]] <- r
       next_rn <<- next_rn + 1
       r

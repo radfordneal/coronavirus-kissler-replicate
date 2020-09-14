@@ -5,7 +5,7 @@ export LANG=en_CA.UTF-8
 if [ x$R == x ]; then R=pqR; fi
 
 $R --no-save --no-restore --args proxyEn-daily i6 e3 sqrt opt:$1 save:$2 \
-       errorsd:1.0 offsetsd:0.05 fix_err_alpha \
+       errorsd:1.0 offsetsd:0.05 fix_err_alpha rand_alpha:0.99 \
        <reg-sim.R >&reg-sim-proxyEn-daily-i6-e3-sqrt-$2.out
 
 git show | head -1 >> reg-sim-proxyEn-daily-i6-e3-sqrt-$2.out
